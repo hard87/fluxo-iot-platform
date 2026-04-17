@@ -1,0 +1,44 @@
+# Build results
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# VS Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# Rider
+.idea/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# NuGet
+*.nupkg
+packages/
+
+# Publish
+publish/
+out/
+
+# Secrets
+appsettings.Local.json
+appsettings.*.local.json
+
+# Test Results
+TestResults/
+
+# Coverage
+coverage/
+*.coverage
+*.trx
