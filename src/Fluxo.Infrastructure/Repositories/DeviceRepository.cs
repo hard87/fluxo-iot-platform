@@ -1,0 +1,60 @@
+using Fluxo.Application.Interfaces.Repositories;
+using Fluxo.Domain.Entities;
+using Fluxo.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace Fluxo.Infrastructure.Repositories;
+
+public class DeviceRepository : IDeviceRepository
+{
+    private readonly FluxoDbContext _context;
+
+    public DeviceRepository(FluxoDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task AddAsync(Device device, CancellationToken cancellationToken = default)
+    {
+        await _context.Devices.AddAsync(device, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<Device?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Devices
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
+
+    public async Task<Device?> GetByWorkspaceAndIdentifierAsync(
+        Guid workspaceId,
+        string identifier,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedIdentifier = identifier.Trim();
+
+        return await _context.Devices
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.WorkspaceId == workspaceId && x.Identifier == normalizedIdentifier,
+                cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Device>> GetAllByWorkspaceAsync(
+        Guid workspaceId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Devices
+            .AsNoTracking()
+            .Where(x => x.WorkspaceId == workspaceId)
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task UpdateAsync(Device device, CancellationToken cancellationToken = default)
+    {
+        _context.Devices.Update(device);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+}

@@ -1,0 +1,54 @@
+using Fluxo.Application.Common.Exceptions;
+using Fluxo.Application.DTOs.Telemetry;
+using Fluxo.Application.Interfaces.Repositories;
+using Fluxo.Domain.Entities;
+
+namespace Fluxo.Application.UseCases.Telemetry;
+
+public class RegisterTelemetryUseCase
+{
+    private readonly IDeviceRepository _deviceRepository;
+    private readonly ITelemetryRepository _telemetryRepository;
+
+    public RegisterTelemetryUseCase(
+        IDeviceRepository deviceRepository,
+        ITelemetryRepository telemetryRepository)
+    {
+        _deviceRepository = deviceRepository;
+        _telemetryRepository = telemetryRepository;
+    }
+
+    public async Task<TelemetryResponse> ExecuteAsync(
+        CreateTelemetryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var device = await _deviceRepository.GetByIdAsync(request.DeviceId, cancellationToken);
+
+        if (device is null)
+            throw new NotFoundException("Device not found.");
+
+        if (!device.IsActive)
+            throw new ValidationException("Telemetry cannot be registered for inactive devices.");
+
+        var telemetry = new TelemetryRecord(
+            request.DeviceId,
+            request.PayloadJson,
+            request.OccurredAtUtc);
+
+        await _telemetryRepository.AddAsync(telemetry, cancellationToken);
+
+        return Map(telemetry);
+    }
+
+    internal static TelemetryResponse Map(TelemetryRecord telemetry)
+    {
+        return new TelemetryResponse
+        {
+            Id = telemetry.Id,
+            DeviceId = telemetry.DeviceId,
+            PayloadJson = telemetry.PayloadJson,
+            OccurredAtUtc = telemetry.OccurredAtUtc,
+            IngestedAtUtc = telemetry.IngestedAtUtc
+        };
+    }
+}

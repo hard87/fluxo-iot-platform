@@ -1,0 +1,39 @@
+@baseUrl = http://localhost:5286
+@workspaceId = 11111111-1111-1111-1111-111111111111
+@deviceId = d2f0538d-5ff7-472b-a281-bc26394d0b46
+
+###
+# 1) Criar device
+POST {{baseUrl}}/api/devices
+Content-Type: application/json
+
+{
+  "workspaceId": "{{workspaceId}}",
+  "name": "Sensor Temperatura 01",
+  "identifier": "sensor-temp-01",
+  "category": 1,
+  "metadataJson": "{\"sector\":\"lab\",\"protocol\":\"mqtt\"}"
+}
+
+###
+# 2) Buscar devices por workspace
+GET {{baseUrl}}/api/workspaces/{{workspaceId}}/devices
+
+###
+# 3) Buscar device por id
+GET {{baseUrl}}/api/devices/{{deviceId}}
+
+###
+# 4) Inserir telemetria
+POST {{baseUrl}}/api/telemetry
+Content-Type: application/json
+
+{
+  "deviceId": "{{deviceId}}",
+  "recordedAtUtc": "2026-04-21T15:00:00Z",
+  "payloadJson": "{\"temperature\":23.7,\"humidity\":51}"
+}
+
+###
+# 5) Buscar telemetria do device
+GET {{baseUrl}}/api/devices/{{deviceId}}/telemetry

@@ -19,7 +19,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Fluxo.Application\Fluxo.Application.csproj" />
     <ProjectReference Include="..\..\src\Fluxo.Domain\Fluxo.Domain.csproj" />
   </ItemGroup>
 
