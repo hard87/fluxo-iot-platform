@@ -11,6 +11,9 @@ public class FluxoDbContext : DbContext
 
     public DbSet<Device> Devices => Set<Device>();
     public DbSet<TelemetryRecord> TelemetryRecords => Set<TelemetryRecord>();
+    public DbSet<TelemetryIngestionRecord> TelemetryIngestionRecords => Set<TelemetryIngestionRecord>();
+    public DbSet<TelemetryIngestionRejectionRecord> TelemetryIngestionRejectionRecords =>
+        Set<TelemetryIngestionRejectionRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

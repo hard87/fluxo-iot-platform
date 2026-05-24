@@ -34,6 +34,9 @@ out/
 # Secrets
 appsettings.Local.json
 appsettings.*.local.json
+docker/mosquitto/passwords
+docker/mosquitto/acl
+devices/esp32-reference-node/main/app_config.local.h
 
 # Test Results
 TestResults/

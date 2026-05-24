@@ -4,6 +4,7 @@
     <Project Path="src/Fluxo.Application/Fluxo.Application.csproj" />
     <Project Path="src/Fluxo.Domain/Fluxo.Domain.csproj" />
     <Project Path="src/Fluxo.Infrastructure/Fluxo.Infrastructure.csproj" />
+    <Project Path="src/Fluxo.Worker.Ingestion/Fluxo.Worker.Ingestion.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Fluxo.IntegrationTests/Fluxo.IntegrationTests.csproj" />

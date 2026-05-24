@@ -7,6 +7,8 @@ namespace Fluxo.Application.UseCases.Telemetry;
 
 public class RegisterTelemetryUseCase
 {
+    // Legacy HTTP telemetry path kept for backward compatibility while MQTT ingestion
+    // becomes the canonical persistence path (telemetry_ingestion_records).
     private readonly IDeviceRepository _deviceRepository;
     private readonly ITelemetryRepository _telemetryRepository;
 

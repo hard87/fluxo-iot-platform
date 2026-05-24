@@ -8,13 +8,16 @@ public class GetTelemetryByDeviceUseCase
 {
     private readonly IDeviceRepository _deviceRepository;
     private readonly ITelemetryRepository _telemetryRepository;
+    private readonly ITelemetryIngestionRepository _telemetryIngestionRepository;
 
     public GetTelemetryByDeviceUseCase(
         IDeviceRepository deviceRepository,
-        ITelemetryRepository telemetryRepository)
+        ITelemetryRepository telemetryRepository,
+        ITelemetryIngestionRepository telemetryIngestionRepository)
     {
         _deviceRepository = deviceRepository;
         _telemetryRepository = telemetryRepository;
+        _telemetryIngestionRepository = telemetryIngestionRepository;
     }
 
     public async Task<IReadOnlyList<TelemetryResponse>> ExecuteAsync(
@@ -36,6 +39,30 @@ public class GetTelemetryByDeviceUseCase
 
         if (device is null)
             throw new NotFoundException("Device not found.");
+
+        // Transitional strategy:
+        // - New ingestion path (MQTT) is canonical in telemetry_ingestion_records.
+        // - Legacy HTTP path is kept in telemetry_records for backward compatibility.
+        var ingestionRecords = await _telemetryIngestionRepository.GetByWorkspaceAndDeviceAsync(
+            device.WorkspaceId,
+            device.Identifier,
+            page,
+            pageSize,
+            cancellationToken);
+
+        if (ingestionRecords.Count > 0)
+        {
+            return ingestionRecords
+                .Select(x => new TelemetryResponse
+                {
+                    Id = x.Id,
+                    DeviceId = device.Id,
+                    PayloadJson = x.PayloadJson,
+                    OccurredAtUtc = x.OccurredAtUtc,
+                    IngestedAtUtc = x.ReceivedAtUtc
+                })
+                .ToList();
+        }
 
         var records = await _telemetryRepository.GetByDeviceIdAsync(deviceId, page, pageSize, cancellationToken);
         return records.Select(RegisterTelemetryUseCase.Map).ToList();

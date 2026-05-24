@@ -30,7 +30,7 @@ Content-Type: application/json
 
 {
   "deviceId": "{{deviceId}}",
-  "recordedAtUtc": "2026-04-21T15:00:00Z",
+  "occurredAtUtc": "2026-04-21T15:00:00Z",
   "payloadJson": "{\"temperature\":23.7,\"humidity\":51}"
 }
 

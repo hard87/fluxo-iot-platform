@@ -63,6 +63,153 @@ namespace Fluxo.Infrastructure.Migrations
                     b.ToTable("devices", (string)null);
                 });
 
+            modelBuilder.Entity("Fluxo.Domain.Entities.TelemetryIngestionRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("Battery")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("FirmwareVersion")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<double?>("Humidity")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("MessageType")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("Rssi")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SchemaVersion")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<long?>("Sequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<double?>("Temperature")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Topic")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<long?>("UptimeSec")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceivedAtUtc");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("DeviceId", "OccurredAtUtc");
+
+                    b.HasIndex("TenantId", "WorkspaceId");
+
+                    b.HasIndex("WorkspaceId", "DeviceId");
+
+                    b.HasIndex("TenantId", "WorkspaceId", "DeviceId", "OccurredAtUtc")
+                        .HasDatabaseName("IX_tir_tenant_workspace_device_occurred_at");
+
+                    b.HasIndex("TenantId", "WorkspaceId", "DeviceId", "Sequence")
+                        .IsUnique()
+                        .HasDatabaseName("UX_telemetry_ingestion_records_tenant_workspace_device_sequence")
+                        .HasFilter("\"Sequence\" IS NOT NULL");
+
+                    b.ToTable("telemetry_ingestion_records", (string)null);
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Entities.TelemetryIngestionRejectionRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DeviceId")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("ErrorType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("MessageType")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<string>("PayloadRaw")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("Sequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Topic")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<Guid?>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ErrorType");
+
+                    b.HasIndex("ReceivedAtUtc");
+
+                    b.HasIndex("TenantId", "WorkspaceId", "DeviceId", "ReceivedAtUtc")
+                        .HasDatabaseName("IX_tirj_tenant_workspace_device_received_at");
+
+                    b.ToTable("telemetry_ingestion_rejections", (string)null);
+                });
+
             modelBuilder.Entity("Fluxo.Domain.Entities.TelemetryRecord", b =>
                 {
                     b.Property<Guid>("Id")

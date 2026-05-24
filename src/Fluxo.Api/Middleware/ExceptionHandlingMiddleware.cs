@@ -6,10 +6,17 @@ namespace Fluxo.Api.Middleware;
 public class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly IHostEnvironment _environment;
+    private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
-    public ExceptionHandlingMiddleware(RequestDelegate next)
+    public ExceptionHandlingMiddleware(
+        RequestDelegate next,
+        IHostEnvironment environment,
+        ILogger<ExceptionHandlingMiddleware> logger)
     {
         _next = next;
+        _environment = environment;
+        _logger = logger;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -20,27 +27,44 @@ public class ExceptionHandlingMiddleware
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Unhandled exception while processing request {Method} {Path}.",
+                context.Request.Method,
+                context.Request.Path);
+
             await WriteProblemDetailsAsync(context, ex);
         }
     }
 
-    private static async Task WriteProblemDetailsAsync(HttpContext context, Exception exception)
+    private async Task WriteProblemDetailsAsync(HttpContext context, Exception exception)
     {
-        var (status, title) = exception switch
+        var (status, title, safeDetail) = exception switch
         {
-            ValidationException or ArgumentException => (StatusCodes.Status400BadRequest, "Validation failed"),
-            NotFoundException => (StatusCodes.Status404NotFound, "Resource not found"),
-            ConflictException => (StatusCodes.Status409Conflict, "Conflict"),
-            _ => (StatusCodes.Status500InternalServerError, "Unexpected error")
+            ValidationException or ArgumentException => (
+                StatusCodes.Status400BadRequest,
+                "Validation failed",
+                "The request payload is invalid."),
+            NotFoundException => (
+                StatusCodes.Status404NotFound,
+                "Resource not found",
+                "The requested resource was not found."),
+            ConflictException => (
+                StatusCodes.Status409Conflict,
+                "Conflict",
+                "The request conflicts with the current resource state."),
+            _ => (
+                StatusCodes.Status500InternalServerError,
+                "Unexpected error",
+                "An internal error occurred while processing the request.")
         };
 
         var problem = new ProblemDetails
         {
             Status = status,
             Title = title,
-            Detail = exception.Message,
+            Detail = _environment.IsDevelopment() ? exception.Message : safeDetail,
             Instance = context.Request.Path
         };
+        problem.Extensions["traceId"] = context.TraceIdentifier;
 
         context.Response.StatusCode = status;
         context.Response.ContentType = "application/problem+json";
