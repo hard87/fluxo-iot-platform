@@ -22,7 +22,9 @@ public class TelemetryIngestionRepository : ITelemetryIngestionRepository
     {
         try
         {
-            await _context.TelemetryIngestionRecords.AddAsync(telemetry, cancellationToken);
+            if (_context.Entry(telemetry).State == EntityState.Detached)
+                await _context.TelemetryIngestionRecords.AddAsync(telemetry, cancellationToken);
+
             await _context.SaveChangesAsync(cancellationToken);
             return TelemetryIngestionWriteResult.Persisted;
         }
@@ -30,6 +32,11 @@ public class TelemetryIngestionRepository : ITelemetryIngestionRepository
         {
             _context.Entry(telemetry).State = EntityState.Detached;
             return TelemetryIngestionWriteResult.Duplicate;
+        }
+        catch
+        {
+            _context.Entry(telemetry).State = EntityState.Detached;
+            throw;
         }
     }
 

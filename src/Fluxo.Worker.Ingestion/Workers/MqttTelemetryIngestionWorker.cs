@@ -1,4 +1,5 @@
 using System.Text;
+using System.Diagnostics;
 using System.Threading.Channels;
 using Fluxo.Worker.Ingestion.Models;
 using Fluxo.Worker.Ingestion.Options;
@@ -17,9 +18,12 @@ public class MqttTelemetryIngestionWorker : BackgroundService
     private readonly MqttIngestionOptions _options;
     private readonly MqttClientFactory _mqttFactory = new();
     private readonly Channel<QueuedMqttMessage> _channel;
+    private readonly CancellationTokenSource _shutdownCts = new();
 
     private readonly List<Task> _processingTasks = [];
     private IMqttClient? _mqttClient;
+    private long _queueDepth;
+    private bool _connectedOnce;
 
     public MqttTelemetryIngestionWorker(
         IOptions<MqttIngestionOptions> options,
@@ -79,6 +83,11 @@ public class MqttTelemetryIngestionWorker : BackgroundService
 
                 await _mqttClient.ConnectAsync(clientOptions, stoppingToken);
 
+                if (_connectedOnce)
+                    _metrics.MqttReconnected();
+
+                _connectedOnce = true;
+
                 var subscribeOptions = new MqttClientSubscribeOptionsBuilder()
                     .WithTopicFilter(topic =>
                     {
@@ -117,6 +126,7 @@ public class MqttTelemetryIngestionWorker : BackgroundService
             }
         }
 
+        _shutdownCts.Cancel();
         _channel.Writer.Complete();
 
         try
@@ -131,6 +141,7 @@ public class MqttTelemetryIngestionWorker : BackgroundService
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
+        _shutdownCts.Cancel();
         _channel.Writer.TryComplete();
         await CleanupClientAsync();
         await base.StopAsync(cancellationToken);
@@ -148,9 +159,15 @@ public class MqttTelemetryIngestionWorker : BackgroundService
                 : string.Empty;
 
             await _channel.Writer.WriteAsync(
-                new QueuedMqttMessage(topic, payloadJson, DateTime.UtcNow));
+                new QueuedMqttMessage(topic, payloadJson, DateTime.UtcNow),
+                _shutdownCts.Token);
 
-            _metrics.MessageEnqueued();
+            var queueDepth = Interlocked.Increment(ref _queueDepth);
+            _metrics.MessageEnqueued(queueDepth);
+        }
+        catch (OperationCanceledException) when (_shutdownCts.IsCancellationRequested)
+        {
+            _logger.LogInformation("Enfileiramento interrompido durante encerramento do worker.");
         }
         catch (ChannelClosedException)
         {
@@ -193,7 +210,15 @@ public class MqttTelemetryIngestionWorker : BackgroundService
     {
         await foreach (var queuedMessage in _channel.Reader.ReadAllAsync(stoppingToken))
         {
-            _metrics.MessageDequeued();
+            var queueDepth = Interlocked.Decrement(ref _queueDepth);
+            if (queueDepth < 0)
+            {
+                queueDepth = 0;
+                Interlocked.Exchange(ref _queueDepth, 0);
+            }
+
+            _metrics.MessageDequeued(queueDepth);
+            var stopwatch = Stopwatch.StartNew();
 
             using var scope = _scopeFactory.CreateScope();
             var processor = scope.ServiceProvider.GetRequiredService<ITelemetryIngestionProcessor>();
@@ -229,6 +254,11 @@ public class MqttTelemetryIngestionWorker : BackgroundService
 
                 _metrics.RecordResult(
                     TelemetryIngestionProcessingResult.ProcessingError("Falha inesperada no processamento interno."));
+            }
+            finally
+            {
+                stopwatch.Stop();
+                _metrics.RecordProcessingDuration(stopwatch.Elapsed);
             }
         }
     }

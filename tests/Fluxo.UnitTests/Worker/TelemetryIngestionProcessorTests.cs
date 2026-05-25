@@ -23,7 +23,8 @@ public class TelemetryIngestionProcessorTests
         };
 
         var rejectionRepository = new FakeTelemetryIngestionRejectionRepository();
-        var processor = CreateProcessor(ingestionRepository, rejectionRepository);
+        var deviceRepository = CreateProvisionedDeviceRepository();
+        var processor = CreateProcessor(ingestionRepository, rejectionRepository, deviceRepository);
 
         var topic = "fluxo/tenants/acme/workspaces/11111111-1111-1111-1111-111111111111/devices/esp32-lab-01/telemetry";
         var payload = BuildPayload(
@@ -37,6 +38,7 @@ public class TelemetryIngestionProcessorTests
         Assert.Equal(Fluxo.Worker.Ingestion.Models.TelemetryIngestionProcessingStatus.Persisted, result.Status);
         Assert.Single(ingestionRepository.Records);
         Assert.Empty(rejectionRepository.Records);
+        Assert.NotNull(deviceRepository.CurrentDevice.LastContactAtUtc);
     }
 
     [Fact]
@@ -86,7 +88,8 @@ public class TelemetryIngestionProcessorTests
         };
 
         var rejectionRepository = new FakeTelemetryIngestionRejectionRepository();
-        var processor = CreateProcessor(ingestionRepository, rejectionRepository);
+        var deviceRepository = CreateProvisionedDeviceRepository();
+        var processor = CreateProcessor(ingestionRepository, rejectionRepository, deviceRepository);
 
         var topic = "fluxo/tenants/acme/workspaces/11111111-1111-1111-1111-111111111111/devices/esp32-lab-01/telemetry";
         var payload = BuildPayload(
@@ -111,9 +114,11 @@ public class TelemetryIngestionProcessorTests
         };
 
         var rejectionRepository = new FakeTelemetryIngestionRejectionRepository();
+        var deviceRepository = CreateProvisionedDeviceRepository();
         var processor = CreateProcessor(
             ingestionRepository,
             rejectionRepository,
+            deviceRepository,
             new MqttIngestionOptions
             {
                 DatabaseRetryCount = 1,
@@ -134,16 +139,93 @@ public class TelemetryIngestionProcessorTests
         Assert.Equal(TelemetryIngestionFailureType.TransientError, rejectionRepository.Records[0].ErrorType);
     }
 
+    [Fact]
+    public async Task Should_Reject_When_Device_Is_Not_Provisioned()
+    {
+        var ingestionRepository = new FakeTelemetryIngestionRepository();
+        var rejectionRepository = new FakeTelemetryIngestionRejectionRepository();
+        var processor = CreateProcessor(
+            ingestionRepository,
+            rejectionRepository,
+            new FakeDeviceRepository(
+                new Device(
+                    Guid.NewGuid(),
+                    "Other Device",
+                    "other-device",
+                    DeviceCategory.Sensor,
+                    tenantId: "other-tenant")));
+
+        var topic = "fluxo/tenants/acme/workspaces/11111111-1111-1111-1111-111111111111/devices/esp32-lab-01/telemetry";
+        var payload = BuildPayload(
+            "acme",
+            "11111111-1111-1111-1111-111111111111",
+            "esp32-lab-01",
+            45);
+
+        var result = await processor.ProcessAsync(topic, payload, DateTime.UtcNow);
+
+        Assert.Equal(Fluxo.Worker.Ingestion.Models.TelemetryIngestionProcessingStatus.Rejected, result.Status);
+        Assert.Single(rejectionRepository.Records);
+        Assert.Equal(TelemetryIngestionFailureType.Validation, rejectionRepository.Records[0].ErrorType);
+        Assert.Contains("Dispositivo nao provisionado", rejectionRepository.Records[0].Reason);
+    }
+
+    [Fact]
+    public async Task Should_Reject_When_Device_Is_Inactive()
+    {
+        var inactiveDevice = new Device(
+            Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            "ESP32 Inactive",
+            "esp32-lab-01",
+            DeviceCategory.Sensor,
+            tenantId: "acme");
+        inactiveDevice.Deactivate();
+
+        var ingestionRepository = new FakeTelemetryIngestionRepository();
+        var rejectionRepository = new FakeTelemetryIngestionRejectionRepository();
+        var processor = CreateProcessor(
+            ingestionRepository,
+            rejectionRepository,
+            new FakeDeviceRepository(inactiveDevice));
+
+        var topic = "fluxo/tenants/acme/workspaces/11111111-1111-1111-1111-111111111111/devices/esp32-lab-01/telemetry";
+        var payload = BuildPayload(
+            "acme",
+            "11111111-1111-1111-1111-111111111111",
+            "esp32-lab-01",
+            46);
+
+        var result = await processor.ProcessAsync(topic, payload, DateTime.UtcNow);
+
+        Assert.Equal(Fluxo.Worker.Ingestion.Models.TelemetryIngestionProcessingStatus.Rejected, result.Status);
+        Assert.Single(rejectionRepository.Records);
+        Assert.Equal(TelemetryIngestionFailureType.Validation, rejectionRepository.Records[0].ErrorType);
+        Assert.Contains("Dispositivo inativo", rejectionRepository.Records[0].Reason);
+    }
+
     private static TelemetryIngestionProcessor CreateProcessor(
         FakeTelemetryIngestionRepository ingestionRepository,
         FakeTelemetryIngestionRejectionRepository rejectionRepository,
+        FakeDeviceRepository? deviceRepository = null,
         MqttIngestionOptions? options = null)
     {
         return new TelemetryIngestionProcessor(
             ingestionRepository,
             rejectionRepository,
+            deviceRepository ?? CreateProvisionedDeviceRepository(),
             Options.Create(options ?? new MqttIngestionOptions()),
             Logger);
+    }
+
+    private static FakeDeviceRepository CreateProvisionedDeviceRepository()
+    {
+        return new FakeDeviceRepository(
+            new Device(
+                Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                "ESP32 Lab",
+                "esp32-lab-01",
+                DeviceCategory.Sensor,
+                tenantId: "acme"));
     }
 
     private static string BuildPayload(
@@ -192,6 +274,81 @@ public class TelemetryIngestionProcessorTests
             CancellationToken cancellationToken = default)
         {
             Records.Add(rejection);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeDeviceRepository : IDeviceRepository
+    {
+        public FakeDeviceRepository(Device device)
+        {
+            CurrentDevice = device;
+        }
+
+        public Device CurrentDevice { get; }
+
+        public Task AddAsync(Device device, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<Device?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<Device?>(CurrentDevice.Id == id ? CurrentDevice : null);
+        }
+
+        public Task<Device?> GetTrackedByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<Device?>(CurrentDevice.Id == id ? CurrentDevice : null);
+        }
+
+        public Task<Device?> GetByWorkspaceAndIdentifierAsync(
+            Guid workspaceId,
+            string identifier,
+            CancellationToken cancellationToken = default)
+        {
+            var found = CurrentDevice.WorkspaceId == workspaceId &&
+                        CurrentDevice.Identifier == identifier.Trim() &&
+                        CurrentDevice.TenantId == Fluxo.Domain.Entities.Device.DefaultTenantId;
+
+            return Task.FromResult<Device?>(found ? CurrentDevice : null);
+        }
+
+        public Task<Device?> GetByTenantWorkspaceAndIdentifierAsync(
+            string tenantId,
+            Guid workspaceId,
+            string identifier,
+            CancellationToken cancellationToken = default)
+        {
+            var found = CurrentDevice.TenantId == tenantId.Trim() &&
+                        CurrentDevice.WorkspaceId == workspaceId &&
+                        CurrentDevice.Identifier == identifier.Trim();
+
+            return Task.FromResult<Device?>(found ? CurrentDevice : null);
+        }
+
+        public Task<Device?> GetTrackedByTenantWorkspaceAndIdentifierAsync(
+            string tenantId,
+            Guid workspaceId,
+            string identifier,
+            CancellationToken cancellationToken = default)
+        {
+            return GetByTenantWorkspaceAndIdentifierAsync(tenantId, workspaceId, identifier, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<Device>> GetAllByWorkspaceAsync(
+            Guid workspaceId,
+            CancellationToken cancellationToken = default)
+        {
+            var devices = CurrentDevice.WorkspaceId == workspaceId
+                ? new[] { CurrentDevice }
+                : Array.Empty<Device>();
+
+            return Task.FromResult<IReadOnlyList<Device>>(devices);
+        }
+
+        public Task UpdateAsync(Device device, CancellationToken cancellationToken = default)
+        {
             return Task.CompletedTask;
         }
     }

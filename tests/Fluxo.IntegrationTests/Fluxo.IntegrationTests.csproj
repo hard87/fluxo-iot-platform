@@ -22,6 +22,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Fluxo.Api\Fluxo.Api.csproj" />
+    <ProjectReference Include="..\..\src\Fluxo.Infrastructure\Fluxo.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Fluxo.Worker.Ingestion\Fluxo.Worker.Ingestion.csproj" />
   </ItemGroup>
 
 </Project>

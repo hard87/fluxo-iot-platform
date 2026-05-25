@@ -44,6 +44,8 @@ esp_err_t mqtt_client_manager_start(void)
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = APP_MQTT_BROKER_URI,
         .credentials.client_id = APP_DEVICE_ID,
+        .credentials.username = APP_MQTT_USERNAME,
+        .credentials.authentication.password = APP_MQTT_PASSWORD,
         .network.disable_auto_reconnect = false,
         .session.keepalive = 60
     };

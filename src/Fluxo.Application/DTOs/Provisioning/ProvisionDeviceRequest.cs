@@ -1,11 +1,13 @@
 using System.ComponentModel.DataAnnotations;
 using Fluxo.Domain.Enums;
 
-namespace Fluxo.Application.DTOs.Devices;
+namespace Fluxo.Application.DTOs.Provisioning;
 
-public class CreateDeviceRequest
+public sealed class ProvisionDeviceRequest
 {
-    public string? TenantId { get; set; }
+    [Required]
+    [MinLength(1)]
+    public string TenantId { get; set; } = string.Empty;
 
     [Required]
     public Guid WorkspaceId { get; set; }

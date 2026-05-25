@@ -12,10 +12,17 @@ Firmware de referencia (Sprint 2) para validar ingestao ponta a ponta no Fluxo.
 - Envia `temperature`, `humidity` e `battery` simulados.
 
 ## Configuracao
-Edite [`main/app_config.h`](./main/app_config.h):
-- `APP_WIFI_SSID`
-- `APP_WIFI_PASSWORD`
-- `APP_MQTT_BROKER_URI`
+Fluxo recomendado para nao versionar segredos:
+1. Copie `main/app_config.local.example.h` para `main/app_config.local.h`.
+2. Preencha credenciais locais:
+   - `APP_WIFI_SSID`
+   - `APP_WIFI_PASSWORD`
+   - `APP_MQTT_BROKER_URI`
+   - `APP_MQTT_USERNAME`
+   - `APP_MQTT_PASSWORD` (segredo retornado no provisionamento da API)
+3. Mantenha `app_config.local.h` fora de versionamento (ja ignorado no `.gitignore`).
+
+`app_config.h` fica apenas com placeholders e defaults sem segredo real.
 
 Seguranca:
 - nao versione credenciais reais no repositorio;

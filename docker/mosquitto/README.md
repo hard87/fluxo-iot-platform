@@ -10,10 +10,19 @@ Esta pasta contem configuracao inicial para broker MQTT local do Fluxo.
 
 ## Como preparar ambiente local
 
-1. Gere arquivo real de usuarios:
-   - `mosquitto_passwd -c passwords <usuario>`
-2. Crie arquivo real de ACL com regras minimas por tenant/workspace/device.
-3. Mantenha `passwords` e `acl` fora de versionamento (ja ignorados no `.gitignore`).
+1. Provisione um device na API (`POST /api/provisioning/devices`) para obter:
+   - `credentialUsername`
+   - `provisioningSecret` (exibido uma unica vez)
+   - `mqttPublishTopic`
+2. Gere/atualize arquivo real de usuarios:
+   - primeira vez: `mosquitto_passwd -c passwords <credentialUsername>`
+   - proximas: `mosquitto_passwd passwords <credentialUsername>`
+3. No prompt da senha, use `provisioningSecret` retornado pela API.
+4. Crie/atualize arquivo real de ACL com regra minima por device:
+   - `user <credentialUsername>`
+   - `topic write <mqttPublishTopic>`
+5. Mantenha `passwords` e `acl` fora de versionamento (ja ignorados no `.gitignore`).
+6. Reinicie o broker apos alteracoes de credenciais/ACL.
 
 ## Observacao
 

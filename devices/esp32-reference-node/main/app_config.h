@@ -10,6 +10,8 @@
 #define APP_WIFI_PASSWORD           "CHANGE_ME_WIFI_PASSWORD"
 
 #define APP_MQTT_BROKER_URI         "mqtt://CHANGE_ME_BROKER_IP:1883"
+#define APP_MQTT_USERNAME           "CHANGE_ME_MQTT_USERNAME"
+#define APP_MQTT_PASSWORD           "CHANGE_ME_MQTT_PASSWORD"
 #define APP_MQTT_QOS                1
 #define APP_MQTT_RETAIN             0
 
@@ -26,5 +28,16 @@
 
 #define APP_NTP_SERVER              "pool.ntp.org"
 #define APP_TIME_SYNC_TIMEOUT_MS    30000
+
+/*
+ * Optional local overrides (not versioned).
+ * Create app_config.local.h from app_config.local.example.h and define
+ * only the macros that need local secrets/values.
+ */
+#if defined(__has_include)
+#  if __has_include("app_config.local.h")
+#    include "app_config.local.h"
+#  endif
+#endif
 
 #endif

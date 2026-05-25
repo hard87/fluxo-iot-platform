@@ -22,6 +22,7 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString));
 
         services.AddScoped<IDeviceRepository, DeviceRepository>();
+        services.AddScoped<IDeviceCredentialRepository, DeviceCredentialRepository>();
         services.AddScoped<ITelemetryRepository, TelemetryRepository>();
         services.AddScoped<ITelemetryIngestionRepository, TelemetryIngestionRepository>();
         services.AddScoped<ITelemetryIngestionRejectionRepository, TelemetryIngestionRejectionRepository>();

@@ -27,17 +27,56 @@ public class DeviceRepository : IDeviceRepository
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
+    public async Task<Device?> GetTrackedByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Devices
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
+
     public async Task<Device?> GetByWorkspaceAndIdentifierAsync(
         Guid workspaceId,
         string identifier,
         CancellationToken cancellationToken = default)
     {
+        return await GetByTenantWorkspaceAndIdentifierAsync(
+            Device.DefaultTenantId,
+            workspaceId,
+            identifier,
+            cancellationToken);
+    }
+
+    public async Task<Device?> GetByTenantWorkspaceAndIdentifierAsync(
+        string tenantId,
+        Guid workspaceId,
+        string identifier,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedTenantId = Device.NormalizeTenantId(tenantId);
         var normalizedIdentifier = identifier.Trim();
 
         return await _context.Devices
             .AsNoTracking()
             .FirstOrDefaultAsync(
-                x => x.WorkspaceId == workspaceId && x.Identifier == normalizedIdentifier,
+                x => x.TenantId == normalizedTenantId &&
+                     x.WorkspaceId == workspaceId &&
+                     x.Identifier == normalizedIdentifier,
+                cancellationToken);
+    }
+
+    public async Task<Device?> GetTrackedByTenantWorkspaceAndIdentifierAsync(
+        string tenantId,
+        Guid workspaceId,
+        string identifier,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedTenantId = Device.NormalizeTenantId(tenantId);
+        var normalizedIdentifier = identifier.Trim();
+
+        return await _context.Devices
+            .FirstOrDefaultAsync(
+                x => x.TenantId == normalizedTenantId &&
+                     x.WorkspaceId == workspaceId &&
+                     x.Identifier == normalizedIdentifier,
                 cancellationToken);
     }
 

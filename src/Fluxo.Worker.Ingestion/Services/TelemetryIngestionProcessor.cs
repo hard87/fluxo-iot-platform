@@ -21,17 +21,20 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
 
     private readonly ITelemetryIngestionRepository _telemetryIngestionRepository;
     private readonly ITelemetryIngestionRejectionRepository _rejectionRepository;
+    private readonly IDeviceRepository _deviceRepository;
     private readonly ILogger<TelemetryIngestionProcessor> _logger;
     private readonly MqttIngestionOptions _options;
 
     public TelemetryIngestionProcessor(
         ITelemetryIngestionRepository telemetryIngestionRepository,
         ITelemetryIngestionRejectionRepository rejectionRepository,
+        IDeviceRepository deviceRepository,
         IOptions<MqttIngestionOptions> options,
         ILogger<TelemetryIngestionProcessor> logger)
     {
         _telemetryIngestionRepository = telemetryIngestionRepository;
         _rejectionRepository = rejectionRepository;
+        _deviceRepository = deviceRepository;
         _logger = logger;
         _options = options.Value;
     }
@@ -161,6 +164,58 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
             return TelemetryIngestionProcessingResult.Rejected(reason);
         }
 
+        var provisionedDevice = await _deviceRepository.GetTrackedByTenantWorkspaceAndIdentifierAsync(
+            tenantId!,
+            workspaceId,
+            deviceId!,
+            cancellationToken);
+
+        if (provisionedDevice is null)
+        {
+            const string reason = "Dispositivo nao provisionado para tenant/workspace/device informado.";
+
+            await PersistRejectionAsync(
+                receivedAtUtc,
+                topic,
+                payloadJson,
+                TelemetryIngestionFailureType.Validation,
+                reason,
+                cancellationToken,
+                topicContext,
+                message);
+
+            _logger.LogWarning(
+                "Mensagem rejeitada por dispositivo nao provisionado. Tenant: {TenantId}. Workspace: {WorkspaceId}. Device: {DeviceId}.",
+                tenantId,
+                workspaceId,
+                deviceId);
+
+            return TelemetryIngestionProcessingResult.Rejected(reason);
+        }
+
+        if (!provisionedDevice.IsActive)
+        {
+            const string reason = "Dispositivo inativo para ingestao de telemetria.";
+
+            await PersistRejectionAsync(
+                receivedAtUtc,
+                topic,
+                payloadJson,
+                TelemetryIngestionFailureType.Validation,
+                reason,
+                cancellationToken,
+                topicContext,
+                message);
+
+            _logger.LogWarning(
+                "Mensagem rejeitada por dispositivo inativo. Tenant: {TenantId}. Workspace: {WorkspaceId}. Device: {DeviceId}.",
+                tenantId,
+                workspaceId,
+                deviceId);
+
+            return TelemetryIngestionProcessingResult.Rejected(reason);
+        }
+
         var record = new TelemetryIngestionRecord(
             tenantId!,
             workspaceId,
@@ -192,6 +247,14 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
                 {
                     const string duplicateReason = "Mensagem duplicada por tenant/workspace/device/sequence.";
 
+                    await UpdateDeviceSnapshotBestEffortAsync(
+                        provisionedDevice,
+                        payloadJson,
+                        receivedAtUtc,
+                        occurredAtUtc,
+                        message.Sequence,
+                        cancellationToken);
+
                     await PersistRejectionAsync(
                         receivedAtUtc,
                         topic,
@@ -219,6 +282,14 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
                     record.DeviceId,
                     record.MessageType,
                     record.Sequence);
+
+                await UpdateDeviceSnapshotBestEffortAsync(
+                    provisionedDevice,
+                    payloadJson,
+                    receivedAtUtc,
+                    occurredAtUtc,
+                    message.Sequence,
+                    cancellationToken);
 
                 return TelemetryIngestionProcessingResult.Persisted();
             }
@@ -274,6 +345,31 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
             message);
 
         return TelemetryIngestionProcessingResult.TransientFailure(transientReason);
+    }
+
+    private async Task UpdateDeviceSnapshotBestEffortAsync(
+        Device provisionedDevice,
+        string payloadJson,
+        DateTime receivedAtUtc,
+        DateTime occurredAtUtc,
+        long? sequence,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            provisionedDevice.RegisterTelemetrySnapshot(payloadJson, receivedAtUtc, occurredAtUtc, sequence);
+            await _deviceRepository.UpdateAsync(provisionedDevice, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Falha ao atualizar status operacional do device {DeviceId} ({TenantId}/{WorkspaceId}/{Identifier}).",
+                provisionedDevice.Id,
+                provisionedDevice.TenantId,
+                provisionedDevice.WorkspaceId,
+                provisionedDevice.Identifier);
+        }
     }
 
     private async Task PersistRejectionAsync(

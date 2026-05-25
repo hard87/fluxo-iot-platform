@@ -18,6 +18,13 @@ public static class SecurityConfigurationExtensions
 
         if (authOptions.Enabled)
         {
+            if (string.IsNullOrWhiteSpace(authOptions.Jwt.Authority) ||
+                string.IsNullOrWhiteSpace(authOptions.Jwt.Audience))
+            {
+                throw new InvalidOperationException(
+                    "Authentication is enabled but Jwt:Authority/Audience are missing.");
+            }
+
             authenticationBuilder.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
             {
                 options.RequireHttpsMetadata = authOptions.Jwt.RequireHttpsMetadata;
