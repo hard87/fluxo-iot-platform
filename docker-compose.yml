@@ -1,0 +1,122 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fluxo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${FLUXO_DB_NAME:-fluxo_db}
+      POSTGRES_USER: ${FLUXO_DB_USER:-fluxo}
+      POSTGRES_PASSWORD: ${FLUXO_DB_PASSWORD:-fluxo}
+    ports:
+      - "${FLUXO_DB_PUBLIC_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${FLUXO_DB_USER:-fluxo} -d ${FLUXO_DB_NAME:-fluxo_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: fluxo-mosquitto
+    restart: unless-stopped
+    ports:
+      - "${FLUXO_MQTT_PUBLIC_PORT:-1883}:1883"
+      - "${FLUXO_MQTT_TLS_PUBLIC_PORT:-8883}:8883"
+    volumes:
+      - ./docker/mosquitto:/mosquitto/config
+      - ./docker/mosquitto/certs:/mosquitto/certs:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    command: >
+      sh -c "cp -n /mosquitto/config/passwords.example /mosquitto/config/passwords &&
+             cp -n /mosquitto/config/acl.example /mosquitto/config/acl &&
+             mosquitto -c /mosquitto/config/mosquitto.conf"
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Fluxo.Api/Dockerfile
+    container_name: fluxo-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${FLUXO_DB_NAME:-fluxo_db};Username=${FLUXO_DB_USER:-fluxo};Password=${FLUXO_DB_PASSWORD:-fluxo}
+      Authentication__Enabled: ${FLUXO_AUTH_ENABLED:-false}
+      Authentication__Jwt__Audience: ${FLUXO_AUTH_AUDIENCE:-fluxo-api}
+      Authentication__Jwt__Issuer: ${FLUXO_AUTH_ISSUER:-fluxo-local}
+      Authentication__Jwt__SigningKey: ${FLUXO_AUTH_SIGNING_KEY:-change-this-local-signing-key-with-32-chars-min}
+      Authentication__Jwt__ExpiresMinutes: ${FLUXO_AUTH_EXPIRES_MINUTES:-60}
+      Cors__AllowedOrigins__0: http://localhost:${FLUXO_PORTAL_PUBLIC_PORT:-8080}
+      DeviceStatus__OfflineAfterSeconds: ${FLUXO_DEVICE_OFFLINE_AFTER_SECONDS:-120}
+    ports:
+      - "${FLUXO_API_PUBLIC_PORT:-5000}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
+
+  worker:
+    build:
+      context: .
+      dockerfile: src/Fluxo.Worker.Ingestion/Dockerfile
+    container_name: fluxo-worker-ingestion
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+      api:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${FLUXO_DB_NAME:-fluxo_db};Username=${FLUXO_DB_USER:-fluxo};Password=${FLUXO_DB_PASSWORD:-fluxo}
+      MqttIngestion__BrokerHost: mosquitto
+      MqttIngestion__BrokerPort: 1883
+      MqttIngestion__TopicFilter: fluxo/tenants/+/workspaces/+/devices/+/telemetry
+      MqttIngestion__Username: ${FLUXO_MQTT_INGESTION_USERNAME:-ingestion-worker-local}
+      MqttIngestion__Password: ${FLUXO_MQTT_INGESTION_PASSWORD:-change-me-local-ingestion-password}
+      MqttIngestion__UseTls: false
+      MqttIngestion__ReconnectDelaySeconds: 5
+      MqttIngestion__ChannelCapacity: 5000
+      MqttIngestion__ProcessingConcurrency: 4
+      MqttIngestion__DatabaseRetryCount: 3
+      MqttIngestion__DatabaseRetryDelayMs: 200
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /app/Fluxo.Worker.Ingestion.dll"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./portal-web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:${FLUXO_API_PUBLIC_PORT:-5000}
+    container_name: fluxo-portal-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${FLUXO_PORTAL_PUBLIC_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  postgres_data:
+  mosquitto_data:
+  mosquitto_log:
