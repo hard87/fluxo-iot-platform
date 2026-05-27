@@ -21,6 +21,15 @@ public interface IDeviceRepository
         Guid workspaceId,
         string identifier,
         CancellationToken cancellationToken = default);
+    Task<Device?> GetByTenantWorkspaceAndIdAsync(
+        string tenantId,
+        Guid workspaceId,
+        Guid deviceId,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Device>> GetAllByWorkspaceAsync(Guid workspaceId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Device>> GetAllByTenantWorkspaceAsync(
+        string tenantId,
+        Guid workspaceId,
+        CancellationToken cancellationToken = default);
     Task UpdateAsync(Device device, CancellationToken cancellationToken = default);
 }

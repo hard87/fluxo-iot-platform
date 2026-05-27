@@ -15,4 +15,9 @@ public interface ITelemetryIngestionRepository
         int page = 1,
         int pageSize = 100,
         CancellationToken cancellationToken = default);
+
+    Task<long> CountByTenantWorkspaceAsync(
+        string tenantId,
+        Guid workspaceId,
+        CancellationToken cancellationToken = default);
 }

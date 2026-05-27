@@ -23,6 +23,9 @@ public static class DependencyInjection
 
         services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<IDeviceCredentialRepository, DeviceCredentialRepository>();
+        services.AddScoped<IPlatformUserRepository, PlatformUserRepository>();
+        services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
+        services.AddScoped<IWorkspaceMembershipRepository, WorkspaceMembershipRepository>();
         services.AddScoped<ITelemetryRepository, TelemetryRepository>();
         services.AddScoped<ITelemetryIngestionRepository, TelemetryIngestionRepository>();
         services.AddScoped<ITelemetryIngestionRejectionRepository, TelemetryIngestionRejectionRepository>();

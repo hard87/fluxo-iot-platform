@@ -51,6 +51,10 @@ public class ExceptionHandlingMiddleware
                 StatusCodes.Status409Conflict,
                 "Conflict",
                 "The request conflicts with the current resource state."),
+            UnauthorizedException => (
+                StatusCodes.Status401Unauthorized,
+                "Unauthorized",
+                "Authentication failed."),
             _ => (
                 StatusCodes.Status500InternalServerError,
                 "Unexpected error",

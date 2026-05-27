@@ -263,6 +263,14 @@ public class TelemetryIngestionProcessorTests
         {
             return Task.FromResult<IReadOnlyList<TelemetryIngestionRecord>>(Records);
         }
+
+        public Task<long> CountByTenantWorkspaceAsync(
+            string tenantId,
+            Guid workspaceId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult((long)Records.Count);
+        }
     }
 
     private sealed class FakeTelemetryIngestionRejectionRepository : ITelemetryIngestionRejectionRepository
@@ -275,6 +283,14 @@ public class TelemetryIngestionProcessorTests
         {
             Records.Add(rejection);
             return Task.CompletedTask;
+        }
+
+        public Task<long> CountByTenantWorkspaceAsync(
+            string tenantId,
+            Guid workspaceId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult((long)Records.Count);
         }
     }
 
@@ -336,11 +352,37 @@ public class TelemetryIngestionProcessorTests
             return GetByTenantWorkspaceAndIdentifierAsync(tenantId, workspaceId, identifier, cancellationToken);
         }
 
+        public Task<Device?> GetByTenantWorkspaceAndIdAsync(
+            string tenantId,
+            Guid workspaceId,
+            Guid deviceId,
+            CancellationToken cancellationToken = default)
+        {
+            var found = CurrentDevice.TenantId == tenantId.Trim() &&
+                        CurrentDevice.WorkspaceId == workspaceId &&
+                        CurrentDevice.Id == deviceId;
+
+            return Task.FromResult<Device?>(found ? CurrentDevice : null);
+        }
+
         public Task<IReadOnlyList<Device>> GetAllByWorkspaceAsync(
             Guid workspaceId,
             CancellationToken cancellationToken = default)
         {
             var devices = CurrentDevice.WorkspaceId == workspaceId
+                ? new[] { CurrentDevice }
+                : Array.Empty<Device>();
+
+            return Task.FromResult<IReadOnlyList<Device>>(devices);
+        }
+
+        public Task<IReadOnlyList<Device>> GetAllByTenantWorkspaceAsync(
+            string tenantId,
+            Guid workspaceId,
+            CancellationToken cancellationToken = default)
+        {
+            var devices = CurrentDevice.WorkspaceId == workspaceId &&
+                          CurrentDevice.TenantId == tenantId.Trim()
                 ? new[] { CurrentDevice }
                 : Array.Empty<Device>();
 

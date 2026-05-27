@@ -136,6 +136,49 @@ namespace Fluxo.Infrastructure.Migrations
                     b.ToTable("device_credentials", (string)null);
                 });
 
+            modelBuilder.Entity("Fluxo.Domain.Entities.PlatformUser", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("EmailNormalized")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastLoginAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("PasswordSalt")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmailNormalized")
+                        .IsUnique();
+
+                    b.ToTable("platform_users", (string)null);
+                });
+
             modelBuilder.Entity("Fluxo.Domain.Entities.TelemetryIngestionRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -311,6 +354,66 @@ namespace Fluxo.Infrastructure.Migrations
                     b.ToTable("telemetry_records", (string)null);
                 });
 
+            modelBuilder.Entity("Fluxo.Domain.Entities.Workspace", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique();
+
+                    b.ToTable("workspaces", (string)null);
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Entities.WorkspaceMembership", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("WorkspaceId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("workspace_memberships", (string)null);
+                });
+
             modelBuilder.Entity("Fluxo.Domain.Entities.DeviceCredential", b =>
                 {
                     b.HasOne("Fluxo.Domain.Entities.Device", null)
@@ -325,6 +428,21 @@ namespace Fluxo.Infrastructure.Migrations
                     b.HasOne("Fluxo.Domain.Entities.Device", null)
                         .WithMany()
                         .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Entities.WorkspaceMembership", b =>
+                {
+                    b.HasOne("Fluxo.Domain.Entities.PlatformUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Fluxo.Domain.Entities.Workspace", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

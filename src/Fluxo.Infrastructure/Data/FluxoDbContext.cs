@@ -11,6 +11,9 @@ public class FluxoDbContext : DbContext
 
     public DbSet<Device> Devices => Set<Device>();
     public DbSet<DeviceCredential> DeviceCredentials => Set<DeviceCredential>();
+    public DbSet<PlatformUser> PlatformUsers => Set<PlatformUser>();
+    public DbSet<Workspace> Workspaces => Set<Workspace>();
+    public DbSet<WorkspaceMembership> WorkspaceMemberships => Set<WorkspaceMembership>();
     public DbSet<TelemetryRecord> TelemetryRecords => Set<TelemetryRecord>();
     public DbSet<TelemetryIngestionRecord> TelemetryIngestionRecords => Set<TelemetryIngestionRecord>();
     public DbSet<TelemetryIngestionRejectionRecord> TelemetryIngestionRejectionRecords =>

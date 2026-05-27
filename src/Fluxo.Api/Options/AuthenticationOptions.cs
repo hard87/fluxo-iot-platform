@@ -9,6 +9,9 @@ public sealed class AuthenticationOptions
 public sealed class JwtOptions
 {
     public string? Authority { get; set; }
-    public string? Audience { get; set; }
+    public string? Audience { get; set; } = "fluxo-api";
+    public string Issuer { get; set; } = "fluxo-local";
+    public string SigningKey { get; set; } = "change-this-local-signing-key-with-32-chars-min";
+    public int ExpiresMinutes { get; set; } = 60;
     public bool RequireHttpsMetadata { get; set; } = true;
 }

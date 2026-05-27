@@ -80,6 +80,23 @@ public class DeviceRepository : IDeviceRepository
                 cancellationToken);
     }
 
+    public async Task<Device?> GetByTenantWorkspaceAndIdAsync(
+        string tenantId,
+        Guid workspaceId,
+        Guid deviceId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedTenantId = Device.NormalizeTenantId(tenantId);
+
+        return await _context.Devices
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.Id == deviceId &&
+                     x.TenantId == normalizedTenantId &&
+                     x.WorkspaceId == workspaceId,
+                cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Device>> GetAllByWorkspaceAsync(
         Guid workspaceId,
         CancellationToken cancellationToken = default)
@@ -87,6 +104,20 @@ public class DeviceRepository : IDeviceRepository
         return await _context.Devices
             .AsNoTracking()
             .Where(x => x.WorkspaceId == workspaceId)
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Device>> GetAllByTenantWorkspaceAsync(
+        string tenantId,
+        Guid workspaceId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedTenantId = Device.NormalizeTenantId(tenantId);
+
+        return await _context.Devices
+            .AsNoTracking()
+            .Where(x => x.TenantId == normalizedTenantId && x.WorkspaceId == workspaceId)
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
     }

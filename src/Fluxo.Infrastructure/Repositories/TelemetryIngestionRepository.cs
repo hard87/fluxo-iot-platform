@@ -59,6 +59,20 @@ public class TelemetryIngestionRepository : ITelemetryIngestionRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<long> CountByTenantWorkspaceAsync(
+        string tenantId,
+        Guid workspaceId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedTenantId = Device.NormalizeTenantId(tenantId);
+
+        return await _context.TelemetryIngestionRecords
+            .AsNoTracking()
+            .LongCountAsync(
+                x => x.TenantId == normalizedTenantId && x.WorkspaceId == workspaceId,
+                cancellationToken);
+    }
+
     private static bool IsUniqueViolation(DbUpdateException exception)
     {
         return exception.InnerException is PostgresException postgres &&

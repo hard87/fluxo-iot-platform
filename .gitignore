@@ -32,10 +32,18 @@ publish/
 out/
 
 # Secrets
+.env
+.env.local
 appsettings.Local.json
 appsettings.*.local.json
 docker/mosquitto/passwords
 docker/mosquitto/acl
+docker/mosquitto/credentials.local.json
+docker/mosquitto/certs/*.key
+docker/mosquitto/certs/*.crt
+docker/mosquitto/certs/*.csr
+docker/mosquitto/certs/*.srl
+certs/*.pfx
 devices/esp32-reference-node/main/app_config.local.h
 
 # Test Results
