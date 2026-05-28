@@ -16,6 +16,7 @@ Copy-Item .env.example .env
 ```
 
 Edite o `.env` com valores locais (principalmente `FLUXO_AUTH_SIGNING_KEY`).
+Observacao: a API nao inicializa com a chave JWT default de placeholder.
 
 ## 3. Gerar certificados TLS locais do MQTT (recomendado)
 

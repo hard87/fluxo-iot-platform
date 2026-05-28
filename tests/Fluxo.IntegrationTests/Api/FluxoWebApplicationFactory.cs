@@ -15,6 +15,9 @@ public class FluxoWebApplicationFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable(
             "ConnectionStrings__DefaultConnection",
             "Host=localhost;Port=5432;Database=fluxo_tests;Username=fluxo;Password=fluxo");
+        Environment.SetEnvironmentVariable(
+            "Authentication__Jwt__SigningKey",
+            "tests-signing-key-32-chars-minimum-0123456789abcdef");
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -25,7 +28,9 @@ public class FluxoWebApplicationFactory : WebApplicationFactory<Program>
             configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] =
-                    "Host=localhost;Port=5432;Database=fluxo_tests;Username=fluxo;Password=fluxo"
+                    "Host=localhost;Port=5432;Database=fluxo_tests;Username=fluxo;Password=fluxo",
+                ["Authentication:Jwt:SigningKey"] =
+                    "tests-signing-key-32-chars-minimum-0123456789abcdef"
             });
         });
 

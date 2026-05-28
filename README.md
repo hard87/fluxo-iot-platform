@@ -129,6 +129,7 @@ Veja o indice central em [docs/README.md](docs/README.md).
 ## Seguranca
 
 - Nao versione `.env`, credenciais MQTT, chaves privadas ou segredos locais.
+- Configure `FLUXO_AUTH_SIGNING_KEY` com valor forte (>= 32 chars) antes de subir a API.
 - Em producao publica, desabilite `1883` e use TLS obrigatorio com certificados validos.
 - Referencia tecnica: [Seguranca OWASP](docs/seguranca-owasp.md).
 

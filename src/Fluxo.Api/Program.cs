@@ -12,6 +12,8 @@ using Fluxo.Application.UseCases.Workspaces;
 using Fluxo.Infrastructure.Data;
 using Fluxo.Infrastructure.DependencyInjection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using System.Security.Claims;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +41,48 @@ builder.Services.Configure<DeviceStatusOptions>(
 builder.Services
     .AddHealthChecks()
     .AddDbContextCheck<FluxoDbContext>("postgresql");
+builder.Services.AddRateLimiter(options =>
+{
+    var isTesting = builder.Environment.IsEnvironment("Testing");
+    var globalPermitLimit = isTesting ? 10_000 : 120;
+    var authPermitLimit = isTesting ? 10_000 : 10;
+
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+                     httpContext.User.FindFirst("sub")?.Value;
+
+        var partitionKey = !string.IsNullOrWhiteSpace(userId)
+            ? $"user:{userId}"
+            : $"ip:{httpContext.Connection.RemoteIpAddress}";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = globalPermitLimit,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
+
+    options.AddPolicy("auth", httpContext =>
+    {
+        var partitionKey = $"auth:{httpContext.Connection.RemoteIpAddress}";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = authPermitLimit,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
+});
 
 builder.Services.AddScoped<CreateDeviceUseCase>();
 builder.Services.AddScoped<GetDeviceByIdUseCase>();
@@ -62,6 +106,7 @@ builder.Services.AddScoped<GetWorkspaceDeviceProvisioningUseCase>();
 builder.Services.AddScoped<RotateWorkspaceDeviceCredentialUseCase>();
 builder.Services.AddScoped<GetWorkspaceDeviceTelemetryUseCase>();
 builder.Services.AddScoped<GetWorkspaceDashboardUseCase>();
+builder.Services.AddScoped<GetAuthorizedDeviceUseCase>();
 builder.Services.AddSingleton<IDeviceCredentialSecretService, DeviceCredentialSecretService>();
 builder.Services.AddSingleton<IUserPasswordService, UserPasswordService>();
 builder.Services.AddSingleton<IAccessTokenService, JwtAccessTokenService>();
@@ -78,6 +123,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("Portal");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

@@ -1,6 +1,9 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Fluxo.Application.DTOs.Auth;
 using Fluxo.Application.DTOs.Provisioning;
+using Fluxo.Application.DTOs.Workspaces;
 using Fluxo.Domain.Enums;
 
 namespace Fluxo.IntegrationTests.Api;
@@ -17,10 +20,14 @@ public class ProvisioningEndpointsTests : IClassFixture<FluxoWebApplicationFacto
     [Fact]
     public async Task Provision_Device_Should_Create_Device_And_Credential()
     {
+        var token = await RegisterAndLoginAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var workspace = await CreateWorkspaceAsync();
+
         var request = new ProvisionDeviceRequest
         {
-            TenantId = "acme-industria",
-            WorkspaceId = Guid.NewGuid(),
+            TenantId = workspace.TenantId,
+            WorkspaceId = workspace.Id,
             Name = "ESP32 Lab 01",
             Identifier = "esp32-lab-01",
             Category = DeviceCategory.Sensor,
@@ -44,10 +51,14 @@ public class ProvisioningEndpointsTests : IClassFixture<FluxoWebApplicationFacto
     [Fact]
     public async Task Rotate_Credential_Should_Create_New_Active_Credential()
     {
+        var token = await RegisterAndLoginAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var workspace = await CreateWorkspaceAsync();
+
         var provision = await _client.PostAsJsonAsync("/api/provisioning/devices", new ProvisionDeviceRequest
         {
-            TenantId = "acme-industria",
-            WorkspaceId = Guid.NewGuid(),
+            TenantId = workspace.TenantId,
+            WorkspaceId = workspace.Id,
             Name = "ESP32 Lab 02",
             Identifier = "esp32-lab-02",
             Category = DeviceCategory.Sensor
@@ -68,5 +79,40 @@ public class ProvisioningEndpointsTests : IClassFixture<FluxoWebApplicationFacto
         Assert.NotEqual(provisioned.CredentialId, rotated.CredentialId);
         Assert.False(string.IsNullOrWhiteSpace(rotated.ProvisioningSecret));
         Assert.Equal(DeviceCredentialStatus.Active, rotated.CredentialStatus);
+    }
+
+    private async Task<WorkspaceResponse> CreateWorkspaceAsync()
+    {
+        var response = await _client.PostAsJsonAsync("/api/workspaces", new CreateWorkspaceRequest
+        {
+            Name = $"Provisioning Workspace {Guid.NewGuid():N}"
+        });
+
+        response.EnsureSuccessStatusCode();
+        var workspace = await response.Content.ReadFromJsonAsync<WorkspaceResponse>();
+        return workspace!;
+    }
+
+    private async Task<string> RegisterAndLoginAsync()
+    {
+        var email = $"provisioning-user-{Guid.NewGuid():N}@fluxo.local";
+        const string password = "Abcdef!23456";
+
+        var register = await _client.PostAsJsonAsync("/api/auth/register", new RegisterUserRequest
+        {
+            Email = email,
+            Password = password
+        });
+        register.EnsureSuccessStatusCode();
+
+        var login = await _client.PostAsJsonAsync("/api/auth/login", new LoginRequest
+        {
+            Email = email,
+            Password = password
+        });
+        login.EnsureSuccessStatusCode();
+
+        var payload = await login.Content.ReadFromJsonAsync<LoginResponse>();
+        return payload!.AccessToken;
     }
 }

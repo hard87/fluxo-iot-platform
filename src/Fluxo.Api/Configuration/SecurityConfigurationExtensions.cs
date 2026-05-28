@@ -7,6 +7,8 @@ namespace Fluxo.Api.Configuration;
 
 public static class SecurityConfigurationExtensions
 {
+    private const string DefaultLocalSigningKey = "change-this-local-signing-key-with-32-chars-min";
+
     public static IServiceCollection AddFluxoSecurity(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -38,8 +40,14 @@ public static class SecurityConfigurationExtensions
                     : authOptions.Jwt.Issuer.Trim();
 
                 var signingKey = string.IsNullOrWhiteSpace(authOptions.Jwt.SigningKey)
-                    ? "change-this-local-signing-key-with-32-chars-min"
+                    ? DefaultLocalSigningKey
                     : authOptions.Jwt.SigningKey.Trim();
+
+                if (string.Equals(signingKey, DefaultLocalSigningKey, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        "Authentication:Jwt:SigningKey is still using the default value. Configure a strong key before starting the API.");
+                }
 
                 if (signingKey.Length < 32)
                 {
