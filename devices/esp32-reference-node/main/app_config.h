@@ -4,14 +4,19 @@
 /*
  * Centralized firmware configuration.
  * Note: "localhost" in broker URI will point to ESP32 itself.
- * Use the machine IP where your MQTT broker is running.
+ * For TLS, use a broker host name that matches the broker certificate CN/SAN.
  */
 #define APP_WIFI_SSID               "CHANGE_ME_WIFI_SSID"
 #define APP_WIFI_PASSWORD           "CHANGE_ME_WIFI_PASSWORD"
 
-#define APP_MQTT_BROKER_URI         "mqtt://CHANGE_ME_BROKER_IP:1883"
+#define APP_MQTT_BROKER_URI         "mqtts://CHANGE_ME_BROKER_HOST:8883"
 #define APP_MQTT_USERNAME           "CHANGE_ME_MQTT_USERNAME"
 #define APP_MQTT_PASSWORD           "CHANGE_ME_MQTT_PASSWORD"
+/*
+ * Use one-line escaped PEM string, for example:
+ * "-----BEGIN CERTIFICATE-----\n...base64...\n-----END CERTIFICATE-----\n"
+ */
+#define APP_MQTT_CA_CERT_PEM        "CHANGE_ME_MQTT_CA_CERT_PEM"
 #define APP_MQTT_QOS                1
 #define APP_MQTT_RETAIN             0
 
@@ -25,6 +30,7 @@
 #define APP_TOPIC_FORMAT "fluxo/tenants/%s/workspaces/%s/devices/%s/telemetry"
 
 #define APP_TELEMETRY_PERIOD_MS     10000
+#define APP_SEQUENCE_PERSIST_EVERY_MESSAGES 30
 
 #define APP_NTP_SERVER              "pool.ntp.org"
 #define APP_TIME_SYNC_TIMEOUT_MS    30000

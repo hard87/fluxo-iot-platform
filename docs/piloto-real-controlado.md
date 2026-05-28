@@ -112,15 +112,17 @@ Resposta importante:
 1. Copie `devices/esp32-reference-node/main/app_config.local.example.h` para `app_config.local.h`.
 2. Preencha:
    - Wi-Fi
-   - broker
+   - `APP_MQTT_BROKER_URI` (`mqtts://broker.fluxo.local:8883`)
    - `APP_MQTT_USERNAME`
    - `APP_MQTT_PASSWORD` (valor de `provisioningSecret`)
+   - `APP_MQTT_CA_CERT_PEM` (conteudo da `ca.crt` em string C com `\n`)
 3. Nunca commitar `app_config.local.h`.
+4. Garanta que o host usado em `APP_MQTT_BROKER_URI` bate com o certificado TLS do broker.
 
 ## 8. Publicar telemetria de teste
 
 ```powershell
-mosquitto_pub -h localhost -p 1883 `
+mosquitto_pub -h broker.fluxo.local -p 8883 --cafile docker/mosquitto/certs/ca.crt `
   -u "<credentialUsername>" -P "<provisioningSecret>" `
   -t "fluxo/tenants/acme-industria/workspaces/11111111-1111-1111-1111-111111111111/devices/esp32-lab-01/telemetry" `
   -m '{"schemaVersion":"1.0","tenantId":"acme-industria","workspaceId":"11111111-1111-1111-1111-111111111111","deviceId":"esp32-lab-01","messageType":"telemetry","timestampUtc":"2026-05-24T12:00:00Z","sequence":1,"metrics":{"temperature":24.5,"humidity":60.2}}'

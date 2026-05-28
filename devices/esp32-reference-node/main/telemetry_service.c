@@ -10,6 +10,7 @@
 #include "esp_log.h"
 #include "esp_sntp.h"
 #include "esp_timer.h"
+#include "nvs.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -18,6 +19,55 @@ static const char *TAG = "telemetry_service";
 static TaskHandle_t s_task_handle;
 static uint64_t s_sequence;
 static bool s_time_warning_logged;
+static const char *SEQUENCE_NVS_NAMESPACE = "telemetry";
+static const char *SEQUENCE_NVS_KEY = "sequence";
+
+static esp_err_t restore_sequence_checkpoint(void)
+{
+    nvs_handle_t nvs_handle;
+    esp_err_t err = nvs_open(SEQUENCE_NVS_NAMESPACE, NVS_READWRITE, &nvs_handle);
+    if (err != ESP_OK)
+    {
+        ESP_LOGW(TAG, "Falha ao abrir NVS para sequence: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    uint64_t restored_sequence = 0;
+    err = nvs_get_u64(nvs_handle, SEQUENCE_NVS_KEY, &restored_sequence);
+    nvs_close(nvs_handle);
+
+    if (err == ESP_ERR_NVS_NOT_FOUND)
+    {
+        s_sequence = 0;
+        ESP_LOGI(TAG, "Sem checkpoint anterior de sequence. Iniciando em zero.");
+        return ESP_OK;
+    }
+
+    if (err != ESP_OK)
+    {
+        ESP_LOGW(TAG, "Falha ao ler checkpoint de sequence: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    s_sequence = restored_sequence;
+    ESP_LOGI(TAG, "Checkpoint de sequence restaurado: %" PRIu64, s_sequence);
+    return ESP_OK;
+}
+
+static esp_err_t persist_sequence_checkpoint(uint64_t sequence)
+{
+    nvs_handle_t nvs_handle;
+    esp_err_t err = nvs_open(SEQUENCE_NVS_NAMESPACE, NVS_READWRITE, &nvs_handle);
+    if (err != ESP_OK)
+        return err;
+
+    err = nvs_set_u64(nvs_handle, SEQUENCE_NVS_KEY, sequence);
+    if (err == ESP_OK)
+        err = nvs_commit(nvs_handle);
+
+    nvs_close(nvs_handle);
+    return err;
+}
 
 static bool is_time_synchronized(void)
 {
@@ -197,6 +247,18 @@ static void telemetry_task(void *arg)
 
         if (publish_err == ESP_OK)
         {
+            if ((s_sequence % (uint64_t)APP_SEQUENCE_PERSIST_EVERY_MESSAGES) == 0ULL)
+            {
+                esp_err_t persist_err = persist_sequence_checkpoint(s_sequence);
+                if (persist_err != ESP_OK)
+                {
+                    ESP_LOGW(
+                        TAG,
+                        "Falha ao persistir checkpoint de sequence: %s",
+                        esp_err_to_name(persist_err));
+                }
+            }
+
             ESP_LOGI(
                 TAG,
                 "Telemetria publicada. seq=%" PRIu64 ", rssi=%d dBm, topic=%s",
@@ -217,6 +279,8 @@ esp_err_t telemetry_service_start(void)
 {
     if (s_task_handle != NULL)
         return ESP_OK;
+
+    (void)restore_sequence_checkpoint();
 
     BaseType_t task_result = xTaskCreate(
         telemetry_task,

@@ -69,7 +69,7 @@ Copy-Item .env.example .env
 2. (Opcional, recomendado) Gere certificados TLS locais para MQTT:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-local-certs.ps1
+powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-local-certs.ps1 -CommonName broker.fluxo.local
 ```
 
 3. Prepare credenciais do Mosquitto (ACL/password):

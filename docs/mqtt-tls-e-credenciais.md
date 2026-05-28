@@ -58,7 +58,7 @@ Isso impede que um device publique em topic de outro device.
 Gerar certificados locais:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-local-certs.ps1
+powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-local-certs.ps1 -CommonName broker.fluxo.local
 ```
 
 Arquivos esperados:
@@ -70,9 +70,19 @@ Arquivos esperados:
 
 No arquivo local nao versionado `devices/esp32-reference-node/main/app_config.local.h`:
 
-- `APP_MQTT_BROKER_URI` (`mqtt://` para 1883 ou `mqtts://` para 8883)
+- `APP_MQTT_BROKER_URI` (obrigatoriamente `mqtts://<host>:8883`)
 - `APP_MQTT_USERNAME` (`credentialUsername`)
 - `APP_MQTT_PASSWORD` (`provisioningSecret`)
+- `APP_MQTT_CA_CERT_PEM` (CA do broker em string C com `\n`)
+
+Obs.: o host de `APP_MQTT_BROKER_URI` precisa bater com o `CommonName` usado no certificado do broker.
+
+Conversao util da CA para string C:
+
+```powershell
+$ca = (Get-Content docker/mosquitto/certs/ca.crt -Raw).Replace("`r","").Replace("`n","\n")
+$ca
+```
 
 ## 7. Validacao da telemetria
 

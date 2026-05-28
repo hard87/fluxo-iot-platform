@@ -43,8 +43,18 @@ docker/mosquitto/certs/*.key
 docker/mosquitto/certs/*.crt
 docker/mosquitto/certs/*.csr
 docker/mosquitto/certs/*.srl
+docker/mosquitto/certs/*.ext
 certs/*.pfx
 devices/esp32-reference-node/main/app_config.local.h
+
+# ESP-IDF generated artifacts
+devices/esp32-reference-node/build/
+devices/esp32-reference-node/managed_components/
+devices/esp32-reference-node/sdkconfig
+devices/esp32-reference-node/sdkconfig.old
+
+# Local diagnostics
+diagnostico-geral-codex.txt
 
 # Test Results
 TestResults/

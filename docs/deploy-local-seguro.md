@@ -21,8 +21,10 @@ Observacao: a API nao inicializa com a chave JWT default de placeholder.
 ## 3. Gerar certificados TLS locais do MQTT (recomendado)
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-local-certs.ps1
+powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-local-certs.ps1 -CommonName broker.fluxo.local
 ```
+
+Se o firmware ESP32 usar `mqtts://broker.fluxo.local:8883`, garanta que esse nome resolve para o IP local do broker (ex.: arquivo `hosts`).
 
 ## 4. Gerar certificado HTTPS local da API (opcional)
 
