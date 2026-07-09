@@ -4,15 +4,13 @@ services:
     container_name: fluxo-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${FLUXO_DB_NAME:-fluxo_db}
-      POSTGRES_USER: ${FLUXO_DB_USER:-fluxo}
-      POSTGRES_PASSWORD: ${FLUXO_DB_PASSWORD:-fluxo}
-    ports:
-      - "${FLUXO_DB_PUBLIC_BIND:-127.0.0.1}:${FLUXO_DB_PUBLIC_PORT:-5432}:5432"
+      POSTGRES_DB: "${FLUXO_DB_NAME:?Set FLUXO_DB_NAME}"
+      POSTGRES_USER: "${FLUXO_DB_USER:?Set FLUXO_DB_USER}"
+      POSTGRES_PASSWORD: "${FLUXO_DB_PASSWORD:?Set FLUXO_DB_PASSWORD}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${FLUXO_DB_USER:-fluxo} -d ${FLUXO_DB_NAME:-fluxo_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${FLUXO_DB_USER:?Set FLUXO_DB_USER} -d ${FLUXO_DB_NAME:?Set FLUXO_DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -23,8 +21,7 @@ services:
     container_name: fluxo-mosquitto
     restart: unless-stopped
     ports:
-      - "${FLUXO_MQTT_PUBLIC_BIND:-127.0.0.1}:${FLUXO_MQTT_PUBLIC_PORT:-1883}:1883"
-      - "${FLUXO_MQTT_TLS_PUBLIC_BIND:-127.0.0.1}:${FLUXO_MQTT_TLS_PUBLIC_PORT:-8883}:8883"
+      - "${FLUXO_MQTT_TLS_PUBLIC_BIND:-0.0.0.0}:${FLUXO_MQTT_TLS_PUBLIC_PORT:-8883}:8883"
     volumes:
       - ./docker/mosquitto:/mosquitto/config
       - ./docker/mosquitto/certs:/mosquitto/certs:ro
@@ -45,16 +42,16 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${FLUXO_DB_NAME:-fluxo_db};Username=${FLUXO_DB_USER:-fluxo};Password=${FLUXO_DB_PASSWORD:-fluxo}
-      Authentication__Enabled: ${FLUXO_AUTH_ENABLED:-false}
-      Authentication__Jwt__Audience: ${FLUXO_AUTH_AUDIENCE:-fluxo-api}
-      Authentication__Jwt__Issuer: ${FLUXO_AUTH_ISSUER:-fluxo-local}
-      Authentication__Jwt__SigningKey: ${FLUXO_AUTH_SIGNING_KEY:-change-this-local-signing-key-with-32-chars-min}
-      Authentication__Jwt__ExpiresMinutes: ${FLUXO_AUTH_EXPIRES_MINUTES:-60}
-      Authentication__Jwt__RequireHttpsMetadata: ${FLUXO_AUTH_REQUIRE_HTTPS_METADATA:-false}
-      Cors__AllowedOrigins__0: http://localhost:${FLUXO_PORTAL_PUBLIC_PORT:-8080}
-      DeviceStatus__OfflineAfterSeconds: ${FLUXO_DEVICE_OFFLINE_AFTER_SECONDS:-120}
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${FLUXO_DB_NAME:?Set FLUXO_DB_NAME};Username=${FLUXO_DB_USER:?Set FLUXO_DB_USER};Password=${FLUXO_DB_PASSWORD:?Set FLUXO_DB_PASSWORD}
+      Authentication__Enabled: "true"
+      Authentication__Jwt__Audience: "${FLUXO_AUTH_AUDIENCE:-fluxo-api}"
+      Authentication__Jwt__Issuer: "${FLUXO_AUTH_ISSUER:?Set FLUXO_AUTH_ISSUER}"
+      Authentication__Jwt__SigningKey: "${FLUXO_AUTH_SIGNING_KEY:?Set FLUXO_AUTH_SIGNING_KEY}"
+      Authentication__Jwt__ExpiresMinutes: "${FLUXO_AUTH_EXPIRES_MINUTES:-60}"
+      Authentication__Jwt__RequireHttpsMetadata: "${FLUXO_AUTH_REQUIRE_HTTPS_METADATA:-true}"
+      Cors__AllowedOrigins__0: "${FLUXO_PORTAL_ORIGIN:?Set FLUXO_PORTAL_ORIGIN}"
+      DeviceStatus__OfflineAfterSeconds: "${FLUXO_DEVICE_OFFLINE_AFTER_SECONDS:-120}"
     ports:
       - "${FLUXO_API_PUBLIC_BIND:-127.0.0.1}:${FLUXO_API_PUBLIC_PORT:-5000}:8080"
     healthcheck:
@@ -77,19 +74,21 @@ services:
         condition: service_started
       api:
         condition: service_healthy
+    volumes:
+      - ./docker/mosquitto/certs/ca.crt:/etc/fluxo/mqtt/ca.crt:ro
     environment:
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${FLUXO_DB_NAME:-fluxo_db};Username=${FLUXO_DB_USER:-fluxo};Password=${FLUXO_DB_PASSWORD:-fluxo}
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${FLUXO_DB_NAME:?Set FLUXO_DB_NAME};Username=${FLUXO_DB_USER:?Set FLUXO_DB_USER};Password=${FLUXO_DB_PASSWORD:?Set FLUXO_DB_PASSWORD}
       MqttIngestion__BrokerHost: mosquitto
-      MqttIngestion__BrokerPort: ${FLUXO_MQTT_INGESTION_PORT:-1883}
+      MqttIngestion__BrokerPort: 8883
       MqttIngestion__TopicFilter: fluxo/tenants/+/workspaces/+/devices/+/telemetry
-      MqttIngestion__Username: ${FLUXO_MQTT_INGESTION_USERNAME:-ingestion-worker-local}
-      MqttIngestion__Password: ${FLUXO_MQTT_INGESTION_PASSWORD:-change-me-local-ingestion-password}
-      MqttIngestion__UseTls: ${FLUXO_MQTT_INGESTION_USE_TLS:-false}
-      MqttIngestion__TlsTargetHost: ${FLUXO_MQTT_TLS_TARGET_HOST:-}
-      MqttIngestion__TlsCaCertificatePath: ${FLUXO_MQTT_TLS_CA_CERTIFICATE_PATH:-}
-      MqttIngestion__TlsAllowUntrustedCertificates: ${FLUXO_MQTT_TLS_ALLOW_UNTRUSTED:-false}
-      MqttIngestion__TlsIgnoreCertificateChainErrors: ${FLUXO_MQTT_TLS_IGNORE_CHAIN_ERRORS:-false}
-      MqttIngestion__TlsIgnoreCertificateRevocationErrors: ${FLUXO_MQTT_TLS_IGNORE_REVOCATION_ERRORS:-false}
+      MqttIngestion__Username: "${FLUXO_MQTT_INGESTION_USERNAME:?Set FLUXO_MQTT_INGESTION_USERNAME}"
+      MqttIngestion__Password: "${FLUXO_MQTT_INGESTION_PASSWORD:?Set FLUXO_MQTT_INGESTION_PASSWORD}"
+      MqttIngestion__UseTls: "true"
+      MqttIngestion__TlsTargetHost: "${FLUXO_MQTT_TLS_TARGET_HOST:-broker.fluxo.local}"
+      MqttIngestion__TlsCaCertificatePath: "${FLUXO_MQTT_TLS_CA_CERTIFICATE_PATH:-/etc/fluxo/mqtt/ca.crt}"
+      MqttIngestion__TlsAllowUntrustedCertificates: "${FLUXO_MQTT_TLS_ALLOW_UNTRUSTED:-false}"
+      MqttIngestion__TlsIgnoreCertificateChainErrors: "${FLUXO_MQTT_TLS_IGNORE_CHAIN_ERRORS:-false}"
+      MqttIngestion__TlsIgnoreCertificateRevocationErrors: "${FLUXO_MQTT_TLS_IGNORE_REVOCATION_ERRORS:-false}"
       MqttIngestion__ReconnectDelaySeconds: 5
       MqttIngestion__ChannelCapacity: 5000
       MqttIngestion__ProcessingConcurrency: 4
@@ -107,7 +106,7 @@ services:
       context: ./portal-web
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: http://localhost:${FLUXO_API_PUBLIC_PORT:-5000}
+        VITE_API_BASE_URL: "${VITE_API_BASE_URL:?Set VITE_API_BASE_URL}"
     container_name: fluxo-portal-web
     restart: unless-stopped
     depends_on:

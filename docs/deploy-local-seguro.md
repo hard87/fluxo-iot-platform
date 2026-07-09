@@ -50,6 +50,8 @@ powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-auth-
 
 ## 6. Build e subida do ambiente
 
+Perfil dev local:
+
 ```powershell
 docker compose build
 docker compose up -d
@@ -61,6 +63,23 @@ Servicos principais:
 - API
 - Worker de ingestao
 - Frontend do portal
+
+As portas publicadas usam `127.0.0.1` por padrao no `.env.example`, incluindo `1883`.
+Isso preserva o desenvolvimento local sem expor MQTT sem TLS para a rede.
+
+Perfil de producao controlada minima:
+
+```powershell
+docker compose -f docker-compose.controlled-prod.yml build
+docker compose -f docker-compose.controlled-prod.yml up -d
+```
+
+Neste perfil:
+
+- MQTT publica somente `8883`;
+- PostgreSQL nao publica porta no host;
+- API e Portal devem ficar atras de TLS HTTP no proxy/terminador do ambiente;
+- secrets sao obrigatorios via `.env` e nao possuem fallback seguro no compose.
 
 ## 7. Aplicar migration local
 
@@ -111,7 +130,7 @@ docker compose down -v
 ## 10. Diferenca por ambiente
 
 - Local (laboratorio): pode manter `1883` habilitado para debug interno.
-- Piloto controlado: preferir `8883` TLS e rotacao frequente de credenciais.
+- Piloto controlado: usar `docker-compose.controlled-prod.yml`, publicar somente `8883` e manter rotacao frequente de credenciais.
 - Producao publica: desabilitar `1883`, usar certificados validos, segredo externo (vault), observabilidade completa.
 
 ## 11. Nunca versionar
@@ -121,3 +140,6 @@ docker compose down -v
 - `docker/mosquitto/acl`
 - `docker/mosquitto/credentials.local.json`
 - `docker/mosquitto/certs/*.key`
+- `docker/mosquitto/data/`
+- `docker/mosquitto/log/`
+- `backups/`

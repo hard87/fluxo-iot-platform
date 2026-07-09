@@ -1,6 +1,7 @@
 using Fluxo.Application.DTOs.Devices;
 using Fluxo.Application.DTOs.Portal;
 using Fluxo.Application.UseCases.Devices;
+using Fluxo.Domain.Enums;
 
 namespace Fluxo.Application.UseCases.Portal;
 
@@ -26,6 +27,7 @@ public sealed class CreateWorkspaceDeviceUseCase
         var workspace = await _getAuthorizedWorkspaceUseCase.ExecuteAsync(
             userId,
             workspaceId,
+            WorkspaceMembershipRole.Admin,
             cancellationToken);
 
         var createRequest = new CreateDeviceRequest

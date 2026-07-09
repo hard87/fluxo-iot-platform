@@ -13,6 +13,7 @@ Esta pasta contem a base local para broker MQTT do Fluxo com:
 - `credentials.template.json`: template para gerar `passwords` e `acl`.
 - `scripts/generate-auth-files.ps1`: automacao local de `password_file` e `acl_file`.
 - `scripts/generate-local-certs.ps1`: gera CA e certificado local/self-signed.
+- `data/` e `log/`: runtime do broker. Sao recriados pelo Mosquitto e nao devem ser versionados.
 
 ## Fluxo recomendado local
 
@@ -45,5 +46,6 @@ powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-local
 
 - `passwords`, `acl` e `credentials.local.json` nao devem ser versionados.
 - chaves privadas (`*.key`) e certificados locais gerados tambem nao devem ser versionados.
+- `data/mosquitto.db` e logs sao estado/runtime do broker; nao carregue esses arquivos para o Git.
 - o listener `1883` existe apenas para desenvolvimento interno controlado.
 - para piloto/externo, priorize `8883` com validacao de certificado no client.

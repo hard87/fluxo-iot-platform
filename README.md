@@ -86,6 +86,13 @@ docker compose build
 docker compose up -d
 ```
 
+Para o perfil de producao controlada minima, use:
+
+```powershell
+docker compose -f docker-compose.controlled-prod.yml build
+docker compose -f docker-compose.controlled-prod.yml up -d
+```
+
 5. Aplique migration:
 
 ```powershell
@@ -104,7 +111,7 @@ Referencias detalhadas:
 - Health API: `http://localhost:5000/health`
 - Status API: `http://localhost:5000/api/status`
 - Portal web: `http://localhost:8080`
-- MQTT dev interno: `localhost:1883`
+- MQTT dev interno em loopback: `localhost:1883`
 - MQTT TLS local: `localhost:8883`
 
 ## Qualidade e testes
@@ -129,8 +136,9 @@ Veja o indice central em [docs/README.md](docs/README.md).
 ## Seguranca
 
 - Nao versione `.env`, credenciais MQTT, chaves privadas ou segredos locais.
+- Nao versione runtime do broker (`docker/mosquitto/data/`, `docker/mosquitto/log/`) nem backups reais.
 - Configure `FLUXO_AUTH_SIGNING_KEY` com valor forte (>= 32 chars) antes de subir a API.
-- Em producao publica, desabilite `1883` e use TLS obrigatorio com certificados validos.
+- Em producao controlada, use `docker-compose.controlled-prod.yml`, nao publique `1883` e use TLS MQTT em `8883`.
 - Referencia tecnica: [Seguranca OWASP](docs/seguranca-owasp.md).
 
 ## Roadmap

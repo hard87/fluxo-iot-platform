@@ -1,6 +1,7 @@
 using Fluxo.Application.Common.Exceptions;
 using Fluxo.Application.Interfaces.Repositories;
 using Fluxo.Domain.Entities;
+using Fluxo.Domain.Enums;
 
 namespace Fluxo.Application.UseCases.Portal;
 
@@ -22,6 +23,15 @@ public sealed class GetAuthorizedDeviceUseCase
         Guid deviceId,
         CancellationToken cancellationToken = default)
     {
+        return await ExecuteAsync(userId, deviceId, WorkspaceMembershipRole.Viewer, cancellationToken);
+    }
+
+    public async Task<Device> ExecuteAsync(
+        Guid userId,
+        Guid deviceId,
+        WorkspaceMembershipRole minimumRole,
+        CancellationToken cancellationToken = default)
+    {
         if (userId == Guid.Empty)
             throw new UnauthorizedException("User is not authenticated.");
 
@@ -35,6 +45,7 @@ public sealed class GetAuthorizedDeviceUseCase
         var workspace = await _getAuthorizedWorkspaceUseCase.ExecuteAsync(
             userId,
             device.WorkspaceId,
+            minimumRole,
             cancellationToken);
 
         if (!string.Equals(device.TenantId, workspace.TenantId, StringComparison.OrdinalIgnoreCase))

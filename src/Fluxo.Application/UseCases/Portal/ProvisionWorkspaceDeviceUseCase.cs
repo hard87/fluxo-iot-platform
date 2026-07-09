@@ -1,6 +1,7 @@
 using Fluxo.Application.DTOs.Portal;
 using Fluxo.Application.DTOs.Provisioning;
 using Fluxo.Application.UseCases.Provisioning;
+using Fluxo.Domain.Enums;
 
 namespace Fluxo.Application.UseCases.Portal;
 
@@ -26,6 +27,7 @@ public sealed class ProvisionWorkspaceDeviceUseCase
         var workspace = await _getAuthorizedWorkspaceUseCase.ExecuteAsync(
             userId,
             workspaceId,
+            WorkspaceMembershipRole.Admin,
             cancellationToken);
 
         var provisionRequest = new ProvisionDeviceRequest

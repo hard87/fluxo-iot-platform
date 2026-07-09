@@ -1,5 +1,6 @@
 using System.Text;
 using System.Diagnostics;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Channels;
 using Fluxo.Worker.Ingestion.Models;
 using Fluxo.Worker.Ingestion.Options;
@@ -70,8 +71,35 @@ public class MqttTelemetryIngestionWorker : BackgroundService
 
                 if (_options.UseTls)
                 {
-                    _logger.LogWarning(
-                        "MqttIngestion:UseTls=true configurado. Ajuste os parametros de TLS conforme o ambiente antes de producao.");
+                    var trustChain = LoadTrustChain(_options.TlsCaCertificatePath);
+
+                    clientOptionsBuilder.WithTlsOptions(tls =>
+                    {
+                        tls.UseTls(true);
+
+                        if (!string.IsNullOrWhiteSpace(_options.TlsTargetHost))
+                            tls.WithTargetHost(_options.TlsTargetHost.Trim());
+
+                        if (trustChain is not null)
+                            tls.WithTrustChain(trustChain);
+
+                        tls.WithAllowUntrustedCertificates(_options.TlsAllowUntrustedCertificates);
+                        tls.WithIgnoreCertificateChainErrors(_options.TlsIgnoreCertificateChainErrors);
+                        tls.WithIgnoreCertificateRevocationErrors(_options.TlsIgnoreCertificateRevocationErrors);
+                    });
+
+                    _logger.LogInformation(
+                        "Conexao MQTT com TLS habilitado. TargetHost: {TargetHost}. CA configurada: {HasCa}.",
+                        string.IsNullOrWhiteSpace(_options.TlsTargetHost) ? _options.BrokerHost : _options.TlsTargetHost,
+                        trustChain is not null);
+
+                    if (_options.TlsAllowUntrustedCertificates ||
+                        _options.TlsIgnoreCertificateChainErrors ||
+                        _options.TlsIgnoreCertificateRevocationErrors)
+                    {
+                        _logger.LogWarning(
+                            "Validacao TLS MQTT relaxada por configuracao. Use apenas em laboratorio controlado.");
+                    }
                 }
 
                 var clientOptions = clientOptionsBuilder.Build();
@@ -294,5 +322,24 @@ public class MqttTelemetryIngestionWorker : BackgroundService
 
         if (options.ProcessingConcurrency <= 0)
             throw new InvalidOperationException("MqttIngestion:ProcessingConcurrency must be greater than zero.");
+
+        if (options.UseTls && !string.IsNullOrWhiteSpace(options.TlsCaCertificatePath) &&
+            !File.Exists(options.TlsCaCertificatePath))
+        {
+            throw new FileNotFoundException(
+                "MqttIngestion:TlsCaCertificatePath does not exist.",
+                options.TlsCaCertificatePath);
+        }
+    }
+
+    private static X509Certificate2Collection? LoadTrustChain(string? certificatePath)
+    {
+        if (string.IsNullOrWhiteSpace(certificatePath))
+            return null;
+
+        var certificate = X509Certificate2.CreateFromPemFile(certificatePath.Trim());
+        var collection = new X509Certificate2Collection();
+        collection.Add(certificate);
+        return collection;
     }
 }

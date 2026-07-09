@@ -93,4 +93,6 @@ $ca
 
 - Certificados locais/self-signed servem apenas para laboratorio.
 - `1883` sem TLS nao deve ser exposto em rede publica.
+- O perfil `docker-compose.controlled-prod.yml` publica somente `8883` para MQTT.
+- O worker aceita `MqttIngestion__UseTls=true`, `MqttIngestion__TlsTargetHost` e `MqttIngestion__TlsCaCertificatePath` para assinar a conexao com o broker.
 - Recomenda-se mutual TLS e gerencia de segredo por cofre para ambiente comercial.

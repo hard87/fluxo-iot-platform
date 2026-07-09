@@ -32,6 +32,18 @@ public sealed class WorkspaceMembershipRepository : IWorkspaceMembershipReposito
                 cancellationToken);
     }
 
+    public async Task<WorkspaceMembership?> GetMembershipAsync(
+        Guid workspaceId,
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.WorkspaceMemberships
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.WorkspaceId == workspaceId && x.UserId == userId,
+                cancellationToken);
+    }
+
     public async Task<IReadOnlyList<WorkspaceMembership>> GetByUserIdAsync(
         Guid userId,
         CancellationToken cancellationToken = default)

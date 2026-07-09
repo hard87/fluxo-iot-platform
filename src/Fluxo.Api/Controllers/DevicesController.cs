@@ -3,6 +3,7 @@ using Fluxo.Application.Common.Exceptions;
 using Fluxo.Application.DTOs.Devices;
 using Fluxo.Application.UseCases.Devices;
 using Fluxo.Application.UseCases.Portal;
+using Fluxo.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -39,6 +40,7 @@ public class DevicesController : ControllerBase
         var workspace = await _getAuthorizedWorkspaceUseCase.ExecuteAsync(
             userId,
             request.WorkspaceId,
+            WorkspaceMembershipRole.Admin,
             cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(request.TenantId) &&

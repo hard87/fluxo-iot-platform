@@ -2,6 +2,7 @@ using Fluxo.Application.Common.Exceptions;
 using Fluxo.Application.DTOs.Provisioning;
 using Fluxo.Application.Interfaces.Repositories;
 using Fluxo.Application.UseCases.Provisioning;
+using Fluxo.Domain.Enums;
 
 namespace Fluxo.Application.UseCases.Portal;
 
@@ -30,6 +31,7 @@ public sealed class RotateWorkspaceDeviceCredentialUseCase
         var workspace = await _getAuthorizedWorkspaceUseCase.ExecuteAsync(
             userId,
             workspaceId,
+            WorkspaceMembershipRole.Admin,
             cancellationToken);
 
         var device = await _deviceRepository.GetByTenantWorkspaceAndIdAsync(

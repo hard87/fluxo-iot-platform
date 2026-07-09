@@ -1,38 +1,48 @@
 # Fluxo - Guia do Piloto Real Controlado
 
-Este guia consolida o fluxo minimo para rodar um piloto com dispositivos reais, com autenticacao MQTT por device, rastreabilidade de ingestao e operacao assistida.
+Este guia descreve o caminho minimo para operar um piloto controlado com ate 100 dispositivos simultaneos, usando JWT no portal/API, MQTT com credenciais por device e backup/restore basico.
 
 ## 1. Pre-requisitos
 
+- Docker + Docker Compose
 - .NET SDK 10
-- PostgreSQL acessivel pela API e pelo Worker
-- Broker MQTT Mosquitto
-- `mosquitto_pub` e `mosquitto_passwd` disponiveis
+- Python 3.10+ para o simulador MQTT
+- `mosquitto_pub` e `mosquitto_passwd` para validacao manual
+- OpenSSL para gerar certificados MQTT locais
 
-## 2. Configuracao por ambiente (sem segredo versionado)
-
-### API
-
-Variaveis recomendadas:
+## 2. Preparar `.env`
 
 ```powershell
-$env:ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=fluxo_db;Username=fluxo;Password=fluxo"
-$env:Authentication__Enabled="false"
-$env:DeviceStatus__OfflineAfterSeconds="120"
+Copy-Item .env.example .env
 ```
 
-### Worker
+Edite `.env` antes de subir o ambiente:
+
+- troque `FLUXO_AUTH_SIGNING_KEY`;
+- troque senhas de PostgreSQL e MQTT;
+- mantenha `FLUXO_MQTT_PUBLIC_BIND=127.0.0.1` no dev;
+- para controlled-prod, configure `FLUXO_PORTAL_ORIGIN` e `VITE_API_BASE_URL`;
+- nao versione `.env`.
+
+## 3. Subir ambiente
+
+Dev local:
 
 ```powershell
-$env:ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=fluxo_db;Username=fluxo;Password=fluxo"
-$env:MqttIngestion__BrokerHost="localhost"
-$env:MqttIngestion__BrokerPort="1883"
-$env:MqttIngestion__TopicFilter="fluxo/tenants/+/workspaces/+/devices/+/telemetry"
-$env:MqttIngestion__ChannelCapacity="5000"
-$env:MqttIngestion__ProcessingConcurrency="4"
+docker compose build
+docker compose up -d
 ```
 
-## 3. Subir banco e aplicar migration
+Producao controlada minima:
+
+```powershell
+docker compose -f docker-compose.controlled-prod.yml build
+docker compose -f docker-compose.controlled-prod.yml up -d
+```
+
+No perfil controlled-prod, MQTT publica apenas `8883`; `1883` fica sem porta publicada no host.
+
+## 4. Aplicar migrations
 
 ```powershell
 dotnet ef database update `
@@ -40,109 +50,249 @@ dotnet ef database update `
   --startup-project src/Fluxo.Api/Fluxo.Api.csproj
 ```
 
-Migration desta etapa:
-
-- `20260524235507_AddDeviceProvisioningAndOperationalStatus`
-
-## 4. Subir API e Worker
-
-Terminal 1:
-
-```powershell
-dotnet run --project src/Fluxo.Api/Fluxo.Api.csproj
-```
-
-Terminal 2:
-
-```powershell
-dotnet run --project src/Fluxo.Worker.Ingestion/Fluxo.Worker.Ingestion.csproj
-```
-
 Health da API:
 
 ```powershell
-curl http://localhost:5000/health
+Invoke-RestMethod http://localhost:5000/health
 ```
 
-## 5. Subir Mosquitto com autenticacao por device
-
-1. Use `docker/mosquitto/mosquitto.conf` (`allow_anonymous false`).
-2. Provisione primeiro o device na API (proximo passo) para obter:
-   - `credentialUsername`
-   - `provisioningSecret`
-   - `mqttPublishTopic`
-3. Gere usuario no arquivo de senha:
-   - primeira vez: `mosquitto_passwd -c passwords <credentialUsername>`
-   - seguintes: `mosquitto_passwd passwords <credentialUsername>`
-4. ACL minima por device:
-
-```text
-user <credentialUsername>
-topic write <mqttPublishTopic>
-```
-
-5. Reinicie broker.
-
-## 6. Provisionar novo dispositivo via API
+## 5. Registrar usuario e obter JWT
 
 ```powershell
-$body = @{
-  tenantId = "acme-industria"
-  workspaceId = "11111111-1111-1111-1111-111111111111"
-  name = "ESP32 Lab 01"
-  identifier = "esp32-lab-01"
-  category = "Sensor"
-} | ConvertTo-Json
+$api = "http://localhost:5000"
+$email = "operador@example.test"
+$password = "TroqueEstaSenha123!"
 
-curl -Method POST `
-  -Uri http://localhost:5000/api/provisioning/devices `
+Invoke-RestMethod `
+  -Method POST `
+  -Uri "$api/api/auth/register" `
   -ContentType "application/json" `
-  -Body $body
+  -Body (@{ email = $email; password = $password } | ConvertTo-Json)
+
+$login = Invoke-RestMethod `
+  -Method POST `
+  -Uri "$api/api/auth/login" `
+  -ContentType "application/json" `
+  -Body (@{ email = $email; password = $password } | ConvertTo-Json)
+
+$token = $login.accessToken
+$headers = @{ Authorization = "Bearer $token" }
 ```
 
-Resposta importante:
-
-- `deviceId`
-- `credentialUsername`
-- `provisioningSecret` (mostrar uma vez, nao persistido em plaintext)
-- `mqttPublishTopic`
-
-## 7. Configurar firmware sem segredo versionado
-
-1. Copie `devices/esp32-reference-node/main/app_config.local.example.h` para `app_config.local.h`.
-2. Preencha:
-   - Wi-Fi
-   - `APP_MQTT_BROKER_URI` (`mqtts://broker.fluxo.local:8883`)
-   - `APP_MQTT_USERNAME`
-   - `APP_MQTT_PASSWORD` (valor de `provisioningSecret`)
-   - `APP_MQTT_CA_CERT_PEM` (conteudo da `ca.crt` em string C com `\n`)
-3. Nunca commitar `app_config.local.h`.
-4. Garanta que o host usado em `APP_MQTT_BROKER_URI` bate com o certificado TLS do broker.
-
-## 8. Publicar telemetria de teste
+Todos os endpoints protegidos abaixo usam:
 
 ```powershell
-mosquitto_pub -h broker.fluxo.local -p 8883 --cafile docker/mosquitto/certs/ca.crt `
-  -u "<credentialUsername>" -P "<provisioningSecret>" `
-  -t "fluxo/tenants/acme-industria/workspaces/11111111-1111-1111-1111-111111111111/devices/esp32-lab-01/telemetry" `
-  -m '{"schemaVersion":"1.0","tenantId":"acme-industria","workspaceId":"11111111-1111-1111-1111-111111111111","deviceId":"esp32-lab-01","messageType":"telemetry","timestampUtc":"2026-05-24T12:00:00Z","sequence":1,"metrics":{"temperature":24.5,"humidity":60.2}}'
+$headers = @{ Authorization = "Bearer <token>" }
 ```
 
-## 9. Consultar dados recebidos e status operacional
-
-1. Detalhe de provisionamento/status:
+## 6. Criar workspace
 
 ```powershell
-curl http://localhost:5000/api/provisioning/devices/<deviceId>
+$workspace = Invoke-RestMethod `
+  -Method POST `
+  -Uri "$api/api/workspaces" `
+  -Headers $headers `
+  -ContentType "application/json" `
+  -Body (@{
+    name = "Piloto ACME"
+    tenantId = "acme-industria"
+  } | ConvertTo-Json)
+
+$workspaceId = $workspace.id
 ```
 
-2. Telemetria por device:
+Listar workspaces:
 
 ```powershell
-curl http://localhost:5000/api/devices/<deviceId>/telemetry
+Invoke-RestMethod -Method GET -Uri "$api/api/workspaces" -Headers $headers
 ```
 
-## 10. Validar rejeicoes de ingestao
+## 7. Provisionar dispositivo
+
+`category = 1` representa `Sensor`.
+
+```powershell
+$device = Invoke-RestMethod `
+  -Method POST `
+  -Uri "$api/api/workspaces/$workspaceId/devices/provision" `
+  -Headers $headers `
+  -ContentType "application/json" `
+  -Body (@{
+    name = "ESP32 Lab 01"
+    identifier = "esp32-lab-01"
+    category = 1
+  } | ConvertTo-Json)
+
+$deviceId = $device.deviceId
+$deviceIdentifier = $device.deviceIdentifier
+$credentialUsername = $device.credentialUsername
+$provisioningSecret = $device.provisioningSecret
+$mqttTopic = $device.mqttPublishTopic
+```
+
+Guarde `provisioningSecret` apenas no cofre/ambiente do device. Ele e exibido no provisionamento/rotacao e nao deve ir para o Git.
+
+## 8. Atualizar credenciais do Mosquitto
+
+1. Copie o template local:
+
+```powershell
+Copy-Item docker/mosquitto/credentials.template.json docker/mosquitto/credentials.local.json
+```
+
+2. Preencha `credentials.local.json` com:
+
+```json
+[
+  {
+    "username": "<credentialUsername>",
+    "secret": "<provisioningSecret>",
+    "topic": "<mqttPublishTopic>"
+  }
+]
+```
+
+3. Gere `passwords` e `acl`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-auth-files.ps1 -Overwrite
+docker compose restart mosquitto
+```
+
+No controlled-prod:
+
+```powershell
+docker compose -f docker-compose.controlled-prod.yml restart mosquitto worker
+```
+
+## 9. Configurar firmware ESP32 de referencia
+
+1. Copie o arquivo local:
+
+```powershell
+Copy-Item devices/esp32-reference-node/main/app_config.local.example.h `
+  devices/esp32-reference-node/main/app_config.local.h
+```
+
+2. Configure:
+
+- Wi-Fi;
+- `APP_MQTT_BROKER_URI` como `mqtts://broker.fluxo.local:8883`;
+- `APP_MQTT_USERNAME` com `credentialUsername`;
+- `APP_MQTT_PASSWORD` com `provisioningSecret`;
+- `APP_MQTT_CA_CERT_PEM` com a CA do broker.
+
+`app_config.local.h` esta ignorado no Git.
+
+## 10. Validar publicacao MQTT
+
+Com TLS:
+
+```powershell
+$payload = @{
+  schemaVersion = "1.0"
+  tenantId = "acme-industria"
+  workspaceId = $workspaceId
+  deviceId = $deviceIdentifier
+  messageType = "telemetry"
+  timestampUtc = (Get-Date).ToUniversalTime().ToString("o")
+  sequence = 1
+  firmwareVersion = "esp32-reference"
+  metrics = @{
+    temperature = 24.5
+    humidity = 60.2
+    battery = 3.92
+    rssi = -55
+    uptimeSec = 120
+  }
+} | ConvertTo-Json -Depth 5 -Compress
+
+mosquitto_pub `
+  -h broker.fluxo.local `
+  -p 8883 `
+  --cafile docker/mosquitto/certs/ca.crt `
+  -u $credentialUsername `
+  -P $provisioningSecret `
+  -t $mqttTopic `
+  -m $payload
+```
+
+Dev local sem TLS deve ficar restrito a `127.0.0.1:1883`.
+
+## 11. Consultar telemetria
+
+```powershell
+Invoke-RestMethod `
+  -Method GET `
+  -Uri "$api/api/workspaces/$workspaceId/devices/$deviceId/telemetry?page=1&pageSize=20" `
+  -Headers $headers
+```
+
+Detalhe de provisionamento:
+
+```powershell
+Invoke-RestMethod `
+  -Method GET `
+  -Uri "$api/api/workspaces/$workspaceId/devices/$deviceId/provisioning" `
+  -Headers $headers
+```
+
+## 12. Simular 10, 50 e 100 dispositivos
+
+Valide primeiro o payload sem broker:
+
+```powershell
+python scripts/mqtt-device-simulator.py `
+  --dry-run `
+  --tenant-id acme-industria `
+  --workspace-id $workspaceId
+```
+
+Exemplo com 10 dispositivos em dev:
+
+```powershell
+$env:FLUXO_SIMULATOR_MQTT_PASSWORD = "<provisioningSecret-ou-senha-de-teste>"
+
+python scripts/mqtt-device-simulator.py `
+  --host localhost `
+  --port 1883 `
+  --tenant-id acme-industria `
+  --workspace-id $workspaceId `
+  --device-prefix sim-device `
+  --devices 10 `
+  --interval-seconds 1 `
+  --messages-per-device 20 `
+  --username-template "dev-acme-{device}" `
+  --password-env FLUXO_SIMULATOR_MQTT_PASSWORD
+```
+
+Para 50 ou 100 dispositivos, altere `--devices`. Provisione previamente os devices/ACLs correspondentes se quiser que o worker aceite e persista as mensagens.
+
+## 13. Backup e restore
+
+Backup dev:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/postgres-backup.ps1
+```
+
+Backup controlled-prod:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/postgres-backup.ps1 `
+  -ComposeFile docker-compose.controlled-prod.yml
+```
+
+Restore:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/postgres-restore.ps1 `
+  -InputPath backups/postgres/<arquivo>.sql
+```
+
+Teste restore em ambiente descartavel antes do piloto.
+
+## 14. Validar rejeicoes e idempotencia
 
 SQL:
 
@@ -153,7 +303,7 @@ order by "ReceivedAtUtc" desc
 limit 100;
 ```
 
-Duplicidade esperada (idempotencia por tenant/workspace/device/sequence):
+Duplicidade esperada por tenant/workspace/device/sequence:
 
 ```sql
 select "TenantId","WorkspaceId","DeviceId","Sequence",count(*)
@@ -164,67 +314,33 @@ having count(*) > 1;
 
 Resultado esperado: zero linhas.
 
-## 11. Observabilidade operacional (metricas preparadas)
+## 15. Encerrar ambiente
 
-No Worker (`Meter`: `Fluxo.Worker.Ingestion`):
+Dev:
 
-- `fluxo_ingestion_messages_received`
-- `fluxo_ingestion_messages_enqueued`
-- `fluxo_ingestion_messages_dequeued`
-- `fluxo_ingestion_messages_persisted`
-- `fluxo_ingestion_messages_rejected`
-- `fluxo_ingestion_messages_duplicate`
-- `fluxo_ingestion_failures_database`
-- `fluxo_ingestion_failures_transient`
-- `fluxo_ingestion_failures_processing`
-- `fluxo_ingestion_buffer_size` (gauge)
-- `fluxo_ingestion_mqtt_reconnections`
-- `fluxo_ingestion_processing_duration_ms` (histogram)
+```powershell
+docker compose down
+```
 
-Isso ja e compativel com pipeline OpenTelemetry/Prometheus.
+Controlled-prod:
 
-## 12. Retencao e particionamento (politica inicial do piloto)
+```powershell
+docker compose -f docker-compose.controlled-prod.yml down
+```
 
-Carga de referencia:
+Use `down -v` somente quando quiser remover volumes persistentes.
 
-- 100 msg/s medio
-- 8.640.000 mensagens/dia
-
-Politica inicial recomendada para piloto:
-
-1. Manter 14 dias de `telemetry_ingestion_records` no banco principal.
-2. Manter `telemetry_ingestion_rejections` por 30 dias.
-3. Rodar limpeza diaria por `ReceivedAtUtc`.
-4. Exportar bruto para storage frio antes da limpeza, se necessario.
-
-Preparacao de particionamento:
-
-- A migration atual inclui comentario tecnico em `telemetry_ingestion_records` indicando `ReceivedAtUtc` como chave de particionamento futura (`RANGE` temporal).
-
-## 13. Diagnostico rapido de falhas
-
-1. `401/Not authorized` no MQTT: usuario/senha ou ACL incorretos.
-2. Mensagem nao aparece na API:
-   - validar se topic bate com payload;
-   - validar se device esta provisionado e ativo;
-   - consultar `telemetry_ingestion_rejections`.
-3. Backlog crescendo:
-   - monitorar `fluxo_ingestion_buffer_size`;
-   - revisar `ProcessingConcurrency`, latencia de banco e retries.
-4. Status `offline`:
-   - sem telemetria recente acima de `DeviceStatus:OfflineAfterSeconds`.
-
-## 14. Validacao automatizada
-
-Rodar suite completa:
+## 16. Validacao minima antes do piloto
 
 ```powershell
 dotnet test Fluxo.slnx
+cd portal-web
+npm audit --omit=dev
+npm run build
+cd ..
+docker compose config
+docker compose -f docker-compose.controlled-prod.yml config
+git ls-files docker/mosquitto/data/mosquitto.db
 ```
 
-Teste de integracao com PostgreSQL real (opt-in):
-
-```powershell
-$env:FLUXO_TESTS_POSTGRES_ADMIN_CONNECTION="Host=localhost;Port=5432;Database=postgres;Username=<user>;Password=<pass>"
-dotnet test tests/Fluxo.IntegrationTests/Fluxo.IntegrationTests.csproj --filter "FullyQualifiedName~PostgreSql"
-```
+O ultimo comando nao deve retornar nada.

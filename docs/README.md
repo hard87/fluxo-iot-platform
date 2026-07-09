@@ -19,6 +19,9 @@ Este indice organiza os documentos tecnicos por objetivo de leitura.
 ## 4. Operacao de piloto
 
 - [Guia do piloto real controlado](piloto-real-controlado.md)
+- [Backup e restore PostgreSQL](backup-restore-postgresql.md)
+- [Simulador MQTT de dispositivos](simulador-dispositivos-mqtt.md)
+- [Checklist de producao controlada](checklist-producao-controlada.md)
 
 ## 5. Escala e roadmap
 

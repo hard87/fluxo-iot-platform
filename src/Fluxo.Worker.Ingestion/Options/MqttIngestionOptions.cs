@@ -12,6 +12,11 @@ public class MqttIngestionOptions
     public string? Username { get; set; }
     public string? Password { get; set; }
     public bool UseTls { get; set; }
+    public string? TlsTargetHost { get; set; }
+    public string? TlsCaCertificatePath { get; set; }
+    public bool TlsAllowUntrustedCertificates { get; set; }
+    public bool TlsIgnoreCertificateChainErrors { get; set; }
+    public bool TlsIgnoreCertificateRevocationErrors { get; set; }
     public int ChannelCapacity { get; set; } = 5000;
     public int ProcessingConcurrency { get; set; } = 4;
     public int DatabaseRetryCount { get; set; } = 3;

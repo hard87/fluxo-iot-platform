@@ -19,6 +19,9 @@ obj/
 # Logs
 *.log
 
+# Frontend build output
+portal-web/dist/
+
 # OS files
 .DS_Store
 Thumbs.db
@@ -39,6 +42,8 @@ appsettings.*.local.json
 docker/mosquitto/passwords
 docker/mosquitto/acl
 docker/mosquitto/credentials.local.json
+docker/mosquitto/data/
+docker/mosquitto/log/
 docker/mosquitto/certs/*.key
 docker/mosquitto/certs/*.crt
 docker/mosquitto/certs/*.csr
@@ -53,8 +58,20 @@ devices/esp32-reference-node/managed_components/
 devices/esp32-reference-node/sdkconfig
 devices/esp32-reference-node/sdkconfig.old
 
+# Python generated artifacts
+__pycache__/
+*.pyc
+
 # Local diagnostics
 diagnostico-geral-codex.txt
+
+# Local database backups and dumps
+backups/
+dumps/
+*.backup
+*.bak
+*.dump
+*.sql.gz
 
 # Test Results
 TestResults/

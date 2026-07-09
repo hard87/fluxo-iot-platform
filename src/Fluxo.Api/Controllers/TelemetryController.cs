@@ -2,6 +2,7 @@ using Fluxo.Api.Extensions;
 using Fluxo.Application.DTOs.Telemetry;
 using Fluxo.Application.UseCases.Portal;
 using Fluxo.Application.UseCases.Telemetry;
+using Fluxo.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -32,7 +33,7 @@ public class TelemetryController : ControllerBase
         CancellationToken cancellationToken)
     {
         var userId = User.GetRequiredUserId();
-        await _getAuthorizedDeviceUseCase.ExecuteAsync(userId, request.DeviceId, cancellationToken);
+        await _getAuthorizedDeviceUseCase.ExecuteAsync(userId, request.DeviceId, WorkspaceMembershipRole.Admin, cancellationToken);
 
         var result = await _registerTelemetryUseCase.ExecuteAsync(request, cancellationToken);
         return Created(string.Empty, result);

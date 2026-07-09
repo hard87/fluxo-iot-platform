@@ -1,6 +1,7 @@
 using Fluxo.Application.Common.Exceptions;
 using Fluxo.Application.Interfaces.Repositories;
 using Fluxo.Domain.Entities;
+using Fluxo.Domain.Enums;
 
 namespace Fluxo.Application.UseCases.Portal;
 
@@ -22,23 +23,36 @@ public sealed class GetAuthorizedWorkspaceUseCase
         Guid workspaceId,
         CancellationToken cancellationToken = default)
     {
+        return await ExecuteAsync(userId, workspaceId, WorkspaceMembershipRole.Viewer, cancellationToken);
+    }
+
+    public async Task<Workspace> ExecuteAsync(
+        Guid userId,
+        Guid workspaceId,
+        WorkspaceMembershipRole minimumRole,
+        CancellationToken cancellationToken = default)
+    {
         if (userId == Guid.Empty)
             throw new UnauthorizedException("User is not authenticated.");
 
         if (workspaceId == Guid.Empty)
             throw new ValidationException("Workspace id is required.");
 
-        var hasAccess = await _workspaceMembershipRepository.IsUserMemberAsync(
+        var membership = await _workspaceMembershipRepository.GetMembershipAsync(
             workspaceId,
             userId,
             cancellationToken);
 
-        if (!hasAccess)
+        if (membership is null)
             throw new NotFoundException("Workspace not found.");
 
         var workspace = await _workspaceRepository.GetByIdAsync(workspaceId, cancellationToken);
         if (workspace is null || !workspace.IsActive)
             throw new NotFoundException("Workspace not found.");
+
+        if (!membership.Role.SatisfiesMinimum(minimumRole))
+            throw new ForbiddenException(
+                $"Role '{membership.Role}' does not meet the minimum required role '{minimumRole}' for this workspace.");
 
         return workspace;
     }

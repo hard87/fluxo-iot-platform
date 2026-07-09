@@ -3,6 +3,7 @@ using Fluxo.Application.Common.Exceptions;
 using Fluxo.Application.DTOs.Provisioning;
 using Fluxo.Application.UseCases.Portal;
 using Fluxo.Application.UseCases.Provisioning;
+using Fluxo.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -42,6 +43,7 @@ public sealed class ProvisioningController : ControllerBase
         var workspace = await _getAuthorizedWorkspaceUseCase.ExecuteAsync(
             userId,
             request.WorkspaceId,
+            WorkspaceMembershipRole.Admin,
             cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(request.TenantId) &&
@@ -74,7 +76,7 @@ public sealed class ProvisioningController : ControllerBase
         CancellationToken cancellationToken)
     {
         var userId = User.GetRequiredUserId();
-        await _getAuthorizedDeviceUseCase.ExecuteAsync(userId, deviceId, cancellationToken);
+        await _getAuthorizedDeviceUseCase.ExecuteAsync(userId, deviceId, WorkspaceMembershipRole.Admin, cancellationToken);
 
         var result = await _rotateDeviceCredentialUseCase.ExecuteAsync(deviceId, cancellationToken);
         return Ok(result);

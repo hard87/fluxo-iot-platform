@@ -55,6 +55,10 @@ public class ExceptionHandlingMiddleware
                 StatusCodes.Status401Unauthorized,
                 "Unauthorized",
                 "Authentication failed."),
+            ForbiddenException => (
+                StatusCodes.Status403Forbidden,
+                "Forbidden",
+                "You do not have permission to perform this action."),
             _ => (
                 StatusCodes.Status500InternalServerError,
                 "Unexpected error",
