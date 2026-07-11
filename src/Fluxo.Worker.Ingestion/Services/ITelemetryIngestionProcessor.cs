@@ -8,5 +8,6 @@ public interface ITelemetryIngestionProcessor
         string topic,
         string payloadJson,
         DateTime receivedAtUtc,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        Guid? sourceRejectionId = null);
 }

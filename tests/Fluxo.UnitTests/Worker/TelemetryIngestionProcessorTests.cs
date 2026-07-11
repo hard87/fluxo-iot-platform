@@ -292,6 +292,36 @@ public class TelemetryIngestionProcessorTests
         {
             return Task.FromResult((long)Records.Count);
         }
+
+        public Task<IReadOnlyList<TelemetryIngestionRejectionRecord>> GetReprocessableBatchAsync(
+            IReadOnlyCollection<TelemetryIngestionFailureType> errorTypes,
+            int maxAttempts,
+            int batchSize,
+            CancellationToken cancellationToken = default)
+        {
+            var batch = Records
+                .Where(x =>
+                    x.SourceRejectionId is null &&
+                    !x.Reprocessed &&
+                    x.ReprocessAttempts < maxAttempts &&
+                    errorTypes.Contains(x.ErrorType))
+                .OrderBy(x => x.ReceivedAtUtc)
+                .Take(batchSize)
+                .ToList();
+
+            return Task.FromResult<IReadOnlyList<TelemetryIngestionRejectionRecord>>(batch);
+        }
+
+        public Task RecordReprocessAttemptAsync(
+            Guid rejectionId,
+            DateTime attemptedAtUtc,
+            bool resolved,
+            CancellationToken cancellationToken = default)
+        {
+            var rejection = Records.FirstOrDefault(x => x.Id == rejectionId);
+            rejection?.RecordReprocessAttempt(attemptedAtUtc, resolved);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeDeviceRepository : IDeviceRepository

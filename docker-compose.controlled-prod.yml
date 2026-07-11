@@ -20,6 +20,9 @@ services:
     image: eclipse-mosquitto:2
     container_name: fluxo-mosquitto
     restart: unless-stopped
+    environment:
+      FLUXO_MQTT_DYNSEC_ADMIN_USERNAME: "${FLUXO_MQTT_DYNSEC_ADMIN_USERNAME:?Set FLUXO_MQTT_DYNSEC_ADMIN_USERNAME}"
+      FLUXO_MQTT_DYNSEC_ADMIN_PASSWORD: "${FLUXO_MQTT_DYNSEC_ADMIN_PASSWORD:?Set FLUXO_MQTT_DYNSEC_ADMIN_PASSWORD}"
     ports:
       - "${FLUXO_MQTT_TLS_PUBLIC_BIND:-0.0.0.0}:${FLUXO_MQTT_TLS_PUBLIC_PORT:-8883}:8883"
     volumes:
@@ -28,8 +31,10 @@ services:
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     command: >
-      sh -c "cp -n /mosquitto/config/passwords.example /mosquitto/config/passwords &&
-             cp -n /mosquitto/config/acl.example /mosquitto/config/acl &&
+      sh -c "if [ ! -f /mosquitto/config/dynamic-security.json ]; then
+               mosquitto_ctrl dynsec init /mosquitto/config/dynamic-security.json \"$$FLUXO_MQTT_DYNSEC_ADMIN_USERNAME\" \"$$FLUXO_MQTT_DYNSEC_ADMIN_PASSWORD\" &&
+               chown mosquitto:mosquitto /mosquitto/config/dynamic-security.json;
+             fi &&
              mosquitto -c /mosquitto/config/mosquitto.conf"
 
   api:
@@ -41,6 +46,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      mosquitto:
+        condition: service_started
+    volumes:
+      - ./docker/mosquitto/certs/ca.crt:/etc/fluxo/mqtt/ca.crt:ro
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${FLUXO_DB_NAME:?Set FLUXO_DB_NAME};Username=${FLUXO_DB_USER:?Set FLUXO_DB_USER};Password=${FLUXO_DB_PASSWORD:?Set FLUXO_DB_PASSWORD}
@@ -52,6 +61,17 @@ services:
       Authentication__Jwt__RequireHttpsMetadata: "${FLUXO_AUTH_REQUIRE_HTTPS_METADATA:-true}"
       Cors__AllowedOrigins__0: "${FLUXO_PORTAL_ORIGIN:?Set FLUXO_PORTAL_ORIGIN}"
       DeviceStatus__OfflineAfterSeconds: "${FLUXO_DEVICE_OFFLINE_AFTER_SECONDS:-120}"
+      MqttDynamicSecurity__Enabled: "true"
+      MqttDynamicSecurity__BrokerHost: mosquitto
+      MqttDynamicSecurity__BrokerPort: 8883
+      MqttDynamicSecurity__AdminUsername: "${FLUXO_MQTT_DYNSEC_ADMIN_USERNAME:?Set FLUXO_MQTT_DYNSEC_ADMIN_USERNAME}"
+      MqttDynamicSecurity__AdminPassword: "${FLUXO_MQTT_DYNSEC_ADMIN_PASSWORD:?Set FLUXO_MQTT_DYNSEC_ADMIN_PASSWORD}"
+      MqttDynamicSecurity__UseTls: "true"
+      MqttDynamicSecurity__TlsTargetHost: "${FLUXO_MQTT_TLS_TARGET_HOST:-broker.fluxo.local}"
+      MqttDynamicSecurity__TlsCaCertificatePath: "/etc/fluxo/mqtt/ca.crt"
+      MqttDynamicSecurity__IngestionWorker__Username: "${FLUXO_MQTT_INGESTION_USERNAME:?Set FLUXO_MQTT_INGESTION_USERNAME}"
+      MqttDynamicSecurity__IngestionWorker__Password: "${FLUXO_MQTT_INGESTION_PASSWORD:?Set FLUXO_MQTT_INGESTION_PASSWORD}"
+      MqttDynamicSecurity__IngestionWorker__TopicFilter: fluxo/tenants/+/workspaces/+/devices/+/telemetry
     ports:
       - "${FLUXO_API_PUBLIC_BIND:-127.0.0.1}:${FLUXO_API_PUBLIC_PORT:-5000}:8080"
     healthcheck:
@@ -94,6 +114,10 @@ services:
       MqttIngestion__ProcessingConcurrency: 4
       MqttIngestion__DatabaseRetryCount: 3
       MqttIngestion__DatabaseRetryDelayMs: 200
+      RejectionReprocessing__Enabled: "${FLUXO_REJECTION_REPROCESSING_ENABLED:-true}"
+      RejectionReprocessing__IntervalSeconds: "${FLUXO_REJECTION_REPROCESSING_INTERVAL_SECONDS:-120}"
+      RejectionReprocessing__BatchSize: "${FLUXO_REJECTION_REPROCESSING_BATCH_SIZE:-200}"
+      RejectionReprocessing__MaxAttempts: "${FLUXO_REJECTION_REPROCESSING_MAX_ATTEMPTS:-5}"
     healthcheck:
       test: ["CMD-SHELL", "test -f /app/Fluxo.Worker.Ingestion.dll"]
       interval: 30s

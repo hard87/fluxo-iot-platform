@@ -20,6 +20,14 @@ public sealed class TelemetryIngestionRejectionRecord
     public string? MessageType { get; private set; }
     public long? Sequence { get; private set; }
 
+    /// When set, this row is the outcome of a reprocess attempt of another rejection and is
+    /// excluded from future reprocessing eligibility — only "root" ingestion failures are
+    /// auto-retried, so retries can't fan out into retrying their own retries.
+    public Guid? SourceRejectionId { get; private set; }
+    public bool Reprocessed { get; private set; }
+    public int ReprocessAttempts { get; private set; }
+    public DateTime? LastReprocessAttemptAtUtc { get; private set; }
+
     public TelemetryIngestionRejectionRecord(
         DateTime receivedAtUtc,
         string topic,
@@ -30,7 +38,8 @@ public sealed class TelemetryIngestionRejectionRecord
         Guid? workspaceId = null,
         string? deviceId = null,
         string? messageType = null,
-        long? sequence = null)
+        long? sequence = null,
+        Guid? sourceRejectionId = null)
     {
         if (string.IsNullOrWhiteSpace(topic))
             throw new ArgumentException("Topic is required.", nameof(topic));
@@ -55,6 +64,16 @@ public sealed class TelemetryIngestionRejectionRecord
         DeviceId = string.IsNullOrWhiteSpace(deviceId) ? null : deviceId.Trim();
         MessageType = string.IsNullOrWhiteSpace(messageType) ? null : messageType.Trim();
         Sequence = sequence;
+        SourceRejectionId = sourceRejectionId;
+    }
+
+    public void RecordReprocessAttempt(DateTime attemptedAtUtc, bool resolved)
+    {
+        ReprocessAttempts++;
+        LastReprocessAttemptAtUtc = EnsureUtc(attemptedAtUtc, nameof(attemptedAtUtc));
+
+        if (resolved)
+            Reprocessed = true;
     }
 
     private static DateTime EnsureUtc(DateTime value, string paramName)

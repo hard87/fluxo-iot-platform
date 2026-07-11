@@ -12,46 +12,50 @@ No portal/API, ao provisionar um dispositivo, a resposta inclui:
 
 Depois disso, endpoints de detalhe retornam somente metadados seguros da credencial ativa.
 
+No mesmo request, a API cria automaticamente o acesso correspondente no broker (usuario +
+role com ACL restrita ao `mqttPublishTopic` do device) via o plugin `dynamic-security` do
+Mosquitto. Nao ha passo manual: se o broker estiver indisponivel no momento do provisionamento,
+a credencial fica registrada no banco mas o erro e logado (`ProvisionDeviceUseCase`) para
+sincronizacao posterior.
+
 ## 2. Rotacao de credencial
 
 - Endpoint de rotacao gera nova credencial ativa.
-- Credencial anterior e revogada.
+- Credencial anterior e revogada no banco.
 - `provisioningSecret` novo tambem e exibido apenas no momento da rotacao.
+- A API cria o novo usuario no broker (reaproveitando a mesma role/ACL do device) e remove o
+  usuario anterior automaticamente.
 
-## 3. Geracao de password_file e acl_file
+## 3. Como a autenticacao e ACL funcionam no broker
 
-Use o script:
+Autenticacao e autorizacao MQTT sao geridas pelo plugin `dynamic-security` do Mosquitto
+(`docker/mosquitto/mosquitto.conf`), nao por `password_file`/`acl_file` estaticos. Cada device
+tem:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-auth-files.ps1 -Overwrite
-```
+- uma **role** estavel por device (`device-<deviceId>`), com uma unica ACL
+  `publishClientSend` restrita ao `mqttPublishTopic` do device;
+- um **client** (usuario/senha) vinculado a essa role, recriado a cada rotacao.
 
-Entrada esperada em `docker/mosquitto/credentials.local.json`:
+Isso e feito pela API via `IDeviceMqttAccessProvisioner`
+(`src/Fluxo.Infrastructure/Mqtt/MqttDynamicSecurityDeviceProvisioner.cs`), que fala o protocolo
+de controle `$CONTROL/dynamic-security/v1` do broker usando as credenciais administrativas
+configuradas em `MqttDynamicSecurity:AdminUsername`/`AdminPassword`.
 
-```json
-[
-  {
-    "username": "dev-acme-11111111-esp32-lab-01",
-    "secret": "<provisioningSecret>",
-    "topic": "fluxo/tenants/acme/workspaces/11111111-1111-1111-1111-111111111111/devices/esp32-lab-01/telemetry"
-  }
-]
-```
+O worker de ingestao tambem recebe acesso automatico (role `ingestion-worker` com
+`subscribePattern`/`publishClientReceive` no filtro de topico), garantido no startup da API por
+`MqttIngestionWorkerAccessBootstrapper` (`src/Fluxo.Api/Services/`).
 
-Saida:
-- `docker/mosquitto/passwords`
-- `docker/mosquitto/acl`
+Esse fluxo so roda quando `MqttDynamicSecurity:Enabled=true` (padrao no `docker-compose.yml` e
+`docker-compose.controlled-prod.yml`). Em execucao local sem broker (`dotnet run` fora do
+Docker), fica desabilitado por padrao e a API funciona normalmente, so sem sincronizar o broker.
 
-## 4. ACL por dispositivo
+## 4. Bootstrap do broker (uma vez por ambiente)
 
-Regra minima por usuario:
-
-```text
-user <credentialUsername>
-topic write <mqttPublishTopic>
-```
-
-Isso impede que um device publique em topic de outro device.
+O admin do `dynamic-security` e criado automaticamente na primeira subida do container
+`mosquitto` (`mosquitto_ctrl dynsec init`, ver `command:` do servico no compose), usando
+`FLUXO_MQTT_DYNSEC_ADMIN_USERNAME`/`FLUXO_MQTT_DYNSEC_ADMIN_PASSWORD`. O arquivo gerado
+(`docker/mosquitto/dynamic-security.json`) persiste no volume/bind mount local e nao deve ser
+versionado.
 
 ## 5. TLS local (listener 8883)
 
@@ -95,4 +99,8 @@ $ca
 - `1883` sem TLS nao deve ser exposto em rede publica.
 - O perfil `docker-compose.controlled-prod.yml` publica somente `8883` para MQTT.
 - O worker aceita `MqttIngestion__UseTls=true`, `MqttIngestion__TlsTargetHost` e `MqttIngestion__TlsCaCertificatePath` para assinar a conexao com o broker.
+- A API aceita as mesmas variaveis equivalentes em `MqttDynamicSecurity__UseTls`,
+  `MqttDynamicSecurity__TlsTargetHost` e `MqttDynamicSecurity__TlsCaCertificatePath` para a
+  conexao administrativa com o broker (ja habilitadas por padrao em
+  `docker-compose.controlled-prod.yml`).
 - Recomenda-se mutual TLS e gerencia de segredo por cofre para ambiente comercial.

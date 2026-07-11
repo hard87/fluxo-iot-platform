@@ -132,38 +132,12 @@ $mqttTopic = $device.mqttPublishTopic
 
 Guarde `provisioningSecret` apenas no cofre/ambiente do device. Ele e exibido no provisionamento/rotacao e nao deve ir para o Git.
 
-## 8. Atualizar credenciais do Mosquitto
+## 8. Credenciais do Mosquitto
 
-1. Copie o template local:
-
-```powershell
-Copy-Item docker/mosquitto/credentials.template.json docker/mosquitto/credentials.local.json
-```
-
-2. Preencha `credentials.local.json` com:
-
-```json
-[
-  {
-    "username": "<credentialUsername>",
-    "secret": "<provisioningSecret>",
-    "topic": "<mqttPublishTopic>"
-  }
-]
-```
-
-3. Gere `passwords` e `acl`:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-auth-files.ps1 -Overwrite
-docker compose restart mosquitto
-```
-
-No controlled-prod:
-
-```powershell
-docker compose -f docker-compose.controlled-prod.yml restart mosquitto worker
-```
+Nao ha nada a fazer aqui: o passo 7 (provisionar dispositivo) ja criou automaticamente o
+usuario e a ACL correspondentes no broker (plugin `dynamic-security`), usando o
+`credentialUsername`/`provisioningSecret`/`mqttPublishTopic` retornados na mesma resposta.
+Veja [docs/mqtt-tls-e-credenciais.md](mqtt-tls-e-credenciais.md) para detalhes do mecanismo.
 
 ## 9. Configurar firmware ESP32 de referencia
 
@@ -248,25 +222,34 @@ python scripts/mqtt-device-simulator.py `
   --workspace-id $workspaceId
 ```
 
-Exemplo com 10 dispositivos em dev:
+Como o broker usa `dynamic-security`, cada device simulado precisa da sua propria credencial
+(nao ha mais senha compartilhada). Provisione os devices pela API primeiro:
 
 ```powershell
-$env:FLUXO_SIMULATOR_MQTT_PASSWORD = "<provisioningSecret-ou-senha-de-teste>"
+python scripts/provision-simulated-devices.py `
+  --email $email --password $password `
+  --tenant-id acme-industria --workspace-name SimuladorPiloto `
+  --device-prefix sim-device --devices 10 --output devices-10.json
+```
 
+O script imprime o `workspaceId` e o comando do simulador ja com `--credentials-file` correto:
+
+```powershell
 python scripts/mqtt-device-simulator.py `
   --host localhost `
   --port 1883 `
   --tenant-id acme-industria `
-  --workspace-id $workspaceId `
+  --workspace-id <workspaceId-impresso-acima> `
   --device-prefix sim-device `
   --devices 10 `
   --interval-seconds 1 `
   --messages-per-device 20 `
-  --username-template "dev-acme-{device}" `
-  --password-env FLUXO_SIMULATOR_MQTT_PASSWORD
+  --credentials-file devices-10.json
 ```
 
-Para 50 ou 100 dispositivos, altere `--devices`. Provisione previamente os devices/ACLs correspondentes se quiser que o worker aceite e persista as mensagens.
+Para 50 ou 100 dispositivos, repita com `--devices 50`/`--devices 100` em ambos os scripts.
+Detalhes e resultado de referencia com 100 devices em
+[simulador-dispositivos-mqtt.md](simulador-dispositivos-mqtt.md).
 
 ## 13. Backup e restore
 

@@ -43,7 +43,8 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
         string topic,
         string payloadJson,
         DateTime receivedAtUtc,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? sourceRejectionId = null)
     {
         IngestionTopicContext? topicContext = null;
 
@@ -56,7 +57,8 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
                 payloadJson,
                 TelemetryIngestionFailureType.Validation,
                 reason,
-                cancellationToken);
+                cancellationToken,
+                sourceRejectionId: sourceRejectionId);
 
             _logger.LogWarning("Mensagem rejeitada. Topic invalido: {Topic}", topic);
             return TelemetryIngestionProcessingResult.Rejected(reason);
@@ -72,7 +74,8 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
                 TelemetryIngestionFailureType.PayloadInvalid,
                 reason,
                 cancellationToken,
-                topicContext);
+                topicContext,
+                sourceRejectionId: sourceRejectionId);
 
             _logger.LogWarning("Mensagem rejeitada. Payload vazio. Topic: {Topic}", topic);
             return TelemetryIngestionProcessingResult.Rejected(reason);
@@ -93,7 +96,8 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
                 TelemetryIngestionFailureType.PayloadInvalid,
                 reason,
                 cancellationToken,
-                topicContext);
+                topicContext,
+                sourceRejectionId: sourceRejectionId);
 
             _logger.LogWarning(ex, "Mensagem rejeitada. JSON invalido. Topic: {Topic}", topic);
             return TelemetryIngestionProcessingResult.Rejected(reason);
@@ -109,7 +113,8 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
                 TelemetryIngestionFailureType.PayloadInvalid,
                 reason,
                 cancellationToken,
-                topicContext);
+                topicContext,
+                sourceRejectionId: sourceRejectionId);
 
             _logger.LogWarning("Mensagem rejeitada. Desserializacao nula. Topic: {Topic}", topic);
             return TelemetryIngestionProcessingResult.Rejected(reason);
@@ -158,7 +163,8 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
                 reason,
                 cancellationToken,
                 topicContext,
-                message);
+                message,
+                sourceRejectionId);
 
             _logger.LogWarning("Mensagem rejeitada. Topic: {Topic}. Motivos: {Reasons}", topic, reason);
             return TelemetryIngestionProcessingResult.Rejected(reason);
@@ -182,7 +188,8 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
                 reason,
                 cancellationToken,
                 topicContext,
-                message);
+                message,
+                sourceRejectionId);
 
             _logger.LogWarning(
                 "Mensagem rejeitada por dispositivo nao provisionado. Tenant: {TenantId}. Workspace: {WorkspaceId}. Device: {DeviceId}.",
@@ -205,7 +212,8 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
                 reason,
                 cancellationToken,
                 topicContext,
-                message);
+                message,
+                sourceRejectionId);
 
             _logger.LogWarning(
                 "Mensagem rejeitada por dispositivo inativo. Tenant: {TenantId}. Workspace: {WorkspaceId}. Device: {DeviceId}.",
@@ -263,7 +271,8 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
                         duplicateReason,
                         cancellationToken,
                         topicContext,
-                        message);
+                        message,
+                        sourceRejectionId);
 
                     _logger.LogInformation(
                         "Mensagem duplicada descartada. Tenant: {TenantId}. Workspace: {WorkspaceId}. Device: {DeviceId}. Sequence: {Sequence}.",
@@ -322,7 +331,8 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
                     reason,
                     cancellationToken,
                     topicContext,
-                    message);
+                    message,
+                    sourceRejectionId);
 
                 _logger.LogError(ex, "Erro ao persistir telemetria. Topic: {Topic}", topic);
 
@@ -342,7 +352,8 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
             transientReason,
             cancellationToken,
             topicContext,
-            message);
+            message,
+            sourceRejectionId);
 
         return TelemetryIngestionProcessingResult.TransientFailure(transientReason);
     }
@@ -380,7 +391,8 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
         string reason,
         CancellationToken cancellationToken,
         IngestionTopicContext? topicContext = null,
-        IncomingTelemetryMessage? message = null)
+        IncomingTelemetryMessage? message = null,
+        Guid? sourceRejectionId = null)
     {
         try
         {
@@ -394,7 +406,8 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
                 ParseNullableWorkspace(message?.WorkspaceId) ?? topicContext?.WorkspaceId,
                 message?.DeviceId ?? topicContext?.DeviceId,
                 message?.MessageType ?? topicContext?.MessageType,
-                message?.Sequence);
+                message?.Sequence,
+                sourceRejectionId);
 
             await _rejectionRepository.AddAsync(rejection, cancellationToken);
         }

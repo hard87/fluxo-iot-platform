@@ -3,6 +3,7 @@ using Fluxo.Application.DTOs.Provisioning;
 using Fluxo.Application.Interfaces.Repositories;
 using Fluxo.Application.Services;
 using Fluxo.Domain.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace Fluxo.Application.UseCases.Provisioning;
 
@@ -11,15 +12,21 @@ public sealed class RotateDeviceCredentialUseCase
     private readonly IDeviceRepository _deviceRepository;
     private readonly IDeviceCredentialRepository _credentialRepository;
     private readonly IDeviceCredentialSecretService _secretService;
+    private readonly IDeviceMqttAccessProvisioner _mqttAccessProvisioner;
+    private readonly ILogger<RotateDeviceCredentialUseCase> _logger;
 
     public RotateDeviceCredentialUseCase(
         IDeviceRepository deviceRepository,
         IDeviceCredentialRepository credentialRepository,
-        IDeviceCredentialSecretService secretService)
+        IDeviceCredentialSecretService secretService,
+        IDeviceMqttAccessProvisioner mqttAccessProvisioner,
+        ILogger<RotateDeviceCredentialUseCase> logger)
     {
         _deviceRepository = deviceRepository;
         _credentialRepository = credentialRepository;
         _secretService = secretService;
+        _mqttAccessProvisioner = mqttAccessProvisioner;
+        _logger = logger;
     }
 
     public async Task<RotateDeviceCredentialResponse> ExecuteAsync(
@@ -32,6 +39,8 @@ public sealed class RotateDeviceCredentialUseCase
         var device = await _deviceRepository.GetByIdAsync(deviceId, cancellationToken);
         if (device is null)
             throw new NotFoundException("Device not found.");
+
+        var previousCredential = await _credentialRepository.GetActiveByDeviceIdAsync(deviceId, cancellationToken);
 
         var username = await GenerateUniqueUsernameAsync(
             device.TenantId,
@@ -48,6 +57,30 @@ public sealed class RotateDeviceCredentialUseCase
 
         await _credentialRepository.RotateAsync(device.Id, newCredential, cancellationToken);
 
+        var mqttPublishTopic = DeviceProvisioningConventions.BuildMqttPublishTopic(
+            device.TenantId,
+            device.WorkspaceId,
+            device.Identifier);
+
+        try
+        {
+            await _mqttAccessProvisioner.RotateAsync(
+                device.Id,
+                previousCredential?.Username ?? username,
+                newCredential.Username,
+                secretMaterial.PlainSecret,
+                mqttPublishTopic,
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Falha ao rotacionar acesso MQTT no broker para device {DeviceId}. " +
+                "A nova credencial foi criada no banco, mas pode nao funcionar no broker ate sincronizacao manual.",
+                device.Id);
+        }
+
         return new RotateDeviceCredentialResponse
         {
             DeviceId = device.Id,
@@ -56,10 +89,7 @@ public sealed class RotateDeviceCredentialUseCase
             CredentialStatus = newCredential.Status,
             CredentialCreatedAtUtc = newCredential.CreatedAtUtc,
             ProvisioningSecret = secretMaterial.PlainSecret,
-            MqttPublishTopic = DeviceProvisioningConventions.BuildMqttPublishTopic(
-                device.TenantId,
-                device.WorkspaceId,
-                device.Identifier)
+            MqttPublishTopic = mqttPublishTopic
         };
     }
 

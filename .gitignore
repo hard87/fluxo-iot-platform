@@ -42,6 +42,7 @@ appsettings.*.local.json
 docker/mosquitto/passwords
 docker/mosquitto/acl
 docker/mosquitto/credentials.local.json
+docker/mosquitto/dynamic-security.json
 docker/mosquitto/data/
 docker/mosquitto/log/
 docker/mosquitto/certs/*.key

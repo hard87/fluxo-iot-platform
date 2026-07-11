@@ -167,11 +167,25 @@ def format_template(template: str | None, args: argparse.Namespace, index: int, 
     )
 
 
-def simulate_device(index: int, args: argparse.Namespace, stats: SafeStats) -> None:
+def simulate_device(
+    index: int,
+    args: argparse.Namespace,
+    stats: SafeStats,
+    credentials: dict[str, tuple[str, str]] | None = None,
+) -> None:
     device_id = device_id_for(args, index)
     topic = topic_for(args, device_id)
-    username = format_template(args.username_template, args, index, device_id)
-    password = args.password or (os.getenv(args.password_env) if args.password_env else None)
+
+    if credentials is not None:
+        if device_id not in credentials:
+            stats.add_error()
+            print(f"error device={device_id}: no entry in --credentials-file")
+            return
+        username, password = credentials[device_id]
+    else:
+        username = format_template(args.username_template, args, index, device_id)
+        password = args.password or (os.getenv(args.password_env) if args.password_env else None)
+
     client_id = f"{args.client_id_prefix}-{device_id}"
     sock: socket.socket | None = None
 
@@ -225,6 +239,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--username-template")
     parser.add_argument("--password")
     parser.add_argument("--password-env")
+    parser.add_argument(
+        "--credentials-file",
+        help=(
+            "Path to a JSON file with a list of {deviceId, username, password} objects, "
+            "one per simulated device (e.g. produced by provision-simulated-devices.py). "
+            "Overrides --username-template/--password/--password-env when set."
+        ),
+    )
     parser.add_argument("--client-id-prefix", default="fluxo-simulator")
     parser.add_argument("--timeout-seconds", type=float, default=10.0)
     parser.add_argument("--dry-run", action="store_true")
@@ -250,16 +272,26 @@ def main() -> int:
         print(json.dumps(first_payload, indent=2))
         return 0
 
+    credentials: dict[str, tuple[str, str]] | None = None
+    if args.credentials_file:
+        with open(args.credentials_file, "r", encoding="utf-8") as handle:
+            entries = json.load(handle)
+        credentials = {entry["deviceId"]: (entry["username"], entry["password"]) for entry in entries}
+
     stats = SafeStats()
     started_at = time.monotonic()
     print(
         "starting simulator "
         f"devices={args.devices} messages_per_device={args.messages_per_device} "
-        f"host={args.host} port={args.port} tls={args.tls}"
+        f"host={args.host} port={args.port} tls={args.tls} "
+        f"credentials_file={args.credentials_file or '(template)'}"
     )
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(args.devices, 100)) as executor:
-        futures = [executor.submit(simulate_device, index, args, stats) for index in range(1, args.devices + 1)]
+        futures = [
+            executor.submit(simulate_device, index, args, stats, credentials)
+            for index in range(1, args.devices + 1)
+        ]
         for future in concurrent.futures.as_completed(futures):
             future.result()
 

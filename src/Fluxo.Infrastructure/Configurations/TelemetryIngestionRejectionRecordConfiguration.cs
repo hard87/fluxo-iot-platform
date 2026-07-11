@@ -45,9 +45,23 @@ public class TelemetryIngestionRejectionRecordConfiguration : IEntityTypeConfigu
 
         builder.Property(x => x.Sequence);
 
+        builder.Property(x => x.SourceRejectionId);
+
+        builder.Property(x => x.Reprocessed)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(x => x.ReprocessAttempts)
+            .IsRequired()
+            .HasDefaultValue(0);
+
+        builder.Property(x => x.LastReprocessAttemptAtUtc);
+
         builder.HasIndex(x => x.ReceivedAtUtc);
         builder.HasIndex(x => x.ErrorType);
         builder.HasIndex(x => new { x.TenantId, x.WorkspaceId, x.DeviceId, x.ReceivedAtUtc })
             .HasDatabaseName("IX_tirj_tenant_workspace_device_received_at");
+        builder.HasIndex(x => new { x.SourceRejectionId, x.Reprocessed, x.ErrorType, x.ReceivedAtUtc })
+            .HasDatabaseName("IX_tirj_reprocess_eligibility");
     }
 }

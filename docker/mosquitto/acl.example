@@ -1,3 +1,0 @@
-# ACL exemplo (uma linha por regra):
-# user <credentialUsername retornado no provisionamento>
-# topic write <mqttPublishTopic retornado no provisionamento>

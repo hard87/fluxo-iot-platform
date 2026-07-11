@@ -72,19 +72,16 @@ Copy-Item .env.example .env
 powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-local-certs.ps1 -CommonName broker.fluxo.local
 ```
 
-3. Prepare credenciais do Mosquitto (ACL/password):
-
-```powershell
-Copy-Item docker/mosquitto/credentials.template.json docker/mosquitto/credentials.local.json
-powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-auth-files.ps1 -Overwrite
-```
-
-4. Suba stack Docker:
+3. Suba stack Docker:
 
 ```powershell
 docker compose build
 docker compose up -d
 ```
+
+Autenticacao e ACL por device no Mosquitto sao provisionadas automaticamente pela API
+(plugin `dynamic-security`, sem passo manual). Veja
+[MQTT TLS e credenciais por device](docs/mqtt-tls-e-credenciais.md).
 
 Para o perfil de producao controlada minima, use:
 
@@ -93,7 +90,7 @@ docker compose -f docker-compose.controlled-prod.yml build
 docker compose -f docker-compose.controlled-prod.yml up -d
 ```
 
-5. Aplique migration:
+4. Aplique migration:
 
 ```powershell
 dotnet ef database update `

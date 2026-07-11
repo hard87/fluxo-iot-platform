@@ -15,8 +15,8 @@ Use este checklist antes de expor um piloto com ate 100 dispositivos simultaneos
 - [ ] JWT configurado com issuer, audience e signing key forte.
 - [ ] `.env` real nao versionado.
 - [ ] Sem tokens, senhas, certificados reais ou chaves privadas no Git.
-- [ ] ACL por dispositivo validada no Mosquitto.
-- [ ] Credenciais unicas por dispositivo.
+- [x] ACL por dispositivo validada no Mosquitto. (2026-07-10: device A nao consegue publicar no topico do device B; ver docs/mqtt-tls-e-credenciais.md)
+- [x] Credenciais unicas por dispositivo. (username+senha exclusivos por device, criados automaticamente no provisionamento via dynamic-security)
 - [ ] Rotacao de credencial MQTT testada.
 
 ## Operacao
@@ -30,7 +30,7 @@ Use este checklist antes de expor um piloto com ate 100 dispositivos simultaneos
 
 ## Qualidade
 
-- [ ] `dotnet test Fluxo.slnx` executado.
+- [x] `dotnet test Fluxo.slnx` executado.
 - [ ] `npm run build` executado.
 - [ ] `npm audit --omit=dev` sem vulnerabilidades de producao.
 - [ ] `docker compose config` validado para dev.
@@ -41,9 +41,9 @@ Use este checklist antes de expor um piloto com ate 100 dispositivos simultaneos
 - [ ] Firmware ESP32 validado por 24h.
 - [ ] Simulador validado com 10 dispositivos.
 - [ ] Simulador validado com 50 dispositivos.
-- [ ] Simulador validado com 100 dispositivos.
-- [ ] Publicacao MQTT validada no topico provisionado.
-- [ ] Consulta de telemetria validada via API protegida.
+- [x] Simulador validado com 100 dispositivos. (2026-07-11: 100 devices x 300 msgs, ~100 msg/s por 5min, 30000/30000 persistidas, 0 rejeicoes, 0 erros/reconnects — ver docs/sprint-2/sprint-2-technical-document.md)
+- [x] Publicacao MQTT validada no topico provisionado.
+- [ ] Consulta de telemetria validada via API protegida. (validado direto no banco nesta sessao; endpoint HTTP de consulta ainda nao exercitado)
 
 ## Documentacao
 

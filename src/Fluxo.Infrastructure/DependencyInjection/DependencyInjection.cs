@@ -1,5 +1,7 @@
 using Fluxo.Application.Interfaces.Repositories;
+using Fluxo.Application.Services;
 using Fluxo.Infrastructure.Data;
+using Fluxo.Infrastructure.Mqtt;
 using Fluxo.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -30,7 +32,27 @@ public static class DependencyInjection
         services.AddScoped<ITelemetryIngestionRepository, TelemetryIngestionRepository>();
         services.AddScoped<ITelemetryIngestionRejectionRepository, TelemetryIngestionRejectionRepository>();
 
+        AddMqttDynamicSecurity(services, configuration);
+
         return services;
+    }
+
+    private static void AddMqttDynamicSecurity(IServiceCollection services, IConfiguration configuration)
+    {
+        var section = configuration.GetSection(MqttDynamicSecurityOptions.SectionName);
+        services.Configure<MqttDynamicSecurityOptions>(section);
+
+        var options = section.Get<MqttDynamicSecurityOptions>() ?? new MqttDynamicSecurityOptions();
+
+        if (options.Enabled)
+        {
+            services.AddSingleton<DynamicSecurityControlClient>();
+            services.AddSingleton<IDeviceMqttAccessProvisioner, MqttDynamicSecurityDeviceProvisioner>();
+        }
+        else
+        {
+            services.AddSingleton<IDeviceMqttAccessProvisioner, NullDeviceMqttAccessProvisioner>();
+        }
     }
 
     private static string? ResolveConnectionString(IConfiguration configuration)

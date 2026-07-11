@@ -11,6 +11,8 @@ public interface IIngestionMetrics
     void RecordResult(TelemetryIngestionProcessingResult result);
     void MqttReconnected();
     void RecordProcessingDuration(TimeSpan elapsed);
+    void RejectionReprocessAttempted();
+    void RejectionReprocessResolved();
 }
 
 public sealed class IngestionMetrics : IIngestionMetrics, IDisposable
@@ -26,6 +28,8 @@ public sealed class IngestionMetrics : IIngestionMetrics, IDisposable
     private readonly Counter<long> _transientFailureCounter;
     private readonly Counter<long> _processingFailureCounter;
     private readonly Counter<long> _mqttReconnectCounter;
+    private readonly Counter<long> _rejectionReprocessAttemptCounter;
+    private readonly Counter<long> _rejectionReprocessResolvedCounter;
     private readonly Histogram<double> _processingDurationMs;
     private long _bufferSize;
 
@@ -42,6 +46,8 @@ public sealed class IngestionMetrics : IIngestionMetrics, IDisposable
         _transientFailureCounter = _meter.CreateCounter<long>("fluxo_ingestion_failures_transient");
         _processingFailureCounter = _meter.CreateCounter<long>("fluxo_ingestion_failures_processing");
         _mqttReconnectCounter = _meter.CreateCounter<long>("fluxo_ingestion_mqtt_reconnections");
+        _rejectionReprocessAttemptCounter = _meter.CreateCounter<long>("fluxo_ingestion_rejection_reprocess_attempts");
+        _rejectionReprocessResolvedCounter = _meter.CreateCounter<long>("fluxo_ingestion_rejection_reprocess_resolved");
         _processingDurationMs = _meter.CreateHistogram<double>("fluxo_ingestion_processing_duration_ms");
 
         _meter.CreateObservableGauge(
@@ -89,6 +95,10 @@ public sealed class IngestionMetrics : IIngestionMetrics, IDisposable
     }
 
     public void MqttReconnected() => _mqttReconnectCounter.Add(1);
+
+    public void RejectionReprocessAttempted() => _rejectionReprocessAttemptCounter.Add(1);
+
+    public void RejectionReprocessResolved() => _rejectionReprocessResolvedCounter.Add(1);
 
     public void RecordProcessingDuration(TimeSpan elapsed)
     {

@@ -110,6 +110,7 @@ builder.Services.AddScoped<GetAuthorizedDeviceUseCase>();
 builder.Services.AddSingleton<IDeviceCredentialSecretService, DeviceCredentialSecretService>();
 builder.Services.AddSingleton<IUserPasswordService, UserPasswordService>();
 builder.Services.AddSingleton<IAccessTokenService, JwtAccessTokenService>();
+builder.Services.AddHostedService<MqttIngestionWorkerAccessBootstrapper>();
 
 var app = builder.Build();
 

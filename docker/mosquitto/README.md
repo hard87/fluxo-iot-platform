@@ -1,50 +1,38 @@
 # Mosquitto - autenticacao por dispositivo e TLS local
 
 Esta pasta contem a base local para broker MQTT do Fluxo com:
-- autenticacao por usuario/senha por device;
-- ACL por topico;
+- autenticacao e ACL por device via plugin `dynamic-security` (sem `password_file`/`acl_file` estaticos);
 - listener TLS em `8883` para laboratorio controlado.
 
 ## Arquivos principais
 
-- `mosquitto.conf`: configuracao principal (1883 + 8883 TLS).
-- `passwords.example`: placeholder para arquivo real `passwords`.
-- `acl.example`: placeholder para arquivo real `acl`.
-- `credentials.template.json`: template para gerar `passwords` e `acl`.
-- `scripts/generate-auth-files.ps1`: automacao local de `password_file` e `acl_file`.
+- `mosquitto.conf`: configuracao principal (1883 + 8883 TLS + plugin `dynamic-security`).
+- `dynamic-security.json`: base de usuarios/roles/ACLs gerida pelo broker. Criada automaticamente
+  no primeiro start do container (`mosquitto_ctrl dynsec init`) e depois atualizada pela API a
+  cada provisionamento/rotacao de device. **Nao versionar.**
 - `scripts/generate-local-certs.ps1`: gera CA e certificado local/self-signed.
 - `data/` e `log/`: runtime do broker. Sao recriados pelo Mosquitto e nao devem ser versionados.
 
-## Fluxo recomendado local
+## Fluxo local
 
-1. Copie o template de credenciais:
-
-```powershell
-Copy-Item docker/mosquitto/credentials.template.json docker/mosquitto/credentials.local.json
-```
-
-2. Preencha cada item com:
-- `username`: `credentialUsername` retornado no provisionamento;
-- `secret`: `provisioningSecret` retornado na criacao/rotacao;
-- `topic`: `mqttPublishTopic` retornado pela API.
-
-3. Gere arquivos reais do broker:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-auth-files.ps1 -Overwrite
-```
-
-4. Gere certificados locais para `8883` (uma vez por ambiente local):
+1. Defina `FLUXO_MQTT_DYNSEC_ADMIN_USERNAME`/`FLUXO_MQTT_DYNSEC_ADMIN_PASSWORD` no `.env` (ou use
+   os defaults de desenvolvimento do `docker-compose.yml`).
+2. Gere certificados locais para `8883` (uma vez por ambiente local):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-local-certs.ps1
 ```
 
-5. Reinicie o Mosquitto para aplicar alteracoes.
+3. Suba a stack com `docker compose up -d`. O container `mosquitto` cria o admin do
+   `dynamic-security` automaticamente no primeiro start.
+4. Ao provisionar (ou rotacionar) um device pela API, o usuario/ACL correspondente e criado no
+   broker automaticamente — nao ha passo manual de `password_file`/`acl_file`. Veja
+   [docs/mqtt-tls-e-credenciais.md](../../docs/mqtt-tls-e-credenciais.md).
 
 ## Seguranca
 
-- `passwords`, `acl` e `credentials.local.json` nao devem ser versionados.
+- `dynamic-security.json` nao deve ser versionado (contem hashes de senha de todos os devices e
+  do admin).
 - chaves privadas (`*.key`) e certificados locais gerados tambem nao devem ser versionados.
 - `data/mosquitto.db` e logs sao estado/runtime do broker; nao carregue esses arquivos para o Git.
 - o listener `1883` existe apenas para desenvolvimento interno controlado.

@@ -4,6 +4,7 @@ using Fluxo.Application.Interfaces.Repositories;
 using Fluxo.Application.Options;
 using Fluxo.Application.Services;
 using Fluxo.Domain.Entities;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Fluxo.Application.UseCases.Provisioning;
@@ -13,17 +14,23 @@ public sealed class ProvisionDeviceUseCase
     private readonly IDeviceRepository _deviceRepository;
     private readonly IDeviceCredentialRepository _credentialRepository;
     private readonly IDeviceCredentialSecretService _secretService;
+    private readonly IDeviceMqttAccessProvisioner _mqttAccessProvisioner;
+    private readonly ILogger<ProvisionDeviceUseCase> _logger;
     private readonly TimeSpan _offlineAfter;
 
     public ProvisionDeviceUseCase(
         IDeviceRepository deviceRepository,
         IDeviceCredentialRepository credentialRepository,
         IDeviceCredentialSecretService secretService,
+        IDeviceMqttAccessProvisioner mqttAccessProvisioner,
+        ILogger<ProvisionDeviceUseCase> logger,
         IOptions<DeviceStatusOptions> deviceStatusOptions)
     {
         _deviceRepository = deviceRepository;
         _credentialRepository = credentialRepository;
         _secretService = secretService;
+        _mqttAccessProvisioner = mqttAccessProvisioner;
+        _logger = logger;
         var configuredSeconds = deviceStatusOptions.Value.OfflineAfterSeconds;
         _offlineAfter = TimeSpan.FromSeconds(Math.Max(configuredSeconds, 30));
     }
@@ -72,6 +79,29 @@ public sealed class ProvisionDeviceUseCase
 
         await _credentialRepository.AddAsync(credential, cancellationToken);
 
+        var mqttPublishTopic = DeviceProvisioningConventions.BuildMqttPublishTopic(
+            device.TenantId,
+            device.WorkspaceId,
+            device.Identifier);
+
+        try
+        {
+            await _mqttAccessProvisioner.ProvisionAsync(
+                device.Id,
+                credential.Username,
+                secretMaterial.PlainSecret,
+                mqttPublishTopic,
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Falha ao provisionar acesso MQTT no broker para device {DeviceId}. " +
+                "A credencial foi criada no banco, mas pode nao funcionar no broker ate sincronizacao manual.",
+                device.Id);
+        }
+
         return new ProvisionedDeviceResponse
         {
             DeviceId = device.Id,
@@ -89,10 +119,7 @@ public sealed class ProvisionDeviceUseCase
             CredentialStatus = credential.Status,
             CredentialCreatedAtUtc = credential.CreatedAtUtc,
             ProvisioningSecret = secretMaterial.PlainSecret,
-            MqttPublishTopic = DeviceProvisioningConventions.BuildMqttPublishTopic(
-                device.TenantId,
-                device.WorkspaceId,
-                device.Identifier)
+            MqttPublishTopic = mqttPublishTopic
         };
     }
 

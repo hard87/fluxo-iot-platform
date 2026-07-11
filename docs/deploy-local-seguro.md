@@ -32,21 +32,12 @@ Se o firmware ESP32 usar `mqtts://broker.fluxo.local:8883`, garanta que esse nom
 powershell -ExecutionPolicy Bypass -File scripts/generate-local-api-cert.ps1
 ```
 
-## 5. Gerar arquivos de autenticacao do Mosquitto
+## 5. Autenticacao do Mosquitto
 
-1. Copie o template:
-
-```powershell
-Copy-Item docker/mosquitto/credentials.template.json docker/mosquitto/credentials.local.json
-```
-
-2. Preencha com `credentialUsername`, `provisioningSecret` e `mqttPublishTopic`.
-
-3. Gere `passwords` e `acl`:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-auth-files.ps1 -Overwrite
-```
+Nada a preparar aqui: o broker usa o plugin `dynamic-security` e a API cria usuario/ACL de
+cada device automaticamente no provisionamento/rotacao (`credentialUsername`,
+`provisioningSecret`, `mqttPublishTopic` retornados pela API). Detalhes em
+[mqtt-tls-e-credenciais.md](mqtt-tls-e-credenciais.md).
 
 ## 6. Build e subida do ambiente
 
@@ -136,9 +127,7 @@ docker compose down -v
 ## 11. Nunca versionar
 
 - `.env`
-- `docker/mosquitto/passwords`
-- `docker/mosquitto/acl`
-- `docker/mosquitto/credentials.local.json`
+- `docker/mosquitto/dynamic-security.json`
 - `docker/mosquitto/certs/*.key`
 - `docker/mosquitto/data/`
 - `docker/mosquitto/log/`

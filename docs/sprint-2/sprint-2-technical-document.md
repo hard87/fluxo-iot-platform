@@ -139,32 +139,44 @@ Melhorias aplicadas:
 
 Observacao de escala:
 
-- Cenário alvo: 1000 devices, 1 evento/10s (aprox. 100 msg/s, 8.640.000 msg/dia).
+- Cenï¿½rio alvo: 1000 devices, 1 evento/10s (aprox. 100 msg/s, 8.640.000 msg/dia).
 - A modelagem atual sustenta evolucao inicial, mas **particionamento temporal** e **politica de retencao** seguem como etapa obrigatoria antes de producao plena.
 
 ## 8) Riscos ainda existentes
 
 1. Broker MQTT ainda sem estrategia de alta disponibilidade.
-2. Sem reprocessador automatico para `telemetry_ingestion_rejections`.
+2. ~~Sem reprocessador automatico para `telemetry_ingestion_rejections`.~~ Resolvido em
+   2026-07-11: `RejectionReprocessingWorker` reprocessa automaticamente falhas
+   `TransientError`/`DatabaseError` (configuravel via `RejectionReprocessing:*`).
 3. Sem politica formal de retencao/arquivamento.
 4. Sem particionamento por tempo na tabela de ingestao.
-5. Sem politica de autenticação/autorização de dispositivo em runtime (somente base preparada).
+5. ~~Sem politica de autenticacao/autorizacao de dispositivo em runtime (somente base preparada).~~
+   Resolvido em 2026-07-10: autenticacao/ACL por device agora e automatica via plugin
+   `dynamic-security` do Mosquitto (ver [docs/mqtt-tls-e-credenciais.md](../mqtt-tls-e-credenciais.md)).
 6. Sem tracing distribuido completo fim-a-fim.
 
 ## 9) Proximos passos priorizados
 
 ### 9.1 Antes do primeiro piloto real
 
-1. Habilitar autenticação MQTT por dispositivo com ACL estrita por topico.
-2. Implementar job de reprocessamento de rejeicoes.
+1. ~~Habilitar autenticacao MQTT por dispositivo com ACL estrita por topico.~~ Feito em
+   2026-07-10 (`IDeviceMqttAccessProvisioner` + `dynamic-security`).
+2. ~~Implementar job de reprocessamento de rejeicoes.~~ Feito em 2026-07-11
+   (`RejectionReprocessingWorker`).
 3. Definir contrato de schema versionado por `schemaVersion`.
-4. Criar testes de carga de ingestao (100 msg/s sustentado).
+4. ~~Criar testes de carga de ingestao (100 msg/s sustentado).~~ Feito em 2026-07-11:
+   `scripts/provision-simulated-devices.py` + `scripts/mqtt-device-simulator.py
+   --credentials-file` provisionaram 100 devices reais via API e sustentaram ~100 msg/s por
+   5 minutos (30000 mensagens). Resultado: 30000/30000 persistidas, 0 rejeicoes, 0
+   erros/reconnects no simulador, todos os 100 devices com exatamente 300 mensagens
+   sequenciais (sem gaps/duplicatas). Broker manteve 100 conexoes MQTT concorrentes sem
+   degradacao.
 
 ### 9.2 Antes de producao com 1000 devices
 
 1. Particionamento temporal em `telemetry_ingestion_records`.
 2. Retencao/arquivamento por janela (hot/warm/cold).
-3. Estratégia de HA para broker e para worker.
+3. Estratï¿½gia de HA para broker e para worker.
 4. Alertas operacionais (latencia, backlog, taxa de rejeicao, erro de banco).
 
 ## 10) Artefatos relevantes no repositorio
@@ -177,6 +189,8 @@ Observacao de escala:
 6. Config EF ingestao: `src/Fluxo.Infrastructure/Configurations/TelemetryIngestionRecordConfiguration.cs`
 7. Config EF rejeicao: `src/Fluxo.Infrastructure/Configurations/TelemetryIngestionRejectionRecordConfiguration.cs`
 8. Migration hardening: `src/Fluxo.Infrastructure/Migrations/*HardenIngestionPipeline.cs`
+9. Job de reprocessamento: `src/Fluxo.Worker.Ingestion/Workers/RejectionReprocessingWorker.cs`
+10. Config reprocessamento: `src/Fluxo.Worker.Ingestion/Options/RejectionReprocessingOptions.cs`
 
 ## Resumo
 
