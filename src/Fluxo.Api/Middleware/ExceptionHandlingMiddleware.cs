@@ -39,6 +39,10 @@ public class ExceptionHandlingMiddleware
     {
         var (status, title, safeDetail) = exception switch
         {
+            QueryTimeoutException => (
+                StatusCodes.Status504GatewayTimeout,
+                "Query timeout",
+                "The telemetry query exceeded its execution timeout."),
             ValidationException or ArgumentException => (
                 StatusCodes.Status400BadRequest,
                 "Validation failed",
@@ -69,10 +73,14 @@ public class ExceptionHandlingMiddleware
         {
             Status = status,
             Title = title,
-            Detail = _environment.IsDevelopment() ? exception.Message : safeDetail,
+            Detail = exception is TelemetryQueryValidationException || _environment.IsDevelopment()
+                ? exception.Message
+                : safeDetail,
             Instance = context.Request.Path
         };
         problem.Extensions["traceId"] = context.TraceIdentifier;
+        if (exception is TelemetryQueryValidationException telemetryValidation)
+            problem.Extensions["errorCode"] = telemetryValidation.ErrorCode;
 
         context.Response.StatusCode = status;
         context.Response.ContentType = "application/problem+json";

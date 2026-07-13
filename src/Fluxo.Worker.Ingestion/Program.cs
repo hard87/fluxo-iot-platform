@@ -2,6 +2,7 @@ using Fluxo.Infrastructure.DependencyInjection;
 using Fluxo.Worker.Ingestion.Options;
 using Fluxo.Worker.Ingestion.Services;
 using Fluxo.Worker.Ingestion.Workers;
+using Fluxo.Infrastructure.Telemetry;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -16,6 +17,9 @@ builder.Services.AddScoped<ITelemetryIngestionProcessor, TelemetryIngestionProce
 builder.Services.AddSingleton<IIngestionMetrics, IngestionMetrics>();
 builder.Services.AddHostedService<MqttTelemetryIngestionWorker>();
 builder.Services.AddHostedService<RejectionReprocessingWorker>();
+builder.Services.AddSingleton<TelemetryPartitionState>();
+builder.Services.AddHostedService<TelemetryPartitionMaintenanceService>();
+builder.Services.AddHealthChecks().AddCheck<TelemetryPartitionHealthCheck>("telemetry_partitions");
 
 var host = builder.Build();
 host.Run();

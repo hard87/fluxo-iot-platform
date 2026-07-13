@@ -42,7 +42,7 @@ public class TelemetryIngestionPostgreSqlTests
             await context.Database.MigrateAsync();
 
             var appliedMigrations = await context.Database.GetAppliedMigrationsAsync();
-            Assert.Contains("AddDeviceProvisioningAndOperationalStatus", appliedMigrations);
+            Assert.Contains(appliedMigrations, x => x.EndsWith("AddDeviceProvisioningAndOperationalStatus", StringComparison.Ordinal));
 
             var workspaceId = Guid.Parse("11111111-1111-1111-1111-111111111111");
             var device = new Device(
@@ -75,14 +75,21 @@ public class TelemetryIngestionPostgreSqlTests
 
             var firstResult = await processor.ProcessAsync(topic, payload, DateTime.UtcNow);
             var duplicateResult = await processor.ProcessAsync(topic, payload, DateTime.UtcNow.AddSeconds(1));
+            var v2Payload = $"{{\"schemaVersion\":2,\"sequence\":101,\"occurredAtUtc\":\"{DateTime.UtcNow:O}\",\"metrics\":{{\"temperature_c\":24.5,\"door_open\":true,\"machine_state\":\"running\"}}}}";
+            var v2Result = await processor.ProcessAsync(topic, v2Payload, DateTime.UtcNow.AddSeconds(1));
             var invalidJsonResult = await processor.ProcessAsync(topic, "{invalid", DateTime.UtcNow.AddSeconds(2));
 
             Assert.Equal(Fluxo.Worker.Ingestion.Models.TelemetryIngestionProcessingStatus.Persisted, firstResult.Status);
             Assert.Equal(Fluxo.Worker.Ingestion.Models.TelemetryIngestionProcessingStatus.Duplicate, duplicateResult.Status);
+            Assert.Equal(Fluxo.Worker.Ingestion.Models.TelemetryIngestionProcessingStatus.Persisted, v2Result.Status);
             Assert.Equal(Fluxo.Worker.Ingestion.Models.TelemetryIngestionProcessingStatus.Rejected, invalidJsonResult.Status);
 
             var storedTelemetryCount = await context.TelemetryIngestionRecords.CountAsync();
-            Assert.Equal(1, storedTelemetryCount);
+            Assert.Equal(2, storedTelemetryCount);
+            Assert.Equal(4, await context.TelemetryPoints.CountAsync());
+            Assert.Equal(4, await context.MetricDefinitions.CountAsync());
+            Assert.Contains(await context.TelemetryPoints.ToListAsync(), x => x.BooleanValue == true);
+            Assert.Contains(await context.TelemetryPoints.ToListAsync(), x => x.TextValue == "running");
 
             var rejectionTypes = await context.TelemetryIngestionRejectionRecords
                 .Select(x => x.ErrorType)
@@ -93,7 +100,7 @@ public class TelemetryIngestionPostgreSqlTests
 
             var refreshedDevice = await context.Devices.AsNoTracking().SingleAsync(x => x.Id == device.Id);
             Assert.NotNull(refreshedDevice.LastContactAtUtc);
-            Assert.Equal(100, refreshedDevice.LastTelemetrySequence);
+            Assert.Equal(101, refreshedDevice.LastTelemetrySequence);
         }
         finally
         {
@@ -136,6 +143,6 @@ WHERE datname = '{databaseName}'
 
     private static string BuildPayload(string deviceId, long sequence)
     {
-        return $"{{\"schemaVersion\":\"1.0\",\"tenantId\":\"acme\",\"workspaceId\":\"11111111-1111-1111-1111-111111111111\",\"deviceId\":\"{deviceId}\",\"messageType\":\"telemetry\",\"timestampUtc\":\"2026-05-24T12:00:00Z\",\"sequence\":{sequence},\"metrics\":{{\"temperature\":25.1}}}}";
+        return $"{{\"schemaVersion\":\"1.0\",\"tenantId\":\"acme\",\"workspaceId\":\"11111111-1111-1111-1111-111111111111\",\"deviceId\":\"{deviceId}\",\"messageType\":\"telemetry\",\"timestampUtc\":\"{DateTime.UtcNow:O}\",\"sequence\":{sequence},\"metrics\":{{\"temperature\":25.1}}}}";
     }
 }

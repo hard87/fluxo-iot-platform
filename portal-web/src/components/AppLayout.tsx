@@ -1,9 +1,10 @@
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
 export function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const workspaceId = useLocation().pathname.match(/^\/workspaces\/([^/]+)/)?.[1];
 
   function handleLogout() {
     logout();
@@ -26,6 +27,7 @@ export function AppLayout() {
       </header>
       <nav className="nav-links">
         <Link to="/workspaces">Workspaces</Link>
+        {workspaceId ? <Link to={`/workspaces/${workspaceId}/explorer`}>Telemetry Explorer</Link> : null}
         <Link to="/status">Saude da plataforma</Link>
       </nav>
       <main className="content">

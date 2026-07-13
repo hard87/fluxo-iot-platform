@@ -9,11 +9,16 @@ using Fluxo.Worker.Ingestion.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using System.Text;
+using System.Text.RegularExpressions;
+using Fluxo.Domain.Models;
+using Fluxo.Domain.Exceptions;
 
 namespace Fluxo.Worker.Ingestion.Services;
 
 public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
 {
+    private static readonly Regex MetricKeyPattern = new("^[a-z][a-z0-9._-]{0,63}$", RegexOptions.Compiled);
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -24,19 +29,22 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
     private readonly IDeviceRepository _deviceRepository;
     private readonly ILogger<TelemetryIngestionProcessor> _logger;
     private readonly MqttIngestionOptions _options;
+    private readonly IIngestionMetrics? _metrics;
 
     public TelemetryIngestionProcessor(
         ITelemetryIngestionRepository telemetryIngestionRepository,
         ITelemetryIngestionRejectionRepository rejectionRepository,
         IDeviceRepository deviceRepository,
         IOptions<MqttIngestionOptions> options,
-        ILogger<TelemetryIngestionProcessor> logger)
+        ILogger<TelemetryIngestionProcessor> logger,
+        IIngestionMetrics? metrics = null)
     {
         _telemetryIngestionRepository = telemetryIngestionRepository;
         _rejectionRepository = rejectionRepository;
         _deviceRepository = deviceRepository;
         _logger = logger;
         _options = options.Value;
+        _metrics = metrics;
     }
 
     public async Task<TelemetryIngestionProcessingResult> ProcessAsync(
@@ -81,10 +89,25 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
             return TelemetryIngestionProcessingResult.Rejected(reason);
         }
 
+        if (Encoding.UTF8.GetByteCount(payloadJson) > _options.MaxPayloadBytes)
+            return await RejectEarlyAsync(receivedAtUtc, topic, payloadJson, "PayloadTooLarge", topicContext, cancellationToken, sourceRejectionId);
+
         IncomingTelemetryMessage? message;
+        IReadOnlyList<TelemetryMetricValue> canonicalMetrics = Array.Empty<TelemetryMetricValue>();
+        var isV2 = false;
         try
         {
-            message = JsonSerializer.Deserialize<IncomingTelemetryMessage>(payloadJson, JsonOptions);
+            using var document = JsonDocument.Parse(payloadJson);
+            isV2 = document.RootElement.TryGetProperty("schemaVersion", out var version) && version.ValueKind == JsonValueKind.Number;
+            if (isV2)
+            {
+                var v2 = JsonSerializer.Deserialize<IncomingTelemetryV2Message>(payloadJson, JsonOptions)!;
+                message = new IncomingTelemetryMessage { SchemaVersion = v2.SchemaVersion.ToString(CultureInfo.InvariantCulture),
+                    TenantId = topicContext!.TenantId, WorkspaceId = topicContext.WorkspaceId.ToString(), DeviceId = topicContext.DeviceId,
+                    MessageType = "telemetry", TimestampUtc = v2.OccurredAtUtc, Sequence = v2.Sequence };
+                canonicalMetrics = ParseV2Metrics(v2);
+            }
+            else message = JsonSerializer.Deserialize<IncomingTelemetryMessage>(payloadJson, JsonOptions);
         }
         catch (JsonException ex)
         {
@@ -139,10 +162,15 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
             StringComparison.OrdinalIgnoreCase);
 
         if (isTelemetryMessage && message.Metrics is null)
-            rejectionReasons.Add("metrics nao pode ser nulo para messageType telemetry.");
+        { if (!isV2) rejectionReasons.Add("metrics nao pode ser nulo para messageType telemetry."); }
 
         if (isTelemetryMessage && !message.Sequence.HasValue)
             rejectionReasons.Add("sequence e obrigatorio para messageType telemetry.");
+        if (message.Sequence <= 0) rejectionReasons.Add("sequence deve ser positivo.");
+        if (isV2 && schemaVersion != "2") rejectionReasons.Add("schemaVersion desconhecida.");
+        if (occurredAtUtc != default && (occurredAtUtc > receivedAtUtc.AddMinutes(5) || occurredAtUtc < receivedAtUtc.AddDays(-_options.MaxPastDays)))
+            rejectionReasons.Add("TimestampOutsideWindow.");
+        if (isV2 && (canonicalMetrics.Count < 1 || canonicalMetrics.Count > 64)) rejectionReasons.Add("metrics deve conter de 1 a 64 valores.");
 
         ValidateTopicPayloadConsistency(
             topicContext!,
@@ -242,6 +270,9 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
             message.Metrics?.Rssi,
             message.Metrics?.UptimeSec);
 
+        if (!isV2)
+            canonicalMetrics = AdaptLegacyMetrics(message.Metrics!);
+
         var retryCount = Math.Max(_options.DatabaseRetryCount, 1);
         var retryDelay = TimeSpan.FromMilliseconds(Math.Max(_options.DatabaseRetryDelayMs, 10));
 
@@ -249,7 +280,7 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
         {
             try
             {
-                var writeResult = await _telemetryIngestionRepository.AddAsync(record, cancellationToken);
+                var writeResult = await _telemetryIngestionRepository.AddWithPointsAsync(record, canonicalMetrics, cancellationToken);
 
                 if (writeResult == TelemetryIngestionWriteResult.Duplicate)
                 {
@@ -312,6 +343,25 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
                     topic);
 
                 await Task.Delay(retryDelay, cancellationToken);
+            }
+            catch (MetricTypeMismatchException ex)
+            {
+                await PersistRejectionAsync(receivedAtUtc, topic, payloadJson, TelemetryIngestionFailureType.MetricTypeMismatch, ex.Message,
+                    cancellationToken, topicContext, message, sourceRejectionId);
+                return TelemetryIngestionProcessingResult.Rejected(ex.Message);
+            }
+            catch (MetricCardinalityGuardException ex)
+            {
+                _metrics?.MetricCardinalityGuardTriggered();
+                await PersistRejectionAsync(receivedAtUtc, topic, payloadJson, TelemetryIngestionFailureType.MetricCardinalityGuardTriggered, ex.Message,
+                    cancellationToken, topicContext, message, sourceRejectionId);
+                return TelemetryIngestionProcessingResult.Rejected(ex.Message);
+            }
+            catch (MetricWorkspaceLimitException ex)
+            {
+                await PersistRejectionAsync(receivedAtUtc, topic, payloadJson, TelemetryIngestionFailureType.MetricWorkspaceLimitTriggered, ex.Message,
+                    cancellationToken, topicContext, message, sourceRejectionId);
+                return TelemetryIngestionProcessingResult.Rejected(ex.Message);
             }
             catch (Exception ex)
             {
@@ -422,6 +472,49 @@ public class TelemetryIngestionProcessor : ITelemetryIngestionProcessor
         return Guid.TryParse(workspaceId, out var value) && value != Guid.Empty
             ? value
             : null;
+    }
+
+    private async Task<TelemetryIngestionProcessingResult> RejectEarlyAsync(DateTime receivedAtUtc, string topic,
+        string payload, string reason, IngestionTopicContext? context, CancellationToken cancellationToken, Guid? sourceRejectionId)
+    {
+        await PersistRejectionAsync(receivedAtUtc, topic, payload, TelemetryIngestionFailureType.Validation, reason,
+            cancellationToken, context, sourceRejectionId: sourceRejectionId);
+        return TelemetryIngestionProcessingResult.Rejected(reason);
+    }
+
+    private static IReadOnlyList<TelemetryMetricValue> ParseV2Metrics(IncomingTelemetryV2Message message)
+    {
+        if (message.Metrics is null) return [];
+        var result = new List<TelemetryMetricValue>(message.Metrics.Count);
+        foreach (var (key, value) in message.Metrics)
+        {
+            if (!MetricKeyPattern.IsMatch(key)) throw new JsonException($"MetricKey invalida: {key}.");
+            switch (value.ValueKind)
+            {
+                case JsonValueKind.Number:
+                    if (!value.TryGetDouble(out var number) || !double.IsFinite(number)) throw new JsonException($"Numero invalido: {key}.");
+                    result.Add(new(key, MetricValueType.Numeric, NumericValue: number)); break;
+                case JsonValueKind.True: case JsonValueKind.False:
+                    result.Add(new(key, MetricValueType.Boolean, BooleanValue: value.GetBoolean())); break;
+                case JsonValueKind.String:
+                    var text = value.GetString()!;
+                    if (text.Length > 256) throw new JsonException($"Texto excede 256 caracteres: {key}.");
+                    result.Add(new(key, MetricValueType.Text, TextValue: text)); break;
+                default: throw new JsonException($"UnsupportedMetricValueType: {key}.");
+            }
+        }
+        return result;
+    }
+
+    private static IReadOnlyList<TelemetryMetricValue> AdaptLegacyMetrics(IncomingTelemetryMetrics metrics)
+    {
+        var result = new List<TelemetryMetricValue>(5);
+        if (metrics.Temperature is { } temperature) result.Add(new("temperature", MetricValueType.Numeric, NumericValue: temperature));
+        if (metrics.Humidity is { } humidity) result.Add(new("humidity", MetricValueType.Numeric, NumericValue: humidity));
+        if (metrics.Battery is { } battery) result.Add(new("battery", MetricValueType.Numeric, NumericValue: battery));
+        if (metrics.Rssi is { } rssi) result.Add(new("rssi", MetricValueType.Numeric, NumericValue: rssi));
+        if (metrics.UptimeSec is { } uptime) result.Add(new("uptime_sec", MetricValueType.Numeric, NumericValue: uptime));
+        return result;
     }
 
     private static string? RequireText(

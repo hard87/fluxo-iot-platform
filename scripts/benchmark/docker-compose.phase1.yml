@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fluxo-phase1-bench-postgres
+    cpus: "${POSTGRES_CPUS:-2.0}"
+    mem_limit: "${POSTGRES_MEMORY:-2g}"
+    environment:
+      POSTGRES_DB: fluxo_bench
+      POSTGRES_USER: fluxo
+      POSTGRES_PASSWORD: fluxo_bench
+    ports: ["127.0.0.1:15432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fluxo -d fluxo_bench"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: fluxo-phase1-bench-mosquitto
+    ports: ["127.0.0.1:11883:1883"]
+    volumes: ["./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro"]
+  api:
+    build:
+      context: ../..
+      dockerfile: src/Fluxo.Api/Dockerfile
+    container_name: fluxo-phase1-bench-api
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Host=postgres;Database=fluxo_bench;Username=fluxo;Password=fluxo_bench
+      Authentication__Enabled: "false"
+      Authentication__Jwt__SigningKey: benchmark-signing-key-at-least-32-characters
+      MqttDynamicSecurity__Enabled: "false"
+    ports: ["127.0.0.1:15000:8080"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  worker:
+    build:
+      context: ../..
+      dockerfile: src/Fluxo.Worker.Ingestion/Dockerfile
+    container_name: fluxo-phase1-bench-worker
+    cpus: "${WORKER_CPUS:-2.0}"
+    mem_limit: "${WORKER_MEMORY:-1g}"
+    depends_on:
+      postgres: { condition: service_healthy }
+      mosquitto: { condition: service_started }
+      api: { condition: service_healthy }
+    environment:
+      ConnectionStrings__DefaultConnection: Host=postgres;Database=fluxo_bench;Username=fluxo;Password=fluxo_bench
+      MqttIngestion__BrokerHost: mosquitto
+      MqttIngestion__BrokerPort: 1883
+      MqttIngestion__ProcessingConcurrency: 4
+      MqttIngestion__ChannelCapacity: 5000
+      MqttIngestion__KeepAliveSeconds: 300
+      RejectionReprocessing__Enabled: "false"
+      TelemetryCatalog__MaxMetricDefinitionsPerWorkspace: 500
+      TelemetryCatalog__MaxNewMetricKeysPerDevicePerHour: 20
+      TelemetryPointWriter__Strategy: ${TELEMETRY_POINT_WRITER_STRATEGY:-EfCore}

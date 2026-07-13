@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using Fluxo.Infrastructure.Telemetry;
 
 namespace Fluxo.Infrastructure.DependencyInjection;
 
@@ -22,6 +23,7 @@ public static class DependencyInjection
 
         services.AddDbContext<FluxoDbContext>(options =>
             options.UseNpgsql(connectionString));
+        services.Configure<TelemetryCatalogOptions>(configuration.GetSection(TelemetryCatalogOptions.SectionName));
 
         services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<IDeviceCredentialRepository, DeviceCredentialRepository>();
@@ -30,6 +32,14 @@ public static class DependencyInjection
         services.AddScoped<IWorkspaceMembershipRepository, WorkspaceMembershipRepository>();
         services.AddScoped<ITelemetryRepository, TelemetryRepository>();
         services.AddScoped<ITelemetryIngestionRepository, TelemetryIngestionRepository>();
+        services.AddScoped<ITelemetryQueryRepository, TelemetryQueryRepository>();
+        services.Configure<TelemetryPointWriterOptions>(configuration.GetSection(TelemetryPointWriterOptions.SectionName));
+        services.AddScoped<ITelemetryPointWriter>(provider =>
+            string.Equals(provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<TelemetryPointWriterOptions>>().Value.Strategy,
+                "BinaryCopy", StringComparison.OrdinalIgnoreCase)
+                ? new NpgsqlBinaryCopyTelemetryPointWriter(provider.GetRequiredService<FluxoDbContext>())
+                : new EfTelemetryPointWriter(provider.GetRequiredService<FluxoDbContext>()));
+        services.AddSingleton<IMetricDefinitionCache, MetricDefinitionCache>();
         services.AddScoped<ITelemetryIngestionRejectionRepository, TelemetryIngestionRejectionRepository>();
 
         AddMqttDynamicSecurity(services, configuration);

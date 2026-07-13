@@ -3,7 +3,23 @@ export interface ApiProblem {
   title?: string;
   detail?: string;
   traceId?: string;
+  errorCode?: string;
 }
+
+export type MetricValueType = "Numeric" | "Boolean" | "Text";
+export type TelemetryAggregation = "raw" | "avg" | "min" | "max" | "sum" | "count" | "last";
+export type TelemetryBucket = "1m" | "5m" | "15m" | "1h" | "6h" | "1d";
+export interface TelemetryQueryRequest { deviceIds: string[]; metricKeys: string[]; fromUtc: string; toUtc: string;
+  aggregation: TelemetryAggregation; bucket: TelemetryBucket | null; }
+export interface TelemetryPointResponse { timestampUtc: string; numericValue: number | null; booleanValue: boolean | null;
+  textValue: string | null; sampleCount: number | null; }
+export interface TelemetrySeriesResponse { deviceId: string; metricKey: string; valueType: MetricValueType;
+  canonicalUnit: string | null; semanticType: string | null; points: TelemetryPointResponse[]; truncated: boolean; }
+export interface TelemetryQueryMeta { totalPoints: number; maxPointsAllowed: number; executionTimeMs: number; }
+export interface TelemetryQueryResponse { workspaceId: string; fromUtc: string; toUtc: string;
+  aggregation: TelemetryAggregation; bucket: TelemetryBucket | null; series: TelemetrySeriesResponse[]; meta: TelemetryQueryMeta; }
+export interface MetricDefinitionResponse { id: string; metricKey: string; displayName: string; valueType: MetricValueType;
+  semanticType: string | null; canonicalUnit: string | null; status: string; isQueryable: boolean; }
 
 export interface AuthenticatedUser {
   userId: string;
@@ -39,7 +55,7 @@ export interface DeviceResponse {
   lastTelemetryOccurredAtUtc?: string | null;
   lastTelemetrySequence?: number | null;
   lastTelemetryPayloadJson?: string | null;
-  operationalStatus: "Unknown" | "Online" | "Offline";
+  operationalStatus: "Unknown" | "Online" | "Offline" | 1 | 2 | 3;
 }
 
 export interface ProvisionedDeviceResponse {

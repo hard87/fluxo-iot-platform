@@ -1,4 +1,5 @@
 namespace Fluxo.Worker.Ingestion.Models;
+using System.Text.Json;
 
 public sealed class IncomingTelemetryMessage
 {
@@ -11,6 +12,14 @@ public sealed class IncomingTelemetryMessage
     public long? Sequence { get; init; }
     public string? FirmwareVersion { get; init; }
     public IncomingTelemetryMetrics? Metrics { get; init; }
+}
+
+public sealed class IncomingTelemetryV2Message
+{
+    public int SchemaVersion { get; init; }
+    public long? Sequence { get; init; }
+    public string? OccurredAtUtc { get; init; }
+    public Dictionary<string, JsonElement>? Metrics { get; init; }
 }
 
 public sealed class IncomingTelemetryMetrics

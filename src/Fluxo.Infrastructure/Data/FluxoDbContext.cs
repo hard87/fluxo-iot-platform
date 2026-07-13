@@ -18,6 +18,9 @@ public class FluxoDbContext : DbContext
     public DbSet<TelemetryIngestionRecord> TelemetryIngestionRecords => Set<TelemetryIngestionRecord>();
     public DbSet<TelemetryIngestionRejectionRecord> TelemetryIngestionRejectionRecords =>
         Set<TelemetryIngestionRejectionRecord>();
+    public DbSet<MetricDefinition> MetricDefinitions => Set<MetricDefinition>();
+    public DbSet<TelemetryPoint> TelemetryPoints => Set<TelemetryPoint>();
+    public DbSet<MetricDefinitionDiscoveryAudit> MetricDefinitionDiscoveryAudits => Set<MetricDefinitionDiscoveryAudit>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -62,6 +62,7 @@ public class MqttTelemetryIngestionWorker : BackgroundService
                 var clientOptionsBuilder = new MqttClientOptionsBuilder()
                     .WithClientId(_options.ClientId)
                     .WithTcpServer(_options.BrokerHost, _options.BrokerPort)
+                    .WithKeepAlivePeriod(TimeSpan.FromSeconds(_options.KeepAliveSeconds))
                     .WithCleanSession(false);
 
                 if (!string.IsNullOrWhiteSpace(_options.Username))
@@ -322,6 +323,8 @@ public class MqttTelemetryIngestionWorker : BackgroundService
 
         if (options.ProcessingConcurrency <= 0)
             throw new InvalidOperationException("MqttIngestion:ProcessingConcurrency must be greater than zero.");
+        if (options.KeepAliveSeconds < 30)
+            throw new InvalidOperationException("MqttIngestion:KeepAliveSeconds must be at least 30.");
 
         if (options.UseTls && !string.IsNullOrWhiteSpace(options.TlsCaCertificatePath) &&
             !File.Exists(options.TlsCaCertificatePath))

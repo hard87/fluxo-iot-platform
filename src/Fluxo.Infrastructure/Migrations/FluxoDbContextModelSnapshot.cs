@@ -136,6 +136,118 @@ namespace Fluxo.Infrastructure.Migrations
                     b.ToTable("device_credentials", (string)null);
                 });
 
+            modelBuilder.Entity("Fluxo.Domain.Entities.MetricDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CanonicalUnit")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int?>("ExpectedIntervalSec")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsAlertable")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsQueryable")
+                        .HasColumnType("boolean");
+
+                    b.Property<double?>("MaxExpectedValue")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("MetricKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<double?>("MinExpectedValue")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("SemanticType")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ValueType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkspaceId", "MetricKey")
+                        .IsUnique();
+
+                    b.ToTable("metric_definitions", (string)null);
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Entities.MetricDefinitionDiscoveryAudit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<DateTime>("DiscoveredAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("IngestionRecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MetricKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IngestionRecordId");
+
+                    b.HasIndex("WorkspaceId", "DeviceId", "DiscoveredAtUtc");
+
+                    b.ToTable("metric_definition_discovery_audits", (string)null);
+                });
+
             modelBuilder.Entity("Fluxo.Domain.Entities.PlatformUser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -345,6 +457,57 @@ namespace Fluxo.Infrastructure.Migrations
                     b.ToTable("telemetry_ingestion_rejections", (string)null);
                 });
 
+            modelBuilder.Entity("Fluxo.Domain.Entities.TelemetryPoint", b =>
+                {
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool?>("BooleanValue")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<Guid>("IngestionRecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MetricDefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("NumericValue")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("TextValue")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("OccurredAtUtc", "Id");
+
+                    b.HasIndex("IngestionRecordId");
+
+                    b.HasIndex("MetricDefinitionId");
+
+                    b.HasIndex("WorkspaceId", "DeviceId", "MetricDefinitionId", "OccurredAtUtc");
+
+                    b.ToTable("telemetry_points", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_telemetry_points_exactly_one_value", "((\"NumericValue\" IS NOT NULL)::int + (\"BooleanValue\" IS NOT NULL)::int + (\"TextValue\" IS NOT NULL)::int) = 1");
+                        });
+                });
+
             modelBuilder.Entity("Fluxo.Domain.Entities.TelemetryRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -439,6 +602,30 @@ namespace Fluxo.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("DeviceId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Entities.MetricDefinitionDiscoveryAudit", b =>
+                {
+                    b.HasOne("Fluxo.Domain.Entities.TelemetryIngestionRecord", null)
+                        .WithMany()
+                        .HasForeignKey("IngestionRecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Entities.TelemetryPoint", b =>
+                {
+                    b.HasOne("Fluxo.Domain.Entities.TelemetryIngestionRecord", null)
+                        .WithMany()
+                        .HasForeignKey("IngestionRecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Fluxo.Domain.Entities.MetricDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("MetricDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

@@ -9,6 +9,7 @@ public class MqttIngestionOptions
     public string ClientId { get; set; } = "fluxo-worker-ingestion";
     public string TopicFilter { get; set; } = "fluxo/tenants/+/workspaces/+/devices/+/telemetry";
     public int ReconnectDelaySeconds { get; set; } = 5;
+    public int KeepAliveSeconds { get; set; } = 300;
     public string? Username { get; set; }
     public string? Password { get; set; }
     public bool UseTls { get; set; }
@@ -21,4 +22,6 @@ public class MqttIngestionOptions
     public int ProcessingConcurrency { get; set; } = 4;
     public int DatabaseRetryCount { get; set; } = 3;
     public int DatabaseRetryDelayMs { get; set; } = 200;
+    public int MaxPayloadBytes { get; set; } = 32768;
+    public int MaxPastDays { get; set; } = 30;
 }

@@ -131,10 +131,25 @@ def topic_for(args: argparse.Namespace, device_id: str) -> str:
     )
 
 
-def payload_for(args: argparse.Namespace, device_id: str, sequence: int) -> dict:
+def payload_for(args: argparse.Namespace, device_id: str, sequence: int, rng: random.Random | None = None) -> dict:
+    rng = rng or random
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    base_temperature = 23.0 + random.random() * 4.0
-    base_humidity = 55.0 + random.random() * 12.0
+    base_temperature = 23.0 + rng.random() * 4.0
+    base_humidity = 55.0 + rng.random() * 12.0
+
+    if args.schema_version == 2:
+        metrics: dict[str, object] = {}
+        numeric_count = args.metrics_per_message - args.boolean_metrics - args.text_metrics
+        for metric_index in range(numeric_count):
+            metrics[f"numeric_{metric_index:02d}"] = round(rng.random() * 100, 4)
+        for metric_index in range(args.boolean_metrics):
+            metrics[f"boolean_{metric_index:02d}"] = bool((sequence + metric_index) % 2)
+        states = ("idle", "running", "stopped")
+        for metric_index in range(args.text_metrics):
+            metrics[f"text_{metric_index:02d}"] = states[(sequence + metric_index) % len(states)]
+        if args.cardinality_mutation_rate and rng.random() < args.cardinality_mutation_rate:
+            metrics[f"metric_dyn_{device_id.replace('-', '_')}_{sequence}"] = round(rng.random() * 100, 4)
+        return {"schemaVersion": 2, "sequence": sequence, "occurredAtUtc": now, "metrics": metrics}
 
     return {
         "schemaVersion": "1.0",
@@ -148,8 +163,8 @@ def payload_for(args: argparse.Namespace, device_id: str, sequence: int) -> dict
         "metrics": {
             "temperature": round(base_temperature, 2),
             "humidity": round(base_humidity, 2),
-            "battery": round(3.75 + random.random() * 0.35, 2),
-            "rssi": random.randint(-78, -42),
+            "battery": round(3.75 + rng.random() * 0.35, 2),
+            "rssi": rng.randint(-78, -42),
             "uptimeSec": sequence * int(max(args.interval_seconds, 1)),
         },
     }
@@ -188,14 +203,20 @@ def simulate_device(
 
     client_id = f"{args.client_id_prefix}-{device_id}"
     sock: socket.socket | None = None
+    rng = random.Random(args.seed + index if args.seed is not None else None)
 
     for sequence in range(1, args.messages_per_device + 1):
         try:
             if sock is None:
                 sock = connect_socket(args, client_id, username, password)
 
-            sock.sendall(build_publish_packet(topic, payload_for(args, device_id, sequence)))
+            payload = payload_for(args, device_id, sequence, rng)
+            packet = build_publish_packet(topic, payload)
+            sock.sendall(packet)
             stats.add_published()
+            if args.duplicate_every and sequence % args.duplicate_every == 0:
+                sock.sendall(packet)
+                stats.add_published()
 
             if args.verbose:
                 print(f"published device={device_id} sequence={sequence}")
@@ -251,6 +272,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout-seconds", type=float, default=10.0)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--schema-version", type=int, choices=(1, 2), default=1)
+    parser.add_argument("--metrics-per-message", type=int, default=5)
+    parser.add_argument("--boolean-metrics", type=int, default=0)
+    parser.add_argument("--text-metrics", type=int, default=0)
+    parser.add_argument("--cardinality-mutation-rate", type=float, default=0.0)
+    parser.add_argument("--duplicate-every", type=int, default=0)
+    parser.add_argument("--seed", type=int)
     return parser.parse_args()
 
 
@@ -262,10 +290,18 @@ def main() -> int:
 
     if args.messages_per_device < 1:
         raise SystemExit("--messages-per-device must be >= 1")
+    if not 0 <= args.cardinality_mutation_rate <= 1:
+        raise SystemExit("--cardinality-mutation-rate must be between 0 and 1")
+    if args.schema_version == 2 and not 1 <= args.metrics_per_message <= 64:
+        raise SystemExit("--metrics-per-message must be between 1 and 64")
+    if args.boolean_metrics < 0 or args.text_metrics < 0 or args.boolean_metrics + args.text_metrics > args.metrics_per_message:
+        raise SystemExit("--boolean-metrics + --text-metrics cannot exceed --metrics-per-message")
+    if args.duplicate_every < 0:
+        raise SystemExit("--duplicate-every must be >= 0")
 
     first_device = device_id_for(args, 1)
     first_topic = topic_for(args, first_device)
-    first_payload = payload_for(args, first_device, 1)
+    first_payload = payload_for(args, first_device, 1, random.Random((args.seed or 0) + 1))
 
     if args.dry_run:
         print(first_topic)

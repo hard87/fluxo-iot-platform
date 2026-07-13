@@ -123,7 +123,9 @@ button:disabled {
 }
 
 .app-shell {
-  width: min(1200px, 94vw);
+  width: 100%;
+  max-width: 1520px;
+  padding: 0 clamp(0.75rem, 3vw, 2.5rem);
   margin: 1.5rem auto;
 }
 
@@ -280,6 +282,16 @@ pre {
   white-space: pre-wrap;
 }
 
+.explorer-page { display: grid; gap: 1rem; }
+.explorer-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; align-items: start; }
+.explorer-filters fieldset { min-width: 0; border: 1px solid #c2d4c8; border-radius: 10px; padding: .75rem; max-height: 260px; overflow-y: auto; }
+.chart-panel { width: 100%; min-width: 0; overflow: hidden; }
+.truncate-banner { background: #fff3cd; border-left: 5px solid #d86f33; border-radius: 8px; padding: .8rem 1rem; font-weight: 600; }
+.field-error select { border-color: var(--danger); outline: 2px solid rgba(165,48,48,.2); }
+.table-scroll { width: 100%; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: .55rem; border-bottom: 1px solid #d4e3d9; }
+
 @media (max-width: 800px) {
   .topbar {
     flex-direction: column;
@@ -294,4 +306,12 @@ pre {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+@media (max-width: 480px) {
+  .app-shell { margin-top: .6rem; padding: 0 .6rem; }
+  .topbar-right { width: 100%; flex-wrap: wrap; }
+  .user-pill { max-width: 100%; overflow-wrap: anywhere; }
+  .explorer-filters { grid-template-columns: 1fr; }
+  .auth-card, .panel { padding: .85rem; }
 }
