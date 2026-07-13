@@ -1,153 +1,147 @@
 # Fluxo
 
-<div align="center">
+Plataforma IoT para cadastro, provisionamento e monitoramento de dispositivos conectados.
 
-### 🔄 Conectando dispositivos, redes e software
+Este repositorio foi estruturado como portfolio tecnico, com foco em:
+- arquitetura limpa para backend .NET;
+- pipeline de ingestao MQTT com rastreabilidade;
+- seguranca aplicada ao MVP;
+- operacao local reprodutivel via Docker.
 
-**Fluxo** é uma plataforma IoT da **Officina 404** projetada para integrar dispositivos físicos, redes de comunicação e sistemas de software em cenários reais.
+## Estado atual
 
-Criada para suportar telemetria, monitoramento, automação e operações orientadas por dados em ambientes como indústria, agro, laboratórios e infraestrutura inteligente.
+- MVP funcional com API, Worker e Portal Web.
+- Suporte a autenticacao de usuario no portal e isolamento por workspace.
+- Provisionamento de device com credencial MQTT e topico dedicado.
+- Ingestao de telemetria com trilha de rejeicao e idempotencia por sequence.
+- Guia de piloto controlado e roadmap para escala.
 
-🚧 **Atualmente em desenvolvimento ativo**
+## Arquitetura em alto nivel
 
-</div>
+- Backend: ASP.NET Core + Clean Architecture
+- Banco: PostgreSQL
+- Broker: Mosquitto (MQTT)
+- Ingestao: Worker .NET consumindo MQTT
+- Frontend: React + Vite + TypeScript
 
----
+Fluxo de dados (resumo):
 
-## 📌 Visão
+```text
+Device -> MQTT Broker (Mosquitto) -> Worker Ingestion -> PostgreSQL
+                                        |
+                                        v
+                                   Telemetry Rejections
 
-O Fluxo nasceu com um propósito claro:
+Portal Web -> API -> PostgreSQL
+```
 
-> Transformar dados gerados por dispositivos conectados em informação útil, visibilidade operacional e decisões inteligentes.
-
-A plataforma busca conectar:
-
-* 🔧 Dispositivos físicos
-* 🌐 Redes de comunicação
-* 🖥️ Sistemas de software
-* 📊 Dados operacionais
-
----
-
-## 🚀 Objetivos Principais
-
-* Cadastro e gerenciamento de dispositivos
-* Recebimento de telemetria de equipamentos conectados
-* Armazenamento e consulta de histórico de dados
-* Cenários de monitoramento em tempo real
-* APIs preparadas para integração
-* Arquitetura escalável para evolução futura
-
----
-
-## 🏗️ Arquitetura
-
-O Fluxo segue uma abordagem baseada em **Clean Architecture**, priorizando organização, escalabilidade e separação clara de responsabilidades.
-
-O **Repository Pattern** é utilizado na camada de infraestrutura para abstração do acesso a dados.
-
-### Estrutura da Solução
+Camadas do backend:
 
 ```text
 src/
-├── Fluxo.Api
-├── Fluxo.Application
-├── Fluxo.Domain
-└── Fluxo.Infrastructure
-
-tests/
-├── Fluxo.UnitTests
-└── Fluxo.IntegrationTests
+  Fluxo.Api            # Transporte HTTP, middleware, configuracao
+  Fluxo.Application    # Use cases, regras de aplicacao, DTOs
+  Fluxo.Domain         # Entidades e regras de dominio
+  Fluxo.Infrastructure # EF Core, repositorios, migrations
+  Fluxo.Worker.Ingestion
 ```
 
----
+## Como navegar neste portfolio
 
-## ⚙️ Stack Inicial
+Se voce tem 5 minutos:
+1. Leia este README.
+2. Abra o [indice de documentacao](docs/README.md).
+3. Veja [Piloto real controlado](docs/piloto-real-controlado.md) e [Roadmap 1000 devices](docs/roadmap-production-1000-devices.md).
 
-### Backend
+Se voce tem 15 minutos:
+1. Suba o ambiente local.
+2. Rode os testes.
+3. Execute o fluxo de provisionamento + ingestao MQTT.
 
-* C#
-* ASP.NET Core Web API
-* Entity Framework Core
+## Inicio rapido (local)
 
-### Banco de Dados
+1. Copie variaveis:
 
-* PostgreSQL *(principal)*
-* SQL Server *(compatibilidade futura)*
+```powershell
+Copy-Item .env.example .env
+```
 
-### Dispositivos & Edge
+2. (Opcional, recomendado) Gere certificados TLS locais para MQTT:
 
-* ESP32
-* STM32
-* BeagleBone Black
-* Raspberry Pi
-* NVIDIA Jetson Nano
+```powershell
+powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-local-certs.ps1 -CommonName broker.fluxo.local
+```
 
-### Infraestrutura
+3. Suba stack Docker:
 
-* Linux
-* Docker *(planejado)*
-* Ambiente de laboratório em Proxmox
+```powershell
+docker compose build
+docker compose up -d
+```
 
----
+Autenticacao e ACL por device no Mosquitto sao provisionadas automaticamente pela API
+(plugin `dynamic-security`, sem passo manual). Veja
+[MQTT TLS e credenciais por device](docs/mqtt-tls-e-credenciais.md).
 
-## 🌍 Casos de Uso
+Para o perfil de producao controlada minima, use:
 
-O Fluxo está sendo desenvolvido para atender cenários como:
+```powershell
+docker compose -f docker-compose.controlled-prod.yml build
+docker compose -f docker-compose.controlled-prod.yml up -d
+```
 
-* 🏭 Telemetria e monitoramento industrial
-* 🌱 Sensores agrícolas e coleta remota de dados
-* 🧪 Integração de equipamentos laboratoriais
-* 🏠 Ambientes inteligentes e automação
-* 📡 Comunicação entre edge devices e sistemas centrais
+4. Aplique migration:
 
----
+```powershell
+dotnet ef database update `
+  --project src/Fluxo.Infrastructure/Fluxo.Infrastructure.csproj `
+  --startup-project src/Fluxo.Api/Fluxo.Api.csproj
+```
 
-## 🛣️ Roadmap
+Referencias detalhadas:
+- [Deploy local seguro](docs/deploy-local-seguro.md)
+- [Piloto real controlado](docs/piloto-real-controlado.md)
 
-### Fase 1 — Fundação
+## Endpoints locais
 
-* Estrutura inicial da solução
-* API de gerenciamento de dispositivos
-* Recebimento de telemetria
-* Persistência em banco de dados
+- API: `http://localhost:5000`
+- Health API: `http://localhost:5000/health`
+- Status API: `http://localhost:5000/api/status`
+- Portal web: `http://localhost:8080`
+- MQTT dev interno em loopback: `localhost:1883`
+- MQTT TLS local: `localhost:8883`
 
-### Fase 2 — Confiabilidade
+## Qualidade e testes
 
-* Camadas de validação
-* Logs e observabilidade
-* Testes unitários e de integração
+```powershell
+dotnet build Fluxo.slnx
+dotnet test Fluxo.slnx
+```
 
-### Fase 3 — Integração Real
+Frontend (local sem Docker):
 
-* Dispositivos enviando dados reais
-* Comunicação HTTP / MQTT
-* Deploy em ambiente Linux
+```powershell
+cd portal-web
+npm install
+npm run dev
+```
 
-### Fase 4 — Evolução do Produto
+## Documentacao
 
-* Autenticação e autorização
-* Dashboards
-* Alertas
-* Multiambiente / multicliente
+Veja o indice central em [docs/README.md](docs/README.md).
 
----
+## Seguranca
 
-## 🤝 Sobre a Officina 404
+- Nao versione `.env`, credenciais MQTT, chaves privadas ou segredos locais.
+- Nao versione runtime do broker (`docker/mosquitto/data/`, `docker/mosquitto/log/`) nem backups reais.
+- Configure `FLUXO_AUTH_SIGNING_KEY` com valor forte (>= 32 chars) antes de subir a API.
+- Em producao controlada, use `docker-compose.controlled-prod.yml`, nao publique `1883` e use TLS MQTT em `8883`.
+- Referencia tecnica: [Seguranca OWASP](docs/seguranca-owasp.md).
 
-O Fluxo é um projeto desenvolvido dentro da **Officina 404**, iniciativa voltada à criação de soluções práticas que unem código, eletrônica e infraestrutura.
+## Roadmap
 
----
+- [Roadmap tecnico para producao com 1000 dispositivos](docs/roadmap-production-1000-devices.md)
 
-## 📬 Contato
+## Contribuicao
 
-* LinkedIn: https://linkedin.com/in/juniorgodoi87
-* Website: https://officina404.com.br
-
----
-
-<div align="center">
-
-### 💡 Do dado gerado no dispositivo à decisão no mundo real.
-
-</div>
+Fluxo de contribuicao e padrao de PR em [CONTRIBUTING.md](CONTRIBUTING.md).

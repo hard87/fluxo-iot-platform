@@ -1,0 +1,151 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fluxo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${FLUXO_DB_NAME:?Set FLUXO_DB_NAME}"
+      POSTGRES_USER: "${FLUXO_DB_USER:?Set FLUXO_DB_USER}"
+      POSTGRES_PASSWORD: "${FLUXO_DB_PASSWORD:?Set FLUXO_DB_PASSWORD}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${FLUXO_DB_USER:?Set FLUXO_DB_USER} -d ${FLUXO_DB_NAME:?Set FLUXO_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: fluxo-mosquitto
+    restart: unless-stopped
+    environment:
+      FLUXO_MQTT_DYNSEC_ADMIN_USERNAME: "${FLUXO_MQTT_DYNSEC_ADMIN_USERNAME:?Set FLUXO_MQTT_DYNSEC_ADMIN_USERNAME}"
+      FLUXO_MQTT_DYNSEC_ADMIN_PASSWORD: "${FLUXO_MQTT_DYNSEC_ADMIN_PASSWORD:?Set FLUXO_MQTT_DYNSEC_ADMIN_PASSWORD}"
+    ports:
+      - "${FLUXO_MQTT_TLS_PUBLIC_BIND:-0.0.0.0}:${FLUXO_MQTT_TLS_PUBLIC_PORT:-8883}:8883"
+    volumes:
+      - ./docker/mosquitto:/mosquitto/config
+      - ./docker/mosquitto/certs:/mosquitto/certs:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    command: >
+      sh -c "if [ ! -f /mosquitto/config/dynamic-security.json ]; then
+               mosquitto_ctrl dynsec init /mosquitto/config/dynamic-security.json \"$$FLUXO_MQTT_DYNSEC_ADMIN_USERNAME\" \"$$FLUXO_MQTT_DYNSEC_ADMIN_PASSWORD\" &&
+               chown mosquitto:mosquitto /mosquitto/config/dynamic-security.json;
+             fi &&
+             mosquitto -c /mosquitto/config/mosquitto.conf"
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Fluxo.Api/Dockerfile
+    container_name: fluxo-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    volumes:
+      - ./docker/mosquitto/certs/ca.crt:/etc/fluxo/mqtt/ca.crt:ro
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${FLUXO_DB_NAME:?Set FLUXO_DB_NAME};Username=${FLUXO_DB_USER:?Set FLUXO_DB_USER};Password=${FLUXO_DB_PASSWORD:?Set FLUXO_DB_PASSWORD}
+      Authentication__Enabled: "true"
+      Authentication__Jwt__Audience: "${FLUXO_AUTH_AUDIENCE:-fluxo-api}"
+      Authentication__Jwt__Issuer: "${FLUXO_AUTH_ISSUER:?Set FLUXO_AUTH_ISSUER}"
+      Authentication__Jwt__SigningKey: "${FLUXO_AUTH_SIGNING_KEY:?Set FLUXO_AUTH_SIGNING_KEY}"
+      Authentication__Jwt__ExpiresMinutes: "${FLUXO_AUTH_EXPIRES_MINUTES:-60}"
+      Authentication__Jwt__RequireHttpsMetadata: "${FLUXO_AUTH_REQUIRE_HTTPS_METADATA:-true}"
+      Cors__AllowedOrigins__0: "${FLUXO_PORTAL_ORIGIN:?Set FLUXO_PORTAL_ORIGIN}"
+      DeviceStatus__OfflineAfterSeconds: "${FLUXO_DEVICE_OFFLINE_AFTER_SECONDS:-120}"
+      MqttDynamicSecurity__Enabled: "true"
+      MqttDynamicSecurity__BrokerHost: mosquitto
+      MqttDynamicSecurity__BrokerPort: 8883
+      MqttDynamicSecurity__AdminUsername: "${FLUXO_MQTT_DYNSEC_ADMIN_USERNAME:?Set FLUXO_MQTT_DYNSEC_ADMIN_USERNAME}"
+      MqttDynamicSecurity__AdminPassword: "${FLUXO_MQTT_DYNSEC_ADMIN_PASSWORD:?Set FLUXO_MQTT_DYNSEC_ADMIN_PASSWORD}"
+      MqttDynamicSecurity__UseTls: "true"
+      MqttDynamicSecurity__TlsTargetHost: "${FLUXO_MQTT_TLS_TARGET_HOST:-broker.fluxo.local}"
+      MqttDynamicSecurity__TlsCaCertificatePath: "/etc/fluxo/mqtt/ca.crt"
+      MqttDynamicSecurity__IngestionWorker__Username: "${FLUXO_MQTT_INGESTION_USERNAME:?Set FLUXO_MQTT_INGESTION_USERNAME}"
+      MqttDynamicSecurity__IngestionWorker__Password: "${FLUXO_MQTT_INGESTION_PASSWORD:?Set FLUXO_MQTT_INGESTION_PASSWORD}"
+      MqttDynamicSecurity__IngestionWorker__TopicFilter: fluxo/tenants/+/workspaces/+/devices/+/telemetry
+    ports:
+      - "${FLUXO_API_PUBLIC_BIND:-127.0.0.1}:${FLUXO_API_PUBLIC_PORT:-5000}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
+
+  worker:
+    build:
+      context: .
+      dockerfile: src/Fluxo.Worker.Ingestion/Dockerfile
+    container_name: fluxo-worker-ingestion
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+      api:
+        condition: service_healthy
+    volumes:
+      - ./docker/mosquitto/certs/ca.crt:/etc/fluxo/mqtt/ca.crt:ro
+    environment:
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${FLUXO_DB_NAME:?Set FLUXO_DB_NAME};Username=${FLUXO_DB_USER:?Set FLUXO_DB_USER};Password=${FLUXO_DB_PASSWORD:?Set FLUXO_DB_PASSWORD}
+      MqttIngestion__BrokerHost: mosquitto
+      MqttIngestion__BrokerPort: 8883
+      MqttIngestion__TopicFilter: fluxo/tenants/+/workspaces/+/devices/+/telemetry
+      MqttIngestion__Username: "${FLUXO_MQTT_INGESTION_USERNAME:?Set FLUXO_MQTT_INGESTION_USERNAME}"
+      MqttIngestion__Password: "${FLUXO_MQTT_INGESTION_PASSWORD:?Set FLUXO_MQTT_INGESTION_PASSWORD}"
+      MqttIngestion__UseTls: "true"
+      MqttIngestion__TlsTargetHost: "${FLUXO_MQTT_TLS_TARGET_HOST:-broker.fluxo.local}"
+      MqttIngestion__TlsCaCertificatePath: "${FLUXO_MQTT_TLS_CA_CERTIFICATE_PATH:-/etc/fluxo/mqtt/ca.crt}"
+      MqttIngestion__TlsAllowUntrustedCertificates: "${FLUXO_MQTT_TLS_ALLOW_UNTRUSTED:-false}"
+      MqttIngestion__TlsIgnoreCertificateChainErrors: "${FLUXO_MQTT_TLS_IGNORE_CHAIN_ERRORS:-false}"
+      MqttIngestion__TlsIgnoreCertificateRevocationErrors: "${FLUXO_MQTT_TLS_IGNORE_REVOCATION_ERRORS:-false}"
+      MqttIngestion__ReconnectDelaySeconds: 5
+      MqttIngestion__ChannelCapacity: 5000
+      MqttIngestion__ProcessingConcurrency: 4
+      MqttIngestion__DatabaseRetryCount: 3
+      MqttIngestion__DatabaseRetryDelayMs: 200
+      RejectionReprocessing__Enabled: "${FLUXO_REJECTION_REPROCESSING_ENABLED:-true}"
+      RejectionReprocessing__IntervalSeconds: "${FLUXO_REJECTION_REPROCESSING_INTERVAL_SECONDS:-120}"
+      RejectionReprocessing__BatchSize: "${FLUXO_REJECTION_REPROCESSING_BATCH_SIZE:-200}"
+      RejectionReprocessing__MaxAttempts: "${FLUXO_REJECTION_REPROCESSING_MAX_ATTEMPTS:-5}"
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /app/Fluxo.Worker.Ingestion.dll"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./portal-web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: "${VITE_API_BASE_URL:?Set VITE_API_BASE_URL}"
+    container_name: fluxo-portal-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${FLUXO_PORTAL_PUBLIC_BIND:-127.0.0.1}:${FLUXO_PORTAL_PUBLIC_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  postgres_data:
+  mosquitto_data:
+  mosquitto_log:

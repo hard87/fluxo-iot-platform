@@ -1,0 +1,134 @@
+# Deploy Local Seguro (Fluxo)
+
+Guia para subir o ambiente completo local com foco em seguranca para laboratorio.
+
+## 1. Pre-requisitos
+
+- Docker + Docker Compose
+- .NET SDK 10
+- Node.js 20+ (se for rodar portal fora do Docker)
+- OpenSSL (opcional, para gerar cert TLS MQTT)
+
+## 2. Preparar variaveis de ambiente
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Edite o `.env` com valores locais (principalmente `FLUXO_AUTH_SIGNING_KEY`).
+Observacao: a API nao inicializa com a chave JWT default de placeholder.
+
+## 3. Gerar certificados TLS locais do MQTT (recomendado)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File docker/mosquitto/scripts/generate-local-certs.ps1 -CommonName broker.fluxo.local
+```
+
+Se o firmware ESP32 usar `mqtts://broker.fluxo.local:8883`, garanta que esse nome resolve para o IP local do broker (ex.: arquivo `hosts`).
+
+## 4. Gerar certificado HTTPS local da API (opcional)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/generate-local-api-cert.ps1
+```
+
+## 5. Autenticacao do Mosquitto
+
+Nada a preparar aqui: o broker usa o plugin `dynamic-security` e a API cria usuario/ACL de
+cada device automaticamente no provisionamento/rotacao (`credentialUsername`,
+`provisioningSecret`, `mqttPublishTopic` retornados pela API). Detalhes em
+[mqtt-tls-e-credenciais.md](mqtt-tls-e-credenciais.md).
+
+## 6. Build e subida do ambiente
+
+Perfil dev local:
+
+```powershell
+docker compose build
+docker compose up -d
+```
+
+Servicos principais:
+- PostgreSQL
+- Mosquitto
+- API
+- Worker de ingestao
+- Frontend do portal
+
+As portas publicadas usam `127.0.0.1` por padrao no `.env.example`, incluindo `1883`.
+Isso preserva o desenvolvimento local sem expor MQTT sem TLS para a rede.
+
+Perfil de producao controlada minima:
+
+```powershell
+docker compose -f docker-compose.controlled-prod.yml build
+docker compose -f docker-compose.controlled-prod.yml up -d
+```
+
+Neste perfil:
+
+- MQTT publica somente `8883`;
+- PostgreSQL nao publica porta no host;
+- API e Portal devem ficar atras de TLS HTTP no proxy/terminador do ambiente;
+- secrets sao obrigatorios via `.env` e nao possuem fallback seguro no compose.
+
+## 7. Aplicar migration local
+
+Com API/DB disponiveis, execute:
+
+```powershell
+dotnet ef database update `
+  --project src/Fluxo.Infrastructure/Fluxo.Infrastructure.csproj `
+  --startup-project src/Fluxo.Api/Fluxo.Api.csproj
+```
+
+## 8. Comandos uteis
+
+- Logs agregados:
+
+```powershell
+docker compose logs -f
+```
+
+- Logs de um servico:
+
+```powershell
+docker compose logs -f api
+docker compose logs -f worker
+```
+
+- Parar ambiente:
+
+```powershell
+docker compose down
+```
+
+- Reset completo (containers + volumes):
+
+```powershell
+docker compose down -v
+```
+
+## 9. Endpoints e UIs
+
+- Portal web: `http://localhost:8080`
+- API: `http://localhost:5000`
+- Health API: `http://localhost:5000/health`
+- Status JSON: `http://localhost:5000/api/status`
+- MQTT sem TLS (dev): `localhost:1883`
+- MQTT TLS local: `localhost:8883`
+
+## 10. Diferenca por ambiente
+
+- Local (laboratorio): pode manter `1883` habilitado para debug interno.
+- Piloto controlado: usar `docker-compose.controlled-prod.yml`, publicar somente `8883` e manter rotacao frequente de credenciais.
+- Producao publica: desabilitar `1883`, usar certificados validos, segredo externo (vault), observabilidade completa.
+
+## 11. Nunca versionar
+
+- `.env`
+- `docker/mosquitto/dynamic-security.json`
+- `docker/mosquitto/certs/*.key`
+- `docker/mosquitto/data/`
+- `docker/mosquitto/log/`
+- `backups/`

@@ -1,0 +1,15 @@
+Diante de tudo o que me trouxe até aqui, 2026 segue sendo, até agora, o ano mais promissor da minha trajetória.
+
+E para torná-lo ainda mais marcante, decidi iniciar um novo projeto na área de desenvolvimento IoT.
+
+Depois de muito estudo, leituras e experimentos, percebi que era hora de sair da teoria e construir algo com propósito real. Em vez de apenas acompanhar a evolução do mercado — com a alta dos custos de hardware, serviços em nuvem e soluções baseadas em inteligência artificial — resolvi criar minha própria plataforma IoT, operando sobre infraestrutura própria e com foco em autonomia tecnológica.
+
+O nome do projeto é Fluxo.
+
+O Fluxo nasce como uma plataforma IoT voltada ao cadastro, monitoramento e gerenciamento de dispositivos conectados. Também será responsável pelo recebimento e armazenamento de dados enviados por esses dispositivos, criando uma base sólida para análises futuras, automações e geração de insights orientados por dados.
+
+Mais do que um projeto técnico, o Fluxo representa a união entre desenvolvimento de software, infraestrutura e visão de negócio.
+
+No futuro, pode se tornar o início de um empreendimento próprio — uma alternativa acessível e inteligente para empresas, indústrias e produtores rurais que precisam de mais controle, eficiência e visibilidade sobre seus ambientes de operação.
+
+

@@ -12,6 +12,10 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
 
         builder.HasKey(x => x.Id);
 
+        builder.Property(x => x.TenantId)
+            .IsRequired()
+            .HasMaxLength(120);
+
         builder.Property(x => x.WorkspaceId)
             .IsRequired();
 
@@ -37,7 +41,21 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
         builder.Property(x => x.CreatedAtUtc)
             .IsRequired();
 
-        builder.HasIndex(x => new { x.WorkspaceId, x.Identifier })
+        builder.Property(x => x.LastContactAtUtc);
+
+        builder.Property(x => x.LastTelemetryReceivedAtUtc);
+
+        builder.Property(x => x.LastTelemetryOccurredAtUtc);
+
+        builder.Property(x => x.LastTelemetrySequence);
+
+        builder.Property(x => x.LastTelemetryPayloadJson)
+            .HasColumnType("jsonb");
+
+        builder.HasIndex(x => new { x.TenantId, x.WorkspaceId, x.Identifier })
             .IsUnique();
+
+        builder.HasIndex(x => new { x.WorkspaceId, x.Identifier });
+        builder.HasIndex(x => x.LastContactAtUtc);
     }
 }

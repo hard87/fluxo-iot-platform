@@ -5,6 +5,8 @@ namespace Fluxo.Application.DTOs.Devices;
 
 public class CreateDeviceRequest
 {
+    public string? TenantId { get; set; }
+
     [Required]
     public Guid WorkspaceId { get; set; }
 

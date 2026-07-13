@@ -1,0 +1,154 @@
+Implementação concluída com foco em ingestão MQTT genérica e sem quebrar o fluxo atual da API.
+
+Decisão arquitetural importante
+
+Havia uma inconsistência entre o domínio atual e o contrato MQTT: a telemetria atual usa DeviceId Guid com FK para devices, enquanto o payload MQTT traz deviceId string + tenantId/workspaceId.
+Para preservar a arquitetura existente, criei um fluxo separado de ingestão (TelemetryIngestionRecord) em nova tabela, sem alterar TelemetryRecord da API.
+Estrutura do novo projeto
+
+Fluxo.Worker.Ingestion.csproj
+Program.cs
+appsettings.json
+appsettings.Development.json
+Models/IncomingTelemetryMessage.cs
+Options/MqttIngestionOptions.cs
+Services/ITelemetryIngestionProcessor.cs
+Services/TelemetryIngestionProcessor.cs
+Workers/MqttTelemetryIngestionWorker.cs
+Properties/launchSettings.json
+O que foi criado/alterado
+
+Projeto novo adicionado na solution: Fluxo.slnx (line 7)
+Worker com BackgroundService, conexão MQTT em localhost:1883, subscribe no tópico genérico:
+MqttTelemetryIngestionWorker.cs (line 29)
+MqttTelemetryIngestionWorker.cs (line 43)
+MqttTelemetryIngestionWorker.cs (line 57)
+MqttTelemetryIngestionWorker.cs (line 62)
+Processamento/validação mínima do payload e logs de rejeição claros:
+TelemetryIngestionProcessor.cs (line 27)
+TelemetryIngestionProcessor.cs (line 36)
+TelemetryIngestionProcessor.cs (line 50)
+TelemetryIngestionProcessor.cs (line 82)
+TelemetryIngestionProcessor.cs (line 114)
+Contrato de configuração via appsettings:
+appsettings.json (line 2)
+appsettings.json (line 5)
+Program.cs (line 8)
+Entidade de ingestão com validações de domínio (campos obrigatórios, JSON válido, UTC):
+TelemetryIngestionRecord.cs (line 5)
+TelemetryIngestionRecord.cs (line 29)
+Integração com a infraestrutura existente (sem hardcode de conexão no Worker):
+FluxoDbContext.cs (line 14)
+ITelemetryIngestionRepository.cs (line 5)
+TelemetryIngestionRepository.cs (line 7)
+DependencyInjection.cs (line 25)
+Mapeamento EF + migração da tabela de ingestão:
+TelemetryIngestionRecordConfiguration.cs (line 7)
+20260421205331_AddTelemetryIngestionRecords.cs (line 14)
+FluxoDbContextModelSnapshot.cs
+Resumo objetivo do que foi criado
+
+Novo Worker Fluxo.Worker.Ingestion com MQTTnet 5, DI e BackgroundService.
+Ingestão de payload JSON com validação mínima exigida.
+Persistência de payload bruto + campos indexáveis + tópico + horário de recebimento UTC.
+Estrutura preparada para evolução (schemaVersion, tenant/workspace, messageType, firmware, sequence), sem acoplamento a ESP32.
+Arquitetura existente preservada, sem refatorar controllers/services/repositórios já usados pela API.
+Validação executada
+
+dotnet build Fluxo.slnx: sucesso.
+dotnet test tests/Fluxo.UnitTests/Fluxo.UnitTests.csproj --no-build: sucesso.
+dotnet test tests/Fluxo.IntegrationTests/Fluxo.IntegrationTests.csproj --no-build: sucesso.
+Se quiser, eu já executo o dotnet ef database update para aplicar a migração nova no banco.
+Se quiser, também posso te passar um payload MQTT de teste + comando de publish para validar ponta a ponta no Worker.
+
+
+
+
+RESULTADO PROMPT 2:
+
+1. O que entendi
+Você quer a persistência da ingestão MQTT no PostgreSQL, com modelagem genérica de plataforma IoT (multi-tenant), sem acoplamento a hardware específico, usando EF Core e arquitetura atual.
+
+2. O que criei/ajustei
+Implementei a entidade de ingestão, mapeamento EF para PostgreSQL, DbSet no DbContext, repositório de persistência e migration para criar a tabela com índices de consulta.
+
+3. Pontos de atenção
+Mantive separação domínio/infraestrutura, datas em UTC, PayloadJson armazenado como jsonb, e modelo aberto para tipos futuros além de telemetry.
+
+Implementação entregue
+
+Entidade de ingestão com os campos esperados: TelemetryIngestionRecord.cs (line 5)
+Campos principais (TenantId, WorkspaceId, DeviceId, MessageType, Topic, SchemaVersion, FirmwareVersion, Sequence, OccurredAtUtc, ReceivedAtUtc, PayloadJson, Temperature, Humidity, Battery, Rssi, UptimeSec): TelemetryIngestionRecord.cs (line 11)
+Garantia de UTC no domínio (EnsureUtc): TelemetryIngestionRecord.cs (line 101)
+Mapping PostgreSQL (telemetry_ingestion_records, jsonb, tamanhos, índices): TelemetryIngestionRecordConfiguration.cs (line 7)
+DbSet no contexto: FluxoDbContext.cs (line 14)
+Repositório de persistência da ingestão: ITelemetryIngestionRepository.cs (line 5) e TelemetryIngestionRepository.cs (line 7)
+Registro no DI da infraestrutura: DependencyInjection.cs (line 25)
+Migration criada: 20260421205331_AddTelemetryIngestionRecords.cs (line 9)
+Snapshot atualizado: FluxoDbContextModelSnapshot.cs (line 66)
+Migration
+
+Já está gerada no repositório.
+Para aplicar: dotnet ef database update --project src/Fluxo.Infrastructure/Fluxo.Infrastructure.csproj --startup-project src/Fluxo.Api/Fluxo.Api.csproj
+Decisões de modelagem (breve)
+
+DeviceId como string na ingestão para não prender a fornecedores/hardware.
+MessageType e SchemaVersion como texto para suportar evolução de contrato.
+PayloadJson em jsonb + campos indexáveis para consultas analíticas e operacionais.
+Índices focados em tenant/workspace/device/período.
+Resumo final curto
+A persistência da camada de ingestão foi implementada com EF Core + PostgreSQL, pronta para multi-tenant, com UTC, payload bruto e campos consultáveis, mantendo coerência com a arquitetura atual.
+
+
+RESULTADO PROMPT3:
+Implementação concluída em devices/esp32-reference-node com projeto ESP-IDF modular em C.
+
+Estrutura criada
+
+devices/esp32-reference-node/
+  CMakeLists.txt
+  README.md
+  main/
+    CMakeLists.txt
+    app_config.h
+    main.c
+    wifi_manager.h
+    wifi_manager.c
+    mqtt_client_manager.h
+    mqtt_client_manager.c
+    telemetry_service.h
+    telemetry_service.c
+Arquivos principais
+
+Projeto/CMake:
+CMakeLists.txt
+main/CMakeLists.txt
+Config centralizada:
+app_config.h (line 9)
+Bootstrap enxuto:
+main.c (line 23)
+Wi-Fi STA + reconexão + RSSI real:
+wifi_manager.c (line 53)
+wifi_manager.c (line 33)
+wifi_manager.c (line 115)
+MQTT client + auto-reconnect + publish:
+mqtt_client_manager.c (line 39)
+mqtt_client_manager.c (line 47)
+mqtt_client_manager.c (line 77)
+Telemetria periódica (10s), payload contrato Sprint 2, sequence incremental, rssi real, métricas simuladas:
+telemetry_service.c (line 31)
+telemetry_service.c (line 109)
+telemetry_service.c (line 133)
+telemetry_service.c (line 160)
+Documentação de uso/configuração:
+README.md
+Pontos atendidos
+
+ESP-IDF em C, modular, sem lógica pesada no main.c.
+Tópico orientado à plataforma: fluxo/tenants/.../workspaces/.../devices/.../telemetry.
+timestampUtc automático com SNTP/NTP; limitação documentada e logada quando ainda não sincronizado.
+Base pronta para evolução (auth de device, novos sensores, novos tipos de mensagem).
+Observação
+
+Não consegui validar build localmente porque idf.py não está disponível neste ambiente (command not found).
+

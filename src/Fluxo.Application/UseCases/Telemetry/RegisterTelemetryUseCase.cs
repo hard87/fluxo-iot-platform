@@ -7,6 +7,8 @@ namespace Fluxo.Application.UseCases.Telemetry;
 
 public class RegisterTelemetryUseCase
 {
+    // Legacy HTTP telemetry path kept for backward compatibility while MQTT ingestion
+    // becomes the canonical persistence path (telemetry_ingestion_records).
     private readonly IDeviceRepository _deviceRepository;
     private readonly ITelemetryRepository _telemetryRepository;
 
@@ -22,7 +24,7 @@ public class RegisterTelemetryUseCase
         CreateTelemetryRequest request,
         CancellationToken cancellationToken = default)
     {
-        var device = await _deviceRepository.GetByIdAsync(request.DeviceId, cancellationToken);
+        var device = await _deviceRepository.GetTrackedByIdAsync(request.DeviceId, cancellationToken);
 
         if (device is null)
             throw new NotFoundException("Device not found.");
@@ -36,6 +38,14 @@ public class RegisterTelemetryUseCase
             request.OccurredAtUtc);
 
         await _telemetryRepository.AddAsync(telemetry, cancellationToken);
+
+        device.RegisterTelemetrySnapshot(
+            telemetry.PayloadJson,
+            telemetry.IngestedAtUtc,
+            telemetry.OccurredAtUtc,
+            sequence: null);
+
+        await _deviceRepository.UpdateAsync(device, cancellationToken);
 
         return Map(telemetry);
     }
