@@ -130,7 +130,7 @@ services:
       context: ./portal-web
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: "${VITE_API_BASE_URL:?Set VITE_API_BASE_URL}"
+        VITE_API_BASE_URL: "${VITE_API_BASE_URL:-}"
     container_name: fluxo-portal-web
     restart: unless-stopped
     depends_on:
