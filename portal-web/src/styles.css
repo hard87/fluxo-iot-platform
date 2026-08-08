@@ -14,6 +14,8 @@
   --online: #1d7e4a;
   --offline: #a53030;
   --unknown: #665f36;
+  --warning: #b45309;
+  --info: #315e9e;
   --focus: #2563eb;
   --shadow: 0 12px 32px rgba(16, 33, 23, 0.12);
   --radius: 14px;
@@ -366,6 +368,246 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.dashboard-page {
+  gap: 1.35rem;
+}
+
+.dashboard-overview,
+.dashboard-section {
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+}
+
+.dashboard-overview {
+  gap: 1.5rem;
+}
+
+.dashboard-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dashboard-section-heading h2,
+.dashboard-section-heading p,
+.dashboard-kpi-card p,
+.dashboard-health-card h2,
+.dashboard-health-card p,
+.dashboard-activity-card h2,
+.dashboard-card-eyebrow {
+  margin: 0;
+}
+
+.dashboard-section-heading h2 {
+  font-size: 1.08rem;
+}
+
+.dashboard-section-heading p {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.dashboard-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.dashboard-kpi-card,
+.dashboard-activity-card,
+.dashboard-health-card {
+  border: 1px solid #d4e3d9;
+  box-shadow: 0 6px 18px rgba(16, 33, 23, 0.08);
+}
+
+.dashboard-kpi-card {
+  --dashboard-tone: var(--text-muted);
+  display: grid;
+  align-content: start;
+  min-height: 132px;
+  gap: 0.55rem;
+  border-top: 3px solid var(--dashboard-tone);
+}
+
+.dashboard-kpi-card[data-tone="success"] {
+  --dashboard-tone: var(--online);
+}
+
+.dashboard-kpi-card[data-tone="warning"] {
+  --dashboard-tone: var(--warning);
+}
+
+.dashboard-kpi-card[data-tone="danger"] {
+  --dashboard-tone: var(--danger);
+}
+
+.dashboard-kpi-card[data-tone="info"] {
+  --dashboard-tone: var(--info);
+}
+
+.dashboard-kpi-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dashboard-kpi-heading p {
+  color: var(--text-muted);
+  font-size: 0.83rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.dashboard-kpi-indicator {
+  width: 0.58rem;
+  height: 0.58rem;
+  flex: 0 0 auto;
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+  background: var(--dashboard-tone);
+  box-shadow: 0 0 0 1px var(--dashboard-tone);
+}
+
+.dashboard-kpi-card strong {
+  font-size: clamp(1.65rem, 3vw, 2.15rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-kpi-card small,
+.dashboard-activity-card small,
+.dashboard-health-card small {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.dashboard-activity-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.dashboard-activity-card,
+.dashboard-health-card {
+  display: grid;
+  align-content: start;
+  gap: 0.7rem;
+  min-height: 190px;
+}
+
+.dashboard-card-eyebrow {
+  color: var(--brand);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dashboard-activity-card h2,
+.dashboard-health-card h2 {
+  font-size: 1.05rem;
+}
+
+.dashboard-activity-relative {
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  line-height: 1.15;
+}
+
+.dashboard-activity-card time {
+  color: var(--text-main);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-health-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.dashboard-health-heading > div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dashboard-health-card > p {
+  max-width: 62ch;
+  line-height: 1.5;
+}
+
+.workspace-health-status {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 0.4rem;
+  min-height: 28px;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #c2d4c8;
+  border-radius: 999px;
+  color: var(--text-main);
+  background: var(--surface-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.workspace-health-dot {
+  width: 0.52rem;
+  height: 0.52rem;
+  border-radius: 999px;
+  background: var(--unknown);
+}
+
+.workspace-health-status[data-state="healthy"] {
+  border-color: #a9d7ba;
+  color: #115b31;
+  background: #eaf7ee;
+}
+
+.workspace-health-status[data-state="healthy"] .workspace-health-dot {
+  background: var(--online);
+}
+
+.workspace-health-status[data-state="warning"] {
+  border-color: #e8bf93;
+  color: #7a3708;
+  background: #fff4e5;
+}
+
+.workspace-health-status[data-state="warning"] .workspace-health-dot {
+  background: var(--warning);
+}
+
+.workspace-health-status[data-state="offline"],
+.workspace-health-status[data-state="error"] {
+  border-color: #e1aaaa;
+  color: #7f2020;
+  background: #fdecec;
+}
+
+.workspace-health-status[data-state="offline"] .workspace-health-dot,
+.workspace-health-status[data-state="error"] .workspace-health-dot {
+  background: var(--danger);
+}
+
+.dashboard-health-card-error {
+  min-height: auto;
+  border-left: 4px solid var(--danger);
+}
+
+.dashboard-loading {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -516,6 +758,31 @@ th, td { text-align: left; padding: .55rem; border-bottom: 1px solid #d4e3d9; }
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .dashboard-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-activity-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1200px) and (min-width: 801px) {
+  .dashboard-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .dashboard-page .page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard-page .page-header-actions {
+    width: 100%;
+  }
 }
 
 @media (max-width: 480px) {
@@ -531,6 +798,9 @@ th, td { text-align: left; padding: .55rem; border-bottom: 1px solid #d4e3d9; }
   .main-content { padding-top: 1.1rem; }
   .page-header { align-items: stretch; flex-direction: column; }
   .page-header-actions { width: 100%; }
+  .dashboard-kpi-grid { grid-template-columns: 1fr; }
+  .dashboard-section-heading { align-items: flex-start; flex-direction: column; gap: .25rem; }
+  .dashboard-health-heading { align-items: flex-start; flex-direction: column; }
   .explorer-filters { grid-template-columns: 1fr; }
   .auth-card, .panel { padding: .85rem; }
 }
