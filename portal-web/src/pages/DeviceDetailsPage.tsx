@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiErrorMessage } from "../components/ApiErrorMessage";
 import { DeviceStatusBadge } from "../components/DeviceStatusBadge";
+import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../hooks/useAuth";
 import * as deviceService from "../services/api/deviceService";
 import type {
@@ -93,7 +94,7 @@ export function DeviceDetailsPage() {
 
   return (
     <section>
-      <h1>Detalhes do dispositivo</h1>
+      <PageHeader title="Detalhes do dispositivo" />
       <ApiErrorMessage error={error} />
       {loading ? <p>Carregando...</p> : null}
       {device ? (

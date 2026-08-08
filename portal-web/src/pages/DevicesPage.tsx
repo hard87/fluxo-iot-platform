@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiErrorMessage } from "../components/ApiErrorMessage";
 import { DeviceStatusBadge } from "../components/DeviceStatusBadge";
+import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../hooks/useAuth";
 import * as deviceService from "../services/api/deviceService";
 import type { DeviceResponse } from "../types";
@@ -51,7 +52,7 @@ export function DevicesPage() {
 
   return (
     <section>
-      <h1>Dispositivos</h1>
+      <PageHeader title="Dispositivos" />
       <ApiErrorMessage error={error} />
       {workspaceId ? (
         <div className="inline-actions">

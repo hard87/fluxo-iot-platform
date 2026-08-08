@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ApiErrorMessage } from "../components/ApiErrorMessage";
+import { PageHeader } from "../components/PageHeader";
 import * as statusService from "../services/api/statusService";
 import type { PlatformStatusResponse } from "../types";
 
@@ -37,7 +38,7 @@ export function HealthPage() {
 
   return (
     <section>
-      <h1>Saude da plataforma</h1>
+      <PageHeader title="Saúde da plataforma" />
       <ApiErrorMessage error={error} />
       {loading ? <p>Consultando status...</p> : null}
       {status ? (

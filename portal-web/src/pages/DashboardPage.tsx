@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiErrorMessage } from "../components/ApiErrorMessage";
+import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../hooks/useAuth";
 import * as deviceService from "../services/api/deviceService";
 import type { DashboardResponse } from "../types";
@@ -50,7 +51,7 @@ export function DashboardPage() {
 
   return (
     <section>
-      <h1>Dashboard do workspace</h1>
+      <PageHeader title="Dashboard do workspace" />
       <ApiErrorMessage error={error} />
       {loading ? <p>Carregando dashboard...</p> : null}
       {dashboard ? (

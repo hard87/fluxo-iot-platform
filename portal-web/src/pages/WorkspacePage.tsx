@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiErrorMessage } from "../components/ApiErrorMessage";
+import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../hooks/useAuth";
 import { useWorkspaceSelection } from "../hooks/useWorkspaceSelection";
 import * as workspaceService from "../services/api/workspaceService";
@@ -98,8 +99,10 @@ export function WorkspacePage() {
 
   return (
     <section>
-      <h1>Workspaces</h1>
-      <p>Crie ou selecione um workspace para gerenciar dispositivos.</p>
+      <PageHeader
+        title="Workspaces"
+        description="Crie ou selecione um workspace para gerenciar dispositivos."
+      />
       <ApiErrorMessage error={error} />
       <div className="panel-grid">
         <article className="panel">

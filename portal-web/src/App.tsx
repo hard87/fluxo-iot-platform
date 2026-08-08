@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { AppLayout } from "./components/AppLayout";
+import { AppShell } from "./components/AppShell";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./hooks/useAuth";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -26,7 +26,7 @@ export function App() {
       <Route path="/register" element={<RegisterPage />} />
 
       <Route element={<ProtectedRoute />}>
-        <Route element={<AppLayout />}>
+        <Route element={<AppShell />}>
           <Route path="/workspaces" element={<WorkspacePage />} />
           <Route path="/workspaces/:workspaceId/dashboard" element={<DashboardPage />} />
           <Route path="/workspaces/:workspaceId/devices" element={<DevicesPage />} />

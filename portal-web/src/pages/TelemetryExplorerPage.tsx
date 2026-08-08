@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ApiErrorMessage } from "../components/ApiErrorMessage";
+import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../hooks/useAuth";
 import * as deviceService from "../services/api/deviceService";
 import * as telemetryService from "../services/api/telemetryService";
@@ -56,7 +57,7 @@ export function TelemetryExplorerPage() {
   const deviceName = (id:string) => devices.find(x=>x.id===id)?.name ?? id;
   const bucketError = error instanceof ApiError && error.problem?.errorCode === "BUCKET_BELOW_MINIMUM";
 
-  return <section className="explorer-page"><h1>Telemetry Explorer</h1><ApiErrorMessage error={error} />
+  return <section className="explorer-page"><PageHeader title="Telemetry Explorer" /><ApiErrorMessage error={error} />
     {error instanceof ApiError && error.status === 504 ? <p className="muted">Reduza o período ou a quantidade de séries selecionadas.</p> : null}
     {loadingDevices ? <p>Carregando dispositivos...</p> : null}
     {!loadingDevices && devices.length === 0 ? <div className="panel"><p>Nenhum dispositivo cadastrado.</p><Link to={`/workspaces/${workspaceId}/devices/new`}>Cadastrar dispositivo</Link></div> : null}

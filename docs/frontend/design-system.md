@@ -297,6 +297,48 @@ src/
 
 Começar com CSS global organizado e classes com nomes de componente. CSS Modules pode ser adotado gradualmente se colisões surgirem; não é pré-requisito. Um catálogo interno simples de estados dos componentes, coberto por testes, é suficiente antes de considerar Storybook ou biblioteca externa.
 
+## AppShell implementado
+
+Primeira implementação compartilhada criada em 2026-08-08:
+
+```text
+AppShell
+├── SkipLink
+├── AppHeader
+│   ├── marca Fluxo / identificação Portal IoT
+│   ├── usuário autenticado
+│   └── logout
+├── AppNavigation
+│   ├── Workspaces
+│   ├── Dashboard
+│   ├── Dispositivos
+│   ├── Telemetry Explorer
+│   └── Saúde da plataforma
+└── MainContent
+    └── PageHeader + conteúdo da rota
+```
+
+Componentes em `portal-web/src/components`:
+
+- `AppShell`: resolve o contexto de workspace, compõe as regiões compartilhadas e preserva o `Outlet` do React Router;
+- `AppHeader`: apresenta marca, produto, conta e logout sem recriar a identidade visual;
+- `AppNavigation`: mantém o mesmo conjunto e ordem de destinos em todas as páginas autenticadas;
+- `MainContent`: fornece landmark, alvo do skip link, largura máxima e gutters comuns;
+- `PageHeader`: fornece um único `h1`, descrição opcional e área futura de ações.
+
+Decisões desta etapa:
+
+- a identidade verde e o gradiente existentes foram mantidos;
+- a navegação permanece horizontal para minimizar ruptura nesta primeira entrega e usa overflow horizontal controlado em viewports estreitas;
+- Dashboard, Dispositivos e Explorer ficam visíveis, porém semanticamente indisponíveis, enquanto não existe workspace selecionado;
+- a seleção de workspace em `sessionStorage` é sincronizada entre consumidores do hook para manter os destinos estáveis ao navegar por Saúde e Workspaces;
+- `NavLink` fornece `aria-current="page"`; o estado atual também usa peso, fundo e marcador inferior, sem depender apenas de cor;
+- links possuem hover, active e focus-visible; itens indisponíveis não simulam links clicáveis;
+- um skip link permite alcançar diretamente `MainContent` por teclado;
+- o header não empilha: email usa truncamento, logout não encolhe e a identificação do produto permanece visível;
+- painéis e filhos de grids recebem `min-width: 0`/`max-width: 100%` para não extrapolar a viewport;
+- nenhuma biblioteca visual foi adicionada e nenhum conteúdo interno de página foi redesenhado.
+
 ## Governança mínima
 
 - novos valores visuais devem usar token existente ou justificar novo token;
