@@ -15,7 +15,9 @@ O trabalho deve avançar em entregas pequenas, independentes e reversíveis. Cad
 - diff limitado ao frontend e documentação da etapa;
 - novos componentes com testes semânticos proporcionais ao risco.
 
-## Etapa 1 — Fundação de tokens
+## Etapa 1 — Fundação de tokens [concluída em 2026-08-08]
+
+Ver "Tokens, StatusBadge, Timestamp e Saúde da plataforma implementados" em `design-system.md` para o detalhamento do que foi entregue.
 
 **Objetivo:** substituir decisões visuais dispersas por contratos CSS, sem alterar estrutura de tela.
 
@@ -36,7 +38,7 @@ Aceite:
 
 Dependência: nenhuma. Risco: baixo.
 
-## Etapa 2 — Primitives de ação e formulário
+## Etapa 2 — Primitives de ação e formulário [não iniciada]
 
 **Objetivo:** unificar Button, Input e Select.
 
@@ -56,7 +58,7 @@ Aceite:
 
 Dependência: etapa 1. Risco: baixo.
 
-## Etapa 3 — Feedback reutilizável
+## Etapa 3 — Feedback reutilizável [parcialmente concluída em 2026-08-08: Workspaces, Devices, Health e a lista de telemetria em Device Details migradas; Dashboard mantém seu card de erro específico (`dashboard-health-card-error`), fora do escopo desta entrega]
 
 **Objetivo:** padronizar LoadingState, ErrorState e EmptyState.
 
@@ -136,7 +138,7 @@ Aceite:
 
 Dependências: etapas 1 e 4. Risco: médio; não alterar autorização ou seleção persistida.
 
-## Etapa 6 — Status semântico
+## Etapa 6 — Status semântico [parcialmente concluída em 2026-08-08: `StatusBadge` genérico implementado e usado na Saúde da plataforma com mapeamento explícito Healthy/Degraded/Unhealthy → Healthy/Degraded/Unavailable/Unknown; `DeviceStatusBadge` permanece como componente separado (mesmas classes CSS, sem migração de API) — unificação total ainda pendente]
 
 **Objetivo:** tornar estado operacional consistente em todo o portal.
 
@@ -157,7 +159,7 @@ Aceite:
 
 Dependências: etapas 1 e 3. Risco: médio devido à relevância operacional.
 
-## Etapa 7 — Política de tempo, números e unidades
+## Etapa 7 — Política de tempo, números e unidades [parcialmente concluída em 2026-08-08: `Timestamp`/`formatHumanTimestamp` aplicados em Health e Device Details; Dashboard e tabelas do Explorer já usavam formatação pt-BR equivalente e foram atualizados para reusar o mesmo formatador, sem mudança de comportamento visível]
 
 **Objetivo:** remover ambiguidade dos dados sem mudar contratos.
 

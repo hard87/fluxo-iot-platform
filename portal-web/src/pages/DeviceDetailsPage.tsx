@@ -3,6 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { ApiErrorMessage } from "../components/ApiErrorMessage";
 import { DeviceStatusBadge } from "../components/DeviceStatusBadge";
 import { PageHeader } from "../components/PageHeader";
+import { Timestamp } from "../components/Timestamp";
+import { EmptyState, LoadingState } from "../components/feedback/FeedbackStates";
 import { useAuth } from "../hooks/useAuth";
 import * as deviceService from "../services/api/deviceService";
 import type {
@@ -96,7 +98,7 @@ export function DeviceDetailsPage() {
     <section>
       <PageHeader title="Detalhes do dispositivo" />
       <ApiErrorMessage error={error} />
-      {loading ? <p>Carregando...</p> : null}
+      {loading ? <LoadingState compact title="Carregando dispositivo" /> : null}
       {device ? (
         <article className="panel">
           <h2>{device.name}</h2>
@@ -107,10 +109,16 @@ export function DeviceDetailsPage() {
             <strong>Status:</strong> <DeviceStatusBadge status={device.operationalStatus} />
           </p>
           <p>
-            <strong>Ultimo contato:</strong> {device.lastContactAtUtc ?? "Sem contato"}
+            <strong>Ultimo contato:</strong>{" "}
+            {device.lastContactAtUtc ? <Timestamp value={device.lastContactAtUtc} /> : "Sem contato"}
           </p>
           <p>
-            <strong>Ultima telemetria:</strong> {device.lastTelemetryReceivedAtUtc ?? "Sem telemetria"}
+            <strong>Ultima telemetria:</strong>{" "}
+            {device.lastTelemetryReceivedAtUtc ? (
+              <Timestamp value={device.lastTelemetryReceivedAtUtc} />
+            ) : (
+              "Sem telemetria"
+            )}
           </p>
           <p>
             <strong>Ultimo payload:</strong>
@@ -148,18 +156,29 @@ export function DeviceDetailsPage() {
 
       <article className="panel">
         <h2>Ultimas telemetrias</h2>
-        {telemetry.length === 0 ? <p>Sem telemetria registrada.</p> : null}
-        <ul className="list">
-          {telemetry.map((item) => (
-            <li key={item.id} className="list-item telemetry-item">
-              <div>
-                <strong>{item.occurredAtUtc}</strong>
-                <p className="muted">Ingerido em {item.ingestedAtUtc}</p>
-                <pre>{safeJsonPreview(item.payloadJson)}</pre>
-              </div>
-            </li>
-          ))}
-        </ul>
+        {telemetry.length === 0 ? (
+          <EmptyState
+            compact
+            title="Sem telemetria registrada"
+            description="Este dispositivo ainda não enviou dados de telemetria."
+          />
+        ) : (
+          <ul className="list">
+            {telemetry.map((item) => (
+              <li key={item.id} className="list-item telemetry-item">
+                <div>
+                  <strong>
+                    <Timestamp value={item.occurredAtUtc} />
+                  </strong>
+                  <p className="muted">
+                    Ingerido em <Timestamp value={item.ingestedAtUtc} />
+                  </p>
+                  <pre>{safeJsonPreview(item.payloadJson)}</pre>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </article>
 
       {workspaceId ? (

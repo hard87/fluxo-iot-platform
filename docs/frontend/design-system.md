@@ -339,6 +339,25 @@ Decisões desta etapa:
 - painéis e filhos de grids recebem `min-width: 0`/`max-width: 100%` para não extrapolar a viewport;
 - nenhuma biblioteca visual foi adicionada e nenhum conteúdo interno de página foi redesenhado.
 
+## Tokens, StatusBadge, Timestamp e Saúde da plataforma implementados (2026-08-08)
+
+Segunda entrega incremental sobre o AppShell, cobrindo a Etapa 1 do roadmap por completo e partes das Etapas 3, 6 e 7 (escopo: Saúde da plataforma, Workspaces, Dispositivos, Detalhes do dispositivo, Login/Register e consistência global de CSS).
+
+Implementado nesta etapa:
+
+- `portal-web/src/styles/tokens.css`: todos os tokens de cor, spacing, radius, shadow, tipografia e container descritos acima, com os valores exatos deste documento;
+- `styles.css` migrado para consumir os tokens (nomes legados como `--brand`, `--online` etc. viraram aliases que resolvem para os tokens novos, para não exigir uma reescrita de todas as classes numa única entrega);
+- import remoto do Google Fonts removido; tipografia usa a pilha de sistema (`--font-sans`/`--font-mono`) prevista para quando não há fonte auto-hospedada;
+- `:focus-visible` consolidado num único contrato de 2 px/2 px em todo o portal (inputs, botões, links, opções do Explorer);
+- cards/painéis (`.panel`, `.auth-card`) passaram a usar borda + `--shadow-none` em vez de sombra pesada, com radius por camada (`--radius-lg` em painéis, `--radius-md` em inputs/botões/campos, `--radius-full` em badges/pills);
+- `StatusBadge` (`components/StatusBadge.tsx`): implementação mínima do contrato `{ label, tone, detail? }` já documentado acima, renderizada sobre as classes `.status-badge.<tone>`;
+- `Timestamp` (`components/Timestamp.tsx`) e `formatHumanTimestamp` (`utils/formatTimestamp.ts`): apresentação humana única (`dd/mm/aaaa hh:mm:ss`, pt-BR) com o ISO original disponível via `title`/`dateTime`; os formatadores previamente duplicados em `metricPresentation.ts` e `TelemetryActivity.tsx` agora delegam para essa função;
+- `utils/healthStatus.ts`: mapeamento dos estados reais do backend (`Healthy`/`Degraded`/`Unhealthy`) para a taxonomia padronizada `Healthy`/`Degraded`/`Unavailable`/`Unknown`, e `deriveOverallStatus` — o status geral da página Saúde é sempre calculado a partir dos componentes recebidos, nunca herdado diretamente do campo `status` de nível superior (que por padrão do ASP.NET `HealthCheckService` retorna "Healthy" quando zero checks estão registrados);
+- `HealthPage` reescrita sobre `LoadingState`/`ErrorState`/`EmptyState`, com retry no erro e um `EmptyState` explícito quando não há componente monitorado (nenhum dado é inventado);
+- `WorkspacePage`, `DevicesPage` e a lista de telemetria em `DeviceDetailsPage` migradas para os mesmos primitives de feedback, com estados de carregamento/vazio/erro distintos.
+
+Ainda não implementado (fora do escopo desta entrega, ver roadmap): `Button`/`Field`/`Input`/`Select` como componentes React com variantes formais (Etapa 2), `DataTable` (Etapa 8), dark mode.
+
 ## Governança mínima
 
 - novos valores visuais devem usar token existente ou justificar novo token;

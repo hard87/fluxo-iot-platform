@@ -36,7 +36,7 @@ export interface Workspace {
   id: string;
   tenantId: string;
   name: string;
-  role: "Owner" | "Admin" | "Viewer";
+  role: "Owner" | "Admin" | "Viewer" | 1 | 2 | 3;
   createdAtUtc: string;
 }
 
@@ -134,6 +134,7 @@ export interface StatusComponent {
   status: string;
   durationMs: number;
   description?: string;
+  lastCheckedUtc: string;
 }
 
 export interface PlatformStatusResponse {
