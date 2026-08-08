@@ -2,10 +2,10 @@
 
 ## 1. Snapshot
 
-- Consolidação documental: 12 jul 2026.
+- Consolidação documental: 31 jul 2026.
 - Branch observada: `snapshot-auth-portal-mvp-20260526`.
-- HEAD observado: `5c8ced1f925e4151e78f7dd66ae8e071a5c2dbe7`.
-- Working tree observada: suja e com implementação das Fases 1 e 2 ainda não commitada.
+- HEAD observado: `aeeaf78818faf52224a69b5eee396f7489e1543e`.
+- Working tree observada: suja, com entregáveis do Gateway e itens preexistentes não rastreados.
 - Esta consolidação não declara suporte de produção a 1000 devices.
 
 ## 2. Estado das trilhas
@@ -17,9 +17,9 @@
 | Produto | Fase 2 — Telemetry Query API e Explorer | CONCLUÍDA | [Relatório Fase 2](handoff/relatorio-fase-2-telemetry-explorer-2026-07-12.md) |
 | Produto | Fase 3 — alertas | PRÓXIMA | [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md) |
 | Produto | Fase 4 — inteligência operacional | NÃO INICIADA | [Escopo do MVP](product/mvp-scope.md) |
-| Produto | Fase 5 — pilotos físicos | NÃO INICIADA | [Roadmap](roadmap-production-1000-devices.md) |
+| Produto | Fase 5 — pilotos físicos | EM PILOTO | [Relatório Gateway Pi](handoff/relatorio-fase-5-piloto-fisico-gateway-pi-2026-07-31.md) |
 | Infraestrutura | Infra Fase 1 — hardening | CONCLUÍDA | Baseline de autenticação, ACL, TLS MQTT e ingestão |
-| Infraestrutura | Infra Fase 2 — piloto controlado | PRÓXIMA | [Checklist](checklist-producao-controlada.md) |
+| Infraestrutura | Infra Fase 2 — piloto controlado | EM PILOTO | Gateway Pi validado em MQTT/TLS; 24h, backup/restore e fechamento operacional pendentes |
 | Infraestrutura | Infra Fase 3 — preparação de produção | NÃO INICIADA | [Roadmap](roadmap-production-1000-devices.md) |
 | Infraestrutura | Infra Fase 4 — produção escalável | NÃO INICIADA | [Roadmap](roadmap-production-1000-devices.md) |
 
@@ -45,6 +45,9 @@
 - Binary COPY aprovado após benchmark; dense/COPY consumiu 54,01% do budget de 2 cores.
 - Telemetry Query API com `raw`, `avg`, `min`, `max`, `sum`, `count` e `last`.
 - Numeric, Boolean e Text consultados no mesmo Explorer, sem fork por vertical.
+- Primeiro `DeviceCategory.Gateway` físico provisionado no Raspberry Pi `edgewarden`.
+- MQTT/TLS QoS 1, sequence e spool persistentes validados após restart, reboot e reconexão.
+- ACL negativa comprovada e telemetria diagnóstica Schema V2 aceita pelo backend.
 - Q1–Q7 executados em 5.115.083 pontos e cinco partições.
 - Q6 executou em 1624,705 ms, abaixo do gate de 2 s; nenhum índice novo foi necessário.
 - 71 testes unitários, 40 de integração e 5 de componente verdes na Fase 2.
@@ -69,6 +72,9 @@ substituída por um desenho novo durante a implementação.
 - confirmar logs e health checks de todos os componentes exigidos;
 - validar procedimento de encerramento;
 - executar firmware ESP32 por 24h;
+- executar o Gateway Pi por 24h e revisar o log de monitoramento;
+- revogar/desativar o primeiro provisionamento Gateway sem uso registrado no relatório da Fase 5;
+- integrar sensor físico ao Gateway quando houver hardware identificado;
 - revisar guia do piloto, backup/restore e simulador.
 
 A fonte autoritativa dos checkboxes é o [checklist de produção controlada](checklist-producao-controlada.md).
@@ -80,7 +86,14 @@ A fonte autoritativa dos checkboxes é o [checklist de produção controlada](ch
 - Retenção, arquivamento, backup e restore carecem de política/exercício operacional.
 - Perfil dense projeta volume elevado em retenção longa.
 - Produção controlada, TLS operacional e firmware 24h permanecem pendentes.
+- O Gateway Pi foi validado com TLS no compose local, mas o ensaio de 24h e a repetição no perfil
+  controlled-prod permanecem pendentes.
+- O spool por arquivos aumenta escrita no cartão SD e ainda não tem evidência de duração longa.
+- Há um device/credencial Gateway inicial sem uso a revogar após falha de configuração local,
+  conforme relatório da Fase 5.
 - Bundle principal do portal acima do warning de 500 kB; Explorer sem lazy loading.
+- `npm audit --omit=dev` reporta duas vulnerabilidades moderadas no React Router; correção
+  disponível exige migração breaking para 7.x e deve ser tratada em trabalho próprio.
 - Recharts 2.x requer decisão futura explícita antes de eventual migração.
 - Google Font externa bloqueada pela CSP, com fallback local.
 - Sessão em memória perdida no refresh.
@@ -90,6 +103,7 @@ A fonte autoritativa dos checkboxes é o [checklist de produção controlada](ch
 - [ADR-0001 — Telemetry Schema V2](adr/0001-telemetry-schema-v2.md)
 - [ADR-0002 — Alertas com estado e delivery](adr/0002-alert-evaluation-state-and-delivery.md)
 - [ADR-0003 — Telemetry Query API](adr/0003-telemetry-query-api.md)
+- [ADR-0004 — Gateway Pi store-and-forward](adr/0004-pi-gateway-store-and-forward.md)
 - [Escopo do MVP](product/mvp-scope.md)
 
 ## 9. Evidências
@@ -99,6 +113,7 @@ A fonte autoritativa dos checkboxes é o [checklist de produção controlada](ch
 - [Benchmark normalizado da Fase 1](benchmarks/phase1-normalized-2026-07-11.md)
 - [Relatório da Fase 2](handoff/relatorio-fase-2-telemetry-explorer-2026-07-12.md)
 - [Benchmark Q1–Q7 da Fase 2](benchmarks/phase2-query-explain-2026-07-12.md)
+- [Relatório da Fase 5 — Gateway Pi](handoff/relatorio-fase-5-piloto-fisico-gateway-pi-2026-07-31.md)
 
 ## 10. Regra para próximos agentes
 
