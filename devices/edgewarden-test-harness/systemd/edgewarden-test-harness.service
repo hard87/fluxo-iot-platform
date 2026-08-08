@@ -1,0 +1,59 @@
+# /etc/systemd/system/edgewarden-test-harness.service
+#
+# Camada de orquestração do ensaio de 24h -- NÃO publica telemetria (isso continua sendo
+# responsabilidade do nodered.service / gateway-spool.js, já em produção). Este serviço só observa
+# gateway-spool.js status e o journal do nodered, e mantém o estado do ensaio (máquina de estados,
+# checkpoint, eventos) em SQLite, sobrevivendo a reboot/crash independentemente da captura de
+# telemetria em si.
+#
+# Instalar: copiar para /etc/systemd/system/, depois:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable edgewarden-test-harness
+# (não usar --now no enable: o ensaio só começa quando `edgewarden-test start` criar uma sessão)
+
+[Unit]
+Description=EdgeWarden 24h resilience test harness (orchestration/observation layer, not telemetry capture)
+After=nodered.service
+Wants=nodered.service
+Documentation=file:///opt/edgewarden-test-harness/README.md
+
+[Service]
+Type=simple
+User=junior
+Group=junior
+WorkingDirectory=/opt/edgewarden-test-harness
+
+Environment=EDGEWARDEN_TEST_GATEWAY_ID=edgewarden
+Environment=EDGEWARDEN_TEST_DB_PATH=/var/lib/edgewarden-test/test.db
+Environment=EDGEWARDEN_TEST_TARGET_DURATION_SECONDS=86400
+Environment=EDGEWARDEN_TEST_CHECKPOINT_INTERVAL_SECONDS=30
+Environment=EDGEWARDEN_TEST_SPOOL_SCRIPT_PATH=/home/junior/.node-red/fluxo-gateway/scripts/gateway-spool.js
+Environment=EDGEWARDEN_TEST_NODE_RED_SERVICE=nodered
+Environment=EDGEWARDEN_TEST_NET_IFACE=wlan0
+Environment=EDGEWARDEN_TEST_DISK_WARNING_PERCENT=80
+Environment=EDGEWARDEN_TEST_DISK_CRITICAL_PERCENT=90
+# Overrides opcionais sem editar esta unit (nenhuma variável acima é sensível -- o harness não lida
+# com credenciais MQTT nem toca no broker):
+EnvironmentFile=-/etc/edgewarden-test/environment
+
+# StateDirectory=edgewarden-test cria e ajusta dono de /var/lib/edgewarden-test automaticamente
+# para junior:junior -- sem sudo mkdir/chown manual.
+StateDirectory=edgewarden-test
+StateDirectoryMode=0700
+
+ExecStart=/usr/bin/env node /opt/edgewarden-test-harness/src/harness.js
+Restart=on-failure
+RestartSec=10
+
+# Hardening: NÃO usamos ProtectHome=read-only aqui de propósito. O harness invoca
+# `gateway-spool.js status`, que faz ensureDirectories()/chmodSync em /home/junior/.node-red/... --
+# mesmo sendo idempotente, isso ainda exige permissão de escrita no filesystem para o syscall
+# funcionar. ProtectHome=read-only quebraria essa chamada. ProtectSystem=full já protege /usr,
+# /boot e /etc como somente-leitura, o que cobre a maior parte do hardening sem esse efeito colateral.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,11 @@
+data/*
+!data/.gitkeep
+logs/*
+!logs/.gitkeep
+reports/*
+!reports/.gitkeep
+*.db
+*.db-wal
+*.db-shm
+*.log
+environment
