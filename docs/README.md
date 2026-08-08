@@ -10,6 +10,11 @@ Este indice organiza os documentos tecnicos por objetivo de leitura.
 ## 2. Produto e portal
 
 - [Portal Web MVP](portal-web-mvp.md)
+- [Baseline do Portal antes da evolução visual](development/frontend-baseline.md)
+
+## 2.1 Desenvolvimento seguro
+
+- [Diagnóstico e normalização da working tree](development/worktree-baseline.md)
 
 ## 3. Seguranca
 

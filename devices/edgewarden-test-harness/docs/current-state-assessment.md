@@ -106,8 +106,9 @@ e testado localmente.
 
 ## 9. Consequência direta para o plano de implementação
 
-Ver [`implementation-plan.md`](implementation-plan.md) (a ser criado) e o plano de tarefas já
-aprovado nesta sessão. Resumo: construir só a camada de orquestração do ensaio
+Um `implementation-plan.md` separado foi previsto durante esta avaliação, mas não estava presente
+na working tree inspecionada. O plano executável consolidado disponível é o
+[`test-plan.md`](test-plan.md). Resumo: construir só a camada de orquestração do ensaio
 (`edgewarden-test-harness/`, Node.js + `node:sqlite`, systemd próprio), reaproveitando
 `gateway-spool.js`/`flow.json` com extensões pontuais (métricas de rede, `time_synchronized` — este
 último já implementado em 2026-08-08, pendente de deploy).
