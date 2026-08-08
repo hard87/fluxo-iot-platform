@@ -63,7 +63,8 @@ public class MqttTelemetryIngestionWorker : BackgroundService
                     .WithClientId(_options.ClientId)
                     .WithTcpServer(_options.BrokerHost, _options.BrokerPort)
                     .WithKeepAlivePeriod(TimeSpan.FromSeconds(_options.KeepAliveSeconds))
-                    .WithCleanSession(false);
+                    .WithCleanSession(false)
+                    .WithSessionExpiryInterval(_options.SessionExpiryIntervalSeconds);
 
                 if (!string.IsNullOrWhiteSpace(_options.Username))
                 {

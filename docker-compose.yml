@@ -107,6 +107,7 @@ services:
       MqttIngestion__TlsIgnoreCertificateChainErrors: ${FLUXO_MQTT_TLS_IGNORE_CHAIN_ERRORS:-false}
       MqttIngestion__TlsIgnoreCertificateRevocationErrors: ${FLUXO_MQTT_TLS_IGNORE_REVOCATION_ERRORS:-false}
       MqttIngestion__ReconnectDelaySeconds: 5
+      MqttIngestion__SessionExpiryIntervalSeconds: ${FLUXO_MQTT_INGESTION_SESSION_EXPIRY_SECONDS:-3600}
       MqttIngestion__ChannelCapacity: 5000
       MqttIngestion__ProcessingConcurrency: 4
       MqttIngestion__DatabaseRetryCount: 3
