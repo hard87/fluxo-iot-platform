@@ -69,9 +69,10 @@ Regras para esse vocabulário:
 - **Direcional, não decorativo.** Uma linha ou trilha, se usada, deve sugerir um caminho real (de dispositivo → gateway → plataforma), não um padrão abstrato de fundo.
 - **Nó = ponto de dado real.** Se o vocabulário evoluir para incluir "nós" visuais, cada nó deve corresponder a uma entidade real (dispositivo, workspace, gateway) — nunca decoração sem referente.
 
-### Exemplo correto já em produção
+### Exemplos corretos já em produção
 
-O indicador `signal-pulse` (`portal-web/src/components/dashboard/TelemetryActivity.tsx`, estilizado em `styles.css`) é a aplicação mínima e correta do conceito: um ponto ciano com um anel que se expande e desaparece, ao lado do valor "Última telemetria" — só aparece quando existe timestamp real, respeita `prefers-reduced-motion`, e comunica literalmente "há um pulso de dado chegando", não é decoração genérica.
+- **`signal-pulse`** (`portal-web/src/components/dashboard/TelemetryActivity.tsx`, estilizado em `styles.css`): um ponto ciano com um anel que se expande e desaparece, ao lado do valor "Última telemetria" — só aparece quando existe timestamp real, respeita `prefers-reduced-motion`, e comunica literalmente "há um pulso de dado chegando", não é decoração genérica.
+- **Fundo do Login/Register** (`body:has(.auth-card)::before` em `styles.css`): dois glows radiais suaves nas cores de marca (8–10% de opacidade) e linhas diagonais finas (5% de opacidade), puramente CSS. Primeira aplicação do vocabulário fora da aplicação operacional, exatamente no lugar que este documento já apontava como correto — resolve o card "solitário" numa tela grande sem virar ilustração: não há nó, forma ou narrativa, só textura sutil o suficiente para não competir com o formulário.
 
 ### Anti-exemplo
 
@@ -79,4 +80,4 @@ Adicionar uma ilustração de rede de nós conectados como plano de fundo do Das
 
 ## Onde isso deve aparecer depois
 
-Login, onboarding, empty states maiores, o site institucional e a documentação pública são os lugares corretos para expressar esse vocabulário com mais presença (por exemplo, uma trilha sutil atrás do card de login, ou um nó pulsante no empty state de "nenhum dispositivo cadastrado"). Cada aplicação futura deve ser uma decisão própria, revisada contra os princípios acima — este documento não pré-aprova nenhuma implementação específica.
+Onboarding, empty states maiores, o site institucional e a documentação pública continuam sendo os lugares corretos para expressar esse vocabulário com mais presença (por exemplo, um nó pulsante no empty state de "nenhum dispositivo cadastrado"). Cada aplicação futura deve ser uma decisão própria, revisada contra os princípios acima — este documento não pré-aprova nenhuma implementação específica além das já listadas acima.

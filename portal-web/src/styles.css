@@ -36,6 +36,30 @@ body {
   background: linear-gradient(130deg, var(--bg-start), var(--bg-end));
 }
 
+/* Auth pages (Login/Register) have no AppShell chrome — center the card in
+   the viewport instead of just top-margin, and add one subtle, discrete
+   application of the brand visual language (see brand-foundation.md) so a
+   large screen doesn't read as an empty page around a floating card. */
+body:has(.auth-card) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+body:has(.auth-card)::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 20%, rgb(0 169 143 / 8%), transparent 45%),
+    radial-gradient(circle at 82% 78%, rgb(7 61 53 / 10%), transparent 50%),
+    repeating-linear-gradient(135deg, rgb(11 92 75 / 5%) 0, rgb(11 92 75 / 5%) 1px, transparent 1px, transparent 64px);
+}
+
 a {
   color: var(--brand);
   text-decoration: none;
@@ -68,8 +92,10 @@ a:hover {
 }
 
 .auth-card {
+  position: relative;
+  z-index: 1;
   width: min(520px, 92vw);
-  margin: 3rem auto;
+  margin: 2rem auto;
   padding: var(--space-8) var(--space-6);
 }
 
