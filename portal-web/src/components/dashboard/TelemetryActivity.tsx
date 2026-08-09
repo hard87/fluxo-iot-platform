@@ -48,7 +48,10 @@ export function TelemetryActivity({ timestamp }: { timestamp?: string | null }) 
       <h2>Última telemetria</h2>
       {timestamp && formatted ? (
         <>
-          <strong className="dashboard-activity-relative">{formatted.relative}</strong>
+          <span className="dashboard-activity-signal">
+            <span className="signal-pulse" aria-hidden="true" />
+            <strong className="dashboard-activity-relative">{formatted.relative}</strong>
+          </span>
           <time dateTime={timestamp} title={timestamp}>
             {formatted.absolute}
           </time>

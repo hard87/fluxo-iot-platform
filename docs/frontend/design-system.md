@@ -358,6 +358,17 @@ Implementado nesta etapa:
 
 Ainda não implementado (fora do escopo desta entrega, ver roadmap): `Button`/`Field`/`Input`/`Select` como componentes React com variantes formais (Etapa 2), `DataTable` (Etapa 8), dark mode.
 
+## UX cleanup + fundação de marca (2026-08-08, segunda entrega)
+
+Consolidação sobre a entrega anterior — sem redesign, sem mudança de backend/contratos. Detalhes completos em [`brand-foundation.md`](brand-foundation.md) e [`interaction-guidelines.md`](interaction-guidelines.md).
+
+- **Correção de foco:** `.main-content:focus` (alvo do skip link) usava um anel bespoke de 3px com offset negativo, cobrindo a área de conteúdo inteira — o "contorno azul em bloco grande" relatado. Corrigido para `:focus-visible` com o anel padrão de 2px. Causa e reprodução documentadas em `interaction-guidelines.md`.
+- **Camada semântica de marca** adicionada em `tokens.css`: `--brand-deep`, `--brand-primary`, `--brand-accent`, `--signal` (+ `-subtle`), `--surface`, `--canvas`, `--border`, `--text`, `--muted`, e aliases `--success`/`--warning`/`--danger`/`--info`/`--unknown`. Regras de uso em `brand-foundation.md`.
+- **Estados de interação padronizados**: hover real em botões (antes ausente), `cursor: not-allowed` em disabled (era `wait`, incorreto), `accent-color` de marca em checkboxes/radios, e os três tratamentos divergentes de "selecionado" (`.button-secondary.active`, `.explorer-preset.is-active`, `.explorer-option:has(input:checked)`) unificados na mesma fórmula (borda + fundo sutil `--brand-accent`, nunca bloco sólido).
+- **Tipografia**: quatro tamanhos quase-duplicados de `h2` (1.05/1.08/1.12/1.15rem) consolidados em `--text-card-title-size`; títulos de seção sem estilo próprio (`.panel > h2` em Workspaces/Health/Device Details) padronizados em `--text-heading-md-size`; valor de KPI ancorado em `--text-data-lg-size`.
+- **Densidade**: `min-height` de cards de KPI (132→104px) e atividade/saúde (190→150px) reduzido; margem do `.auth-card` (4rem→3rem).
+- **Proof-of-concept da linguagem visual**: indicador `signal-pulse` (ponto ciano + anel, `--signal`, respeita `prefers-reduced-motion`) ao lado de "Última telemetria" no Dashboard quando há timestamp real — único elemento novo de JSX desta entrega, único uso de `--signal` em produção.
+
 ## Governança mínima
 
 - novos valores visuais devem usar token existente ou justificar novo token;

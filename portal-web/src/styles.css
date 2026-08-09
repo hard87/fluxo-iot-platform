@@ -61,9 +61,15 @@ a:hover {
   padding: 1rem 1.2rem;
 }
 
+.panel > h2 {
+  margin: 0 0 0.5rem;
+  font-size: var(--text-heading-md-size);
+  line-height: var(--text-heading-md-line);
+}
+
 .auth-card {
   width: min(520px, 92vw);
-  margin: 4rem auto;
+  margin: 3rem auto;
   padding: var(--space-8) var(--space-6);
 }
 
@@ -107,6 +113,7 @@ select {
   padding: 0.5rem 0.75rem;
   background: var(--color-surface);
   color: var(--text-main);
+  transition: border-color var(--transition-fast);
 }
 
 textarea {
@@ -117,6 +124,11 @@ input:focus,
 textarea:focus,
 select:focus {
   border-color: var(--color-primary);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--brand-accent);
 }
 
 button,
@@ -132,6 +144,12 @@ button,
   cursor: pointer;
   color: var(--brand-contrast);
   background: var(--brand);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+button:not(:disabled):hover,
+.button-link:hover {
+  background: var(--brand-primary-hover);
 }
 
 .button-link {
@@ -145,15 +163,22 @@ button,
   border: 1px solid var(--color-border);
 }
 
+.button-link.secondary:hover,
+.button-secondary:not(:disabled):not(.active):hover {
+  background: var(--color-surface-subtle);
+  border-color: var(--color-border-strong);
+}
+
 .button-secondary.active {
-  border-color: var(--brand);
-  color: var(--brand);
-  font-weight: 700;
+  border-color: var(--brand-accent);
+  background: var(--color-primary-subtle);
+  color: var(--brand-accent);
+  font-weight: 600;
 }
 
 button:disabled {
   opacity: 0.65;
-  cursor: wait;
+  cursor: not-allowed;
 }
 
 .app-shell {
@@ -307,6 +332,7 @@ button:disabled {
   font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .app-navigation-link:hover {
@@ -341,9 +367,9 @@ button:disabled {
   padding: 1.5rem 0 2.5rem;
 }
 
-.main-content:focus {
-  outline: 3px solid var(--focus);
-  outline-offset: -3px;
+.main-content:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
 }
 
 .main-content-container {
@@ -424,12 +450,13 @@ button:disabled {
 }
 
 .dashboard-section-heading h2 {
-  font-size: 1.08rem;
+  font-size: var(--text-heading-md-size);
+  line-height: var(--text-heading-md-line);
 }
 
 .dashboard-section-heading p {
   color: var(--text-muted);
-  font-size: 0.88rem;
+  font-size: var(--text-body-sm-size);
 }
 
 .dashboard-kpi-grid {
@@ -449,7 +476,7 @@ button:disabled {
   --dashboard-tone: var(--text-muted);
   display: grid;
   align-content: start;
-  min-height: 132px;
+  min-height: 104px;
   gap: 0.55rem;
   border-top: 3px solid var(--dashboard-tone);
 }
@@ -495,7 +522,7 @@ button:disabled {
 }
 
 .dashboard-kpi-card strong {
-  font-size: clamp(1.65rem, 3vw, 2.15rem);
+  font-size: clamp(1.5rem, 2.2vw, var(--text-data-lg-size));
   font-variant-numeric: tabular-nums;
   line-height: 1;
   overflow-wrap: anywhere;
@@ -505,7 +532,7 @@ button:disabled {
 .dashboard-activity-card small,
 .dashboard-health-card small {
   color: var(--text-muted);
-  font-size: 0.78rem;
+  font-size: var(--text-caption-size);
   line-height: 1.4;
 }
 
@@ -520,12 +547,12 @@ button:disabled {
   display: grid;
   align-content: start;
   gap: 0.7rem;
-  min-height: 190px;
+  min-height: 150px;
 }
 
 .dashboard-card-eyebrow {
   color: var(--brand);
-  font-size: 0.75rem;
+  font-size: var(--text-caption-size);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -533,7 +560,44 @@ button:disabled {
 
 .dashboard-activity-card h2,
 .dashboard-health-card h2 {
-  font-size: 1.05rem;
+  font-size: var(--text-card-title-size);
+  line-height: var(--text-card-title-line);
+}
+
+.dashboard-activity-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.signal-pulse {
+  position: relative;
+  width: 0.6rem;
+  height: 0.6rem;
+  flex: 0 0 auto;
+  border-radius: var(--radius-full);
+  background: var(--signal);
+}
+
+.signal-pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-full);
+  background: var(--signal);
+  animation: signal-pulse-ring 2200ms ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-pulse::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+@keyframes signal-pulse-ring {
+  0% { transform: scale(1); opacity: 0.55; }
+  100% { transform: scale(2.6); opacity: 0; }
 }
 
 .dashboard-activity-relative {
@@ -874,7 +938,8 @@ pre {
 
 .explorer-query-heading h2,
 .explorer-results-header h2 {
-  font-size: 1.15rem;
+  font-size: var(--text-card-title-size);
+  line-height: var(--text-card-title-line);
 }
 
 .explorer-query-heading p,
@@ -954,6 +1019,7 @@ pre {
   border-radius: var(--radius-md);
   background: var(--surface);
   cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .explorer-option:hover {
@@ -967,8 +1033,8 @@ pre {
 }
 
 .explorer-option:has(input:checked) {
-  border-color: var(--brand);
-  background: #edf7f2;
+  border-color: var(--brand-accent);
+  background: var(--color-primary-subtle);
 }
 
 .explorer-option input {
@@ -1061,10 +1127,11 @@ pre {
 }
 
 .explorer-preset.is-active {
-  border-color: var(--brand);
-  color: var(--brand);
-  background: var(--surface-strong);
-  box-shadow: inset 0 -2px 0 var(--brand);
+  border-color: var(--brand-accent);
+  color: var(--brand-accent);
+  background: var(--color-primary-subtle);
+  box-shadow: inset 0 -2px 0 var(--brand-accent);
+  font-weight: 600;
 }
 
 .explorer-date-range {
@@ -1169,7 +1236,8 @@ pre {
 }
 
 .telemetry-panel-header h2 {
-  font-size: 1.12rem;
+  font-size: var(--text-card-title-size);
+  line-height: var(--text-card-title-line);
 }
 
 .telemetry-panel-header code {

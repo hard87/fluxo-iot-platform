@@ -97,4 +97,33 @@
 
   /* Legacy aliases kept during migration — consumed by styles.css, do not add new usages */
   --shell-max-width: var(--container-wide);
+
+  /*
+   * Brand semantic layer (see docs/frontend/brand-foundation.md).
+   * Sits on top of the palette above — components should reach for these names,
+   * not the --color-* primitives, when the intent is brand/semantic rather than raw palette.
+   */
+  --brand-deep: #103429;
+  --brand-primary: var(--color-primary);
+  --brand-primary-hover: var(--color-primary-hover);
+  --brand-accent: #0b6e6b;
+  --signal: #22d3ee;
+  --signal-subtle: #e0fbff;
+
+  --surface: var(--color-surface);
+  --canvas: var(--color-background);
+  --border: var(--color-border);
+  --text: var(--color-text);
+  --muted: var(--color-text-muted);
+
+  --success: var(--color-success);
+  --warning: var(--color-warning);
+  --danger: var(--color-danger);
+  --info: var(--color-info);
+  --unknown: var(--color-neutral-status);
+
+  --transition-fast: 120ms ease;
+
+  --text-card-title-size: 1.05rem;
+  --text-card-title-line: 1.4rem;
 }
