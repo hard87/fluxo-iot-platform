@@ -39,6 +39,19 @@ A paleta técnica completa (valores hex, escala de espaçamento, radius, shadow,
 | `--border`, `--text`, `--muted` | Neutros de interface. |
 | `--success`, `--warning`, `--danger`, `--info`, `--unknown` | Estados semânticos, independentes de marca — nunca reutilizados para decoração. |
 
+Valores hex de referência (2026-08-08, revisados a partir de proposta de produto):
+
+| Token | Hex |
+|---|---|
+| `--brand-deep` | `#073D35` |
+| `--brand-primary` | `#0B5C4B` (preservado, não faz parte da revisão) |
+| `--brand-accent` | `#00A98F` |
+| `--signal` | `#40D9D0` |
+| `--canvas` | `#F4F7F5` |
+| `--surface` | `#FFFFFF` |
+| `--border` | `#D8E1DD` |
+| `--text` | `#17211E` |
+
 ### Regras de aplicação
 
 - Cor de marca (`--brand-primary`/`--brand-accent`) só aparece em elementos interativos ou de identidade (header, links, botão primário, seleção). Texto de corpo, dados operacionais e tabelas permanecem neutros.

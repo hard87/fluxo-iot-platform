@@ -11,6 +11,26 @@ const acronyms: Record<string, string> = {
   id: "ID"
 };
 
+/**
+ * Curated pt-BR display names for the metric keys currently in real use.
+ * Presentation only — does not touch canonicalUnit, valueType, or any API contract.
+ * Unknown/future metric keys intentionally fall back to humanizeMetricKey() below
+ * instead of guessing a translation.
+ */
+const curatedMetricNames: Record<string, string> = {
+  temperature_c: "Temperatura",
+  cpu_temperature_c: "Temperatura da CPU",
+  humidity_percent: "Umidade",
+  disk_used_percent: "Disco utilizado",
+  memory_used_percent: "Memória utilizada",
+  uptime_sec: "Tempo ativo",
+  mqtt_connected: "MQTT conectado",
+  time_synchronized: "Horário sincronizado",
+  replayed_messages: "Mensagens reenviadas",
+  dropped_messages: "Mensagens descartadas",
+  load_1m: "Carga (1 min)"
+};
+
 const chartColors = [
   "#0b5c4b",
   "#c75d20",
@@ -69,6 +89,12 @@ export function metricDisplayName(metricKey: string, definition?: MetricDefiniti
   const configuredName = definition?.displayName?.trim();
   if (configuredName && configuredName.toLocaleLowerCase() !== metricKey.toLocaleLowerCase()) {
     return configuredName;
+  }
+
+  const leaf = metricKey.split(".").pop() ?? metricKey;
+  const curated = curatedMetricNames[leaf.toLocaleLowerCase()];
+  if (curated) {
+    return curated;
   }
 
   return humanizeMetricKey(metricKey);

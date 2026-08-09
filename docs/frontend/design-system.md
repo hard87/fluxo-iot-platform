@@ -369,6 +369,12 @@ Consolidação sobre a entrega anterior — sem redesign, sem mudança de backen
 - **Densidade**: `min-height` de cards de KPI (132→104px) e atividade/saúde (190→150px) reduzido; margem do `.auth-card` (4rem→3rem).
 - **Proof-of-concept da linguagem visual**: indicador `signal-pulse` (ponto ciano + anel, `--signal`, respeita `prefers-reduced-motion`) ao lado de "Última telemetria" no Dashboard quando há timestamp real — único elemento novo de JSX desta entrega, único uso de `--signal` em produção.
 
+## Ajustes de paleta e apresentação de métricas (2026-08-08, terceira entrega)
+
+- **Paleta de marca revisada** com valores fornecidos pelo produto: `--brand-deep` (#073d35), `--brand-accent` (#00a98f), `--signal` (#40d9d0); `--color-primary` (verde petróleo, #0b5c4b) foi **preservado sem alteração** por decisão explícita — a paleta nova constrói um tier ao redor dele, não o substitui. `--color-background`/`--color-border`/`--color-text` também ajustados para os tons neutros fornecidos (`#f4f7f5`/`#d8e1dd`/`#17211e`). O gradiente do header (`app-header-bar`), que usava hex literal e nunca havia sido migrado para o token `--brand-deep` na entrega anterior, agora referencia `var(--brand-deep)`/`var(--brand)` corretamente.
+- **Nomes de métrica em pt-BR**: `metricPresentation.ts` ganhou `curatedMetricNames`, um dicionário de nomes revisados para as métricas reais em uso (`temperature_c` → "Temperatura", `humidity_percent` → "Umidade", `memory_used_percent` → "Memória utilizada" etc.), consumido por `metricDisplayName()` antes do fallback genérico `humanizeMetricKey()`. Chaves de métrica não mapeadas continuam caindo no fallback em inglês — nenhuma tradução é inventada para métricas futuras/desconhecidas (mantém o contrato do teste existente sobre `humanizeMetricKey`). Puramente apresentacional: não altera `canonicalUnit`, `valueType` nem nenhum contrato de API.
+- **Badge "Unidade não informada"** deixou de usar o tom de warning (laranja) — a ausência de unidade é metadado, não um alerta; agora usa o mesmo estilo neutro das badges de tipo (`Numérica`/`Booleana`/`Texto`).
+
 ## Governança mínima
 
 - novos valores visuais devem usar token existente ou justificar novo token;

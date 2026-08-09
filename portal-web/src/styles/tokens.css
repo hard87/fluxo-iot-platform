@@ -9,13 +9,13 @@
   --color-primary-subtle: #e6f2ee;
   --color-on-primary: #ffffff;
 
-  --color-background: #f4f7f6;
+  --color-background: #f4f7f5;
   --color-surface: #ffffff;
   --color-surface-subtle: #f8faf9;
-  --color-border: #cbd5d1;
+  --color-border: #d8e1dd;
   --color-border-strong: #94a39d;
 
-  --color-text: #17221e;
+  --color-text: #17211e;
   --color-text-muted: #52615b;
 
   --color-success: #15803d;
@@ -102,13 +102,15 @@
    * Brand semantic layer (see docs/frontend/brand-foundation.md).
    * Sits on top of the palette above — components should reach for these names,
    * not the --color-* primitives, when the intent is brand/semantic rather than raw palette.
+   * Current --color-primary (verde petróleo) is preserved as-is by design; deep/accent/signal
+   * build a tier around it.
    */
-  --brand-deep: #103429;
+  --brand-deep: #073d35;
   --brand-primary: var(--color-primary);
   --brand-primary-hover: var(--color-primary-hover);
-  --brand-accent: #0b6e6b;
-  --signal: #22d3ee;
-  --signal-subtle: #e0fbff;
+  --brand-accent: #00a98f;
+  --signal: #40d9d0;
+  --signal-subtle: #e3faf7;
 
   --surface: var(--color-surface);
   --canvas: var(--color-background);

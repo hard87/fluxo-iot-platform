@@ -216,7 +216,7 @@ button:disabled {
 }
 
 .app-header-bar {
-  background: linear-gradient(130deg, #103429, #0b5c4b);
+  background: linear-gradient(130deg, var(--brand-deep), var(--brand));
   color: #ecfff7;
   border-radius: var(--radius-lg);
   min-height: 68px;
@@ -1080,13 +1080,6 @@ pre {
   background: var(--color-surface-subtle);
   font-size: 0.7rem;
   font-weight: 600;
-}
-
-.explorer-metric-metadata .is-missing,
-.telemetry-panel-metadata .is-missing {
-  border-color: var(--color-warning);
-  color: var(--color-warning);
-  background: var(--color-warning-subtle);
 }
 
 .explorer-list-empty {
