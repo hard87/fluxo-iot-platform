@@ -153,6 +153,31 @@ function bootstrapMqttState() {
   }
 }
 
+function extractBrokerAddress(logLine) {
+  const match = /mqtts?:\/\/([^:/\s]+):(\d+)/.exec(logLine);
+  if (!match) return null;
+  return { host: match[1], port: Number(match[2]), useTls: /mqtts:\/\//.test(logLine) };
+}
+
+// Sonda best-effort (nunca derruba o daemon) para categorizar um COMMUNICATION_LOST -- ver
+// comentário de topo em mqtt-probe.js para o porquê de precisar de uma sondagem separada em vez
+// de só ler o log do Node-RED.
+function probeMqttFailure(logLine) {
+  const address = extractBrokerAddress(logLine);
+  if (!address) return null;
+  try {
+    const output = execFileSync(
+      "node",
+      [path.join(__dirname, "mqtt-probe.js"), address.host, String(address.port), String(address.useTls)],
+      { encoding: "utf8", timeout: 6000 }
+    );
+    return JSON.parse(output.trim());
+  } catch (error) {
+    log(`WARN: sondagem de falha MQTT indisponível: ${error.message}`);
+    return { category: "probe_failed", detail: error.message, probedAtIso: new Date().toISOString() };
+  }
+}
+
 function tailNodeRedJournal() {
   let raw;
   try {
@@ -283,14 +308,16 @@ function runTick(database, session, lastTickMonotonicNs) {
 
   for (const evt of journalEvents) {
     const severity = evt.type === "COMMUNICATION_LOST" ? "WARN" : "INFO";
+    const metadata = evt.type === "COMMUNICATION_LOST" ? probeMqttFailure(evt.line) : undefined;
     db.insertEvent(database, {
       testId: session.test_id,
       gatewayId: session.gateway_id,
       eventType: evt.type,
       severity,
-      description: evt.line.slice(0, 300)
+      description: evt.line.slice(0, 300),
+      metadata
     });
-    log(`[${session.test_id}] evento: ${evt.type}`);
+    log(`[${session.test_id}] evento: ${evt.type}${metadata ? ` [categoria=${metadata.category}]` : ""}`);
   }
 
   const previousCheckpoint = db.getLatestCheckpoint(database, session.test_id);

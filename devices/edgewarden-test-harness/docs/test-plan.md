@@ -110,9 +110,21 @@ foram (nem devem ser) reescritos. O relatório é uma fotografia do momento em q
 1. ~~Decisão de arquitetura sobre a janela de perda de dados no restart do mosquitto~~ — **resolvido
    em 2026-08-08**, ver seção "RESOLVIDO" acima e
    `Fluxo/docs/handoff/incidente-sessao-mqtt-worker-2026-08-08.md`.
-2. **Categorização de erro de rede** (DNS/timeout/recusado/auth, seção 9 da especificação original)
-   — o harness hoje só distingue `COMMUNICATION_LOST`/`COMMUNICATION_RECOVERED` via padrão de texto
-   no log do `nodered`; não diferencia a causa. Não bloqueante.
+2. ~~Categorização de erro de rede~~ (DNS/timeout/recusado/auth, seção 9 da especificação
+   original) — **implementado em 2026-08-11**, ainda **não implantado no Pi** (só no repo). Achado
+   ao investigar: o nó core `mqtt out` do Node-RED descarta o erro real da conexão
+   (`10-mqtt.js:862`, handler `'error'` vazio — "o próprio reconnect trata"), então não dava para
+   extrair a causa só reprocessando o log do `nodered`, que hoje só mostra o genérico "Connection
+   failed to broker". Solução: `src/mqtt-probe.js`, uma sondagem TCP/TLS independente (sem
+   handshake MQTT) disparada pelo harness a cada `COMMUNICATION_LOST`, que classifica em
+   `dns`/`refused`/`timeout`/`reset`/`network_unreachable`/`tls`/`reachable_at_probe_time`
+   (transporte OK — falha original foi transitória ou uma rejeição MQTT/CONNACK, que está fora do
+   alcance de uma sondagem só de transporte). `scripts/report.js` agora agrega essas categorias
+   numa seção nova do relatório. Testado localmente contra 4 cenários reais (porta fechada, host
+   inexistente, IP não roteável, broker real) — resultado bateu com o esperado nos 4. **Para
+   ativar no ensaio oficial, falta**: `scp src/mqtt-probe.js`, `src/harness.js` e `src/cli.js`
+   atualizados para `/opt/edgewarden-test-harness/src/` no Pi e `sudo systemctl restart
+   edgewarden-test-harness.service`.
 3. **`docs/architecture.md`**, **`docs/failure-model.md`**, **`docs/recovery-strategy.md`** — o
    conteúdo já existe espalhado (plano aprovado desta sessão + `current-state-assessment.md`), mas
    não foi consolidado nesses arquivos separados como a especificação original sugeria. Não

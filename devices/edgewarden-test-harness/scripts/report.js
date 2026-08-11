@@ -116,7 +116,21 @@ function classifyEvents(events) {
   const commRecovered = events.filter((e) => e.event_type === "COMMUNICATION_RECOVERED");
   const backlogStarted = events.filter((e) => e.event_type === "BACKLOG_STARTED");
   const backlogDrained = events.filter((e) => e.event_type === "BACKLOG_DRAINED");
-  return { byType, restarts, commLost, commRecovered, backlogStarted, backlogDrained };
+
+  const commLostCategories = {};
+  for (const e of commLost) {
+    let category = "sem sondagem (evento anterior a esta versão do harness)";
+    if (e.metadata) {
+      try {
+        category = JSON.parse(e.metadata).category || category;
+      } catch {
+        category = "metadata inválido";
+      }
+    }
+    commLostCategories[category] = (commLostCategories[category] || 0) + 1;
+  }
+
+  return { byType, restarts, commLost, commRecovered, backlogStarted, backlogDrained, commLostCategories };
 }
 
 function renderReport({ session, checkpoints, events, fluxoEvidence }) {
@@ -190,6 +204,21 @@ function renderReport({ session, checkpoints, events, fluxoEvidence }) {
   lines.push("");
   lines.push(`- Quedas de comunicação detectadas (COMMUNICATION_LOST): ${classified.commLost.length}`);
   lines.push(`- Recuperações (COMMUNICATION_RECOVERED): ${classified.commRecovered.length}`);
+  if (Object.keys(classified.commLostCategories).length) {
+    lines.push("");
+    lines.push("### Categorização das quedas (sondagem TCP/TLS best-effort)");
+    lines.push("");
+    for (const [category, count] of Object.entries(classified.commLostCategories).sort((a, b) => b[1] - a[1])) {
+      lines.push(`- ${category}: ${count}`);
+    }
+    lines.push("");
+    lines.push(
+      "_Nota: a sondagem roda no tick seguinte à falha e só cobre transporte (TCP/TLS), não o " +
+        "handshake MQTT -- `reachable_at_probe_time` significa que a falha original pode ter sido " +
+        "transitória ou uma rejeição no nível CONNACK (auth/protocolo), não necessariamente rede " +
+        "indisponível. Ver `src/mqtt-probe.js` para detalhes._"
+    );
+  }
   lines.push("");
   lines.push("## Store-and-forward");
   lines.push("");

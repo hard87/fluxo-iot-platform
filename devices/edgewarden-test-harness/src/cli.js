@@ -159,7 +159,15 @@ function cmdEvents(args) {
   const limit = limitArg ? Number.parseInt(limitArg.split("=")[1], 10) : 50;
   const events = db.listEvents(database, session.test_id, { limit });
   for (const e of events.reverse()) {
-    console.log(`${e.timestamp}  [${e.severity.padEnd(8)}] ${e.event_type.padEnd(28)} ${e.description}`);
+    let category = "";
+    if (e.metadata) {
+      try {
+        category = ` [categoria=${JSON.parse(e.metadata).category}]`;
+      } catch {
+        /* metadata mal formado -- não deveria acontecer, mas não vale derrubar o CLI por isso */
+      }
+    }
+    console.log(`${e.timestamp}  [${e.severity.padEnd(8)}] ${e.event_type.padEnd(28)} ${e.description}${category}`);
   }
 }
 
