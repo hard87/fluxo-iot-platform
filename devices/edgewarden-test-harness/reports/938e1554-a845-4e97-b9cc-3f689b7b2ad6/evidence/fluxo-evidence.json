@@ -1,0 +1,14 @@
+{
+  "acceptedCount": 2860,
+  "minSeq": "5289",
+  "maxSeq": "8148",
+  "duplicates": [],
+  "rejections": [
+    {
+      "errorType": "Duplicate",
+      "reason": "Mensagem duplicada por tenant/workspace/device/sequence.",
+      "count": 38
+    }
+  ],
+  "maxDelayMinutes": 1322.4991877
+}
