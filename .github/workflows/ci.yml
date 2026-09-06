@@ -11,6 +11,23 @@ jobs:
   build-test:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: fluxo_test_admin
+          POSTGRES_USER: fluxo_test
+          POSTGRES_PASSWORD: fluxo_test_local_only
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U fluxo_test -d fluxo_test_admin"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+
+    env:
+      FLUXO_TESTS_POSTGRES_ADMIN_CONNECTION: Host=127.0.0.1;Port=55432;Database=fluxo_test_admin;Username=fluxo_test;Password=fluxo_test_local_only
+      FLUXO_TESTS_REQUIRE_POSTGRES: '1'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,12 +50,19 @@ jobs:
       - name: Build
         run: dotnet build Fluxo.slnx --no-restore
 
+      - name: Mark disposable PostgreSQL
+        run: docker exec -i ${{ job.services.postgres.id }} psql -v ON_ERROR_STOP=1 -U fluxo_test -d fluxo_test_admin < docker/test/init/00-marker.sql
+
       - name: Test
         run: dotnet test Fluxo.slnx --no-build --verbosity normal
 
       - name: Install frontend dependencies
         working-directory: portal-web
         run: npm ci
+
+      - name: Test frontend
+        working-directory: portal-web
+        run: npm test -- --run
 
       - name: Build frontend
         working-directory: portal-web

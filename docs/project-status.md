@@ -50,7 +50,7 @@
 - ACL negativa comprovada e telemetria diagnóstica Schema V2 aceita pelo backend.
 - Q1–Q7 executados em 5.115.083 pontos e cinco partições.
 - Q6 executou em 1624,705 ms, abaixo do gate de 2 s; nenhum índice novo foi necessário.
-- 71 testes unitários, 40 de integração e 5 de componente verdes na Fase 2.
+- Revalidação de 06/09/2026: 71 testes unitários, 48 de integração no PostgreSQL descartável transacional e 30 do portal aprovados. O antigo resultado de 40 integrações incluía 26 retornos sem execução quando faltava o banco; detalhes no [baseline de alertas](handoff/alertas-etapa-1-baseline.md).
 - Validação responsiva em 20 combinações de página/largura sem overflow horizontal.
 
 Esses resultados são evidência de carga e leitura controladas. Não provam que o Fluxo está

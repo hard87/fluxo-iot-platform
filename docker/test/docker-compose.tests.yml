@@ -1,0 +1,60 @@
+# Disposable PostgreSQL for automated tests -- TRANSACTIONAL profile.
+#
+# VALID FOR:   transactions, row/advisory locks, SKIP LOCKED, unique and check constraints,
+#              isolation levels, concurrency between workers, migrations.
+# NOT VALID FOR: durability. fsync, synchronous_commit and full_page_writes are off and the
+#              data directory is tmpfs, so an unclean stop loses committed data by design.
+#              Crash-recovery and "crash between persist and send" tests MUST use the
+#              durability profile in docker-compose.durability.yml instead -- results from
+#              this profile would be meaningless there.
+#
+# Deliberately shares NOTHING with the pilot stack in docker-compose.yml:
+#   pilot -> container fluxo-postgres, host port 5433, volume fluxo_postgres_data,
+#            network fluxo_default, database fluxo_db
+#   tests -> container fluxo-tests-postgres, host port 55432, NO volume (tmpfs),
+#            network fluxo-tests_default, database fluxo_test_admin
+#
+# Always drive it through scripts/tests/start-test-postgres.ps1 / stop-test-postgres.ps1,
+# which pin the compose project name so `down` can never reach the pilot.
+#
+# Credentials here are local-only test values. They grant nothing outside this container,
+# which is bound to loopback and stores its data in RAM.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fluxo-tests-postgres
+    # No restart policy on purpose: this must never come back on its own when the
+    # Docker daemon starts. The pilot services use restart: unless-stopped.
+    restart: "no"
+    environment:
+      POSTGRES_DB: fluxo_test_admin
+      POSTGRES_USER: fluxo_test
+      POSTGRES_PASSWORD: fluxo_test_local_only
+      # Speeds up the create/migrate/drop cycle; safe ONLY because this profile makes no
+      # durability claim. Never copy this into the durability profile.
+      POSTGRES_INITDB_ARGS: "--nosync"
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d:ro
+    # Data lives in RAM and disappears with the container. No named volume is declared,
+    # so nothing can outlive `down` or collide with fluxo_postgres_data.
+    tmpfs:
+      - /var/lib/postgresql/data
+    command:
+      - postgres
+      - -c
+      - fsync=off
+      - -c
+      - synchronous_commit=off
+      - -c
+      - full_page_writes=off
+      - -c
+      - max_connections=200
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U fluxo_test -d fluxo_test_admin"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s

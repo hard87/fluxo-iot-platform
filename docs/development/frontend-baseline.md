@@ -74,8 +74,8 @@ npm run build
 |---|---|---|
 | Backend/build | `dotnet build Fluxo.slnx --no-restore --configuration Release` | aprovado; 0 avisos e 0 erros |
 | Backend/unitários | `dotnet test tests/Fluxo.UnitTests/Fluxo.UnitTests.csproj --no-build --configuration Release` | 71/71 aprovados |
-| Frontend/testes | `npm test -- --run` | 5/5 aprovados |
-| Frontend/build | `npm run build` | aprovado; 856 módulos transformados |
+| Frontend/testes | `npm test -- --run` | 30/30 aprovados em 8 arquivos na revalidação de 06/09/2026 |
+| Frontend/build | `npm run build` | aprovado; 872 módulos transformados na revalidação de 06/09/2026 |
 | Dependências frontend | `npm audit --omit=dev` | 2 vulnerabilidades moderadas; exit code 1 |
 | Gateway/harness JS | `node --check` em 7 arquivos | aprovado |
 | Gateway Bash | `bash -n` em 6 arquivos | aprovado |
@@ -93,8 +93,8 @@ ensaio de 24h em andamento/preparação.
 
 ```text
 index.html                   0,40 kB (gzip 0,27 kB)
-assets/index-BTOI4j4r.css    4,66 kB (gzip 1,71 kB)
-assets/index-BOh75fxY.js   575,35 kB (gzip 166,49 kB)
+assets/index-CFC3pIoJ.css     27,11 kB (gzip 5,92 kB)
+assets/index-CvTlwX3P.js     600,03 kB (gzip 174,42 kB)
 ```
 
 ## Limitações conhecidas
@@ -124,4 +124,4 @@ git status --short
 ```
 
 O resultado esperado é vazio. Alterações visuais devem manter os 71 testes
-unitários, os 5 testes do portal e o build do portal verdes.
+unitários, os 30 testes do portal e o build do portal verdes.

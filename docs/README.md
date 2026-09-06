@@ -9,6 +9,8 @@ Este indice organiza os documentos tecnicos por objetivo de leitura.
 
 ## 2. Produto e portal
 
+- [Alertas — especificação consolidada (proposta)](product/alertas-especificacao.md)
+- [ADR-0005 — complemento ao ADR-0002 (proposto)](adr/0005-alertas-canais-historico-isolamento-proposta.md)
 - [Portal Web MVP](portal-web-mvp.md)
 - [Baseline do Portal antes da evolução visual](development/frontend-baseline.md)
 
