@@ -22,6 +22,7 @@ import type {
   TelemetryBucket,
   TelemetryQueryResponse
 } from "../types";
+import { getApiErrorMessage } from "../utils/apiErrorMessage";
 
 const compatibility: Record<MetricValueType, TelemetryAggregation[]> = {
   Numeric: ["raw", "avg", "min", "max", "sum", "count", "last"],
@@ -36,7 +37,7 @@ function localInput(date: Date) {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof ApiError ? error.message : "Ocorreu um erro inesperado ao consultar a telemetria.";
+  return getApiErrorMessage(error, "Ocorreu um erro inesperado ao consultar a telemetria.");
 }
 
 export function TelemetryExplorerPage() {

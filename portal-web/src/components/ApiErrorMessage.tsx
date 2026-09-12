@@ -1,4 +1,4 @@
-import { ApiError } from "../services/api/httpClient";
+import { getApiErrorMessage } from "../utils/apiErrorMessage";
 
 interface Props {
   error: unknown;
@@ -9,7 +9,5 @@ export function ApiErrorMessage({ error }: Props) {
     return null;
   }
 
-  const message = error instanceof ApiError ? error.message : "Ocorreu um erro inesperado.";
-
-  return <p className="error-message">{message}</p>;
+  return <p className="error-message">{getApiErrorMessage(error)}</p>;
 }
