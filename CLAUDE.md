@@ -154,6 +154,15 @@ touching it:
 
 ## Documentation map
 
+**Before implementing a phase or non-trivial feature, read `docs/project-status.md` first** —
+it is the single source of truth for what phase the product is in, what's actually done vs.
+pending, and known risks. It goes stale easily (phases get implemented without it being
+updated), so treat a claim there as unverified until you check the code/tests it cites — but
+check it before you check anything else.
+
 `docs/README.md` is the curated index (product/portal, security, pilot operation, scale
-roadmap, ADRs). Check `docs/adr/` before changing telemetry schema, alert evaluation, the
-telemetry query API, or gateway store-and-forward behavior — each has an accepted ADR.
+roadmap, ADRs). `docs/product/mvp-scope.md` has the product thesis: Fluxo serves and interprets
+telemetry without imposing business rules on the customer — it is explicitly not a visual
+automation/workflow engine, and generative AI (if ever added) stays out of the ingestion hot
+path. Check `docs/adr/` before changing telemetry schema, alert evaluation, the telemetry query
+API, or gateway store-and-forward behavior — each has an accepted ADR.

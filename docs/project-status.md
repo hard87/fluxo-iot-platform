@@ -2,10 +2,10 @@
 
 ## 1. Snapshot
 
-- Consolidação documental: 31 jul 2026.
-- Branch observada: `snapshot-auth-portal-mvp-20260526`.
-- HEAD observado: `aeeaf78818faf52224a69b5eee396f7489e1543e`.
-- Working tree observada: suja, com entregáveis do Gateway e itens preexistentes não rastreados.
+- Consolidação documental: 12 set 2026.
+- Branch observada: `fix/portal-same-origin-auth`.
+- HEAD observado: `0499dcfd7223bd9914809787bba06ef7b7287f9f`.
+- Working tree observada: limpa, exceto um rascunho pessoal não rastreado (`inicio.txt`).
 - Esta consolidação não declara suporte de produção a 1000 devices.
 
 ## 2. Estado das trilhas
@@ -15,13 +15,37 @@
 | Produto | Fase 0 — decisões e baseline | CONCLUÍDA | ADRs aceitos e benchmark executado |
 | Produto | Fase 1 — Schema V2 e ingestão | CONCLUÍDA | [Relatório Fase 1](handoff/relatorio-fase-1-schema-v2-2026-07-11.md) |
 | Produto | Fase 2 — Telemetry Query API e Explorer | CONCLUÍDA | [Relatório Fase 2](handoff/relatorio-fase-2-telemetry-explorer-2026-07-12.md) |
-| Produto | Fase 3 — alertas | PRÓXIMA | [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md) |
+| Produto | Fase 3 — alertas | EM ANDAMENTO — backend concluído, portal pendente | [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md) |
 | Produto | Fase 4 — inteligência operacional | NÃO INICIADA | [Escopo do MVP](product/mvp-scope.md) |
 | Produto | Fase 5 — pilotos físicos | EM PILOTO | [Relatório Gateway Pi](handoff/relatorio-fase-5-piloto-fisico-gateway-pi-2026-07-31.md) |
 | Infraestrutura | Infra Fase 1 — hardening | CONCLUÍDA | Baseline de autenticação, ACL, TLS MQTT e ingestão |
 | Infraestrutura | Infra Fase 2 — piloto controlado | EM PILOTO | Gateway Pi validado em MQTT/TLS; 24h, backup/restore e fechamento operacional pendentes |
 | Infraestrutura | Infra Fase 3 — preparação de produção | NÃO INICIADA | [Roadmap](roadmap-production-1000-devices.md) |
 | Infraestrutura | Infra Fase 4 — produção escalável | NÃO INICIADA | [Roadmap](roadmap-production-1000-devices.md) |
+
+### 2.1 Atividade recente (12/09/2026)
+
+- Backend de alertas ativado de ponta a ponta: `AlertEvaluationEngine` e `AlertTransactions`
+  ligados à escrita de telemetria (lock de estado + enfileiramento na mesma transação),
+  `AlertEvaluationWorker` no host de ingestão, `AlertsController` expondo regras, eventos,
+  histórico, reconhecimento e diagnóstico. Migration `AddAlertBackend` aplicada. **Sem interface
+  no portal ainda** — hoje a criação/consulta de regras só existe via API.
+- Portal: view de investigação de mensagens rejeitadas (`/workspaces/{id}/rejections`), registro
+  de dispositivos com busca/filtro, visão operacional do device (métricas nativas, sparkline,
+  histórico) e alternativas acessíveis (texto/tabela) para os gráficos de telemetria.
+- Correção: sessão de autenticação do portal agora sobrevive a reload (antes só existia em
+  memória React; confirmado manualmente no navegador após o fix).
+- Correção: cadastro de dispositivo pelo portal estava **completamente quebrado** — o frontend
+  envia `category` como string e o DTO da API só aceitava o enum numérico padrão do
+  System.Text.Json. Os testes de integração nunca pegaram isso porque serializam o enum a partir
+  do objeto C# tipado (que vira número), nunca do JSON real que o navegador envia. Corrigido com
+  `JsonStringEnumConverter<DeviceCategory>` escopado (não um converter global, para não alterar o
+  formato de outros enums como `WorkspaceMembershipRole`).
+- Cobertura unitária cresceu para 97 testes (0 falhas) com a adição de `AlertEvaluatorTests` e
+  cobertura de rejeições. A suíte de integração local (sem o Postgres descartável de
+  `scripts/tests/start-test-postgres.ps1` rodando) mantém 26 aprovados e 41 ignorados por
+  ausência do servidor — **revalidação completa com Postgres descartável real ainda não foi
+  executada após este lote de mudanças**.
 
 ## 3. Arquitetura atual
 
@@ -58,9 +82,13 @@ pronto para 1000 devices em produção.
 
 ## 5. Próxima fase de produto
 
-Produto Fase 3 — Alertas com estado e delivery. A fase ainda não foi iniciada. A arquitetura
-normativa está no [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md); não deve ser
-substituída por um desenho novo durante a implementação.
+Produto Fase 3 — Alertas com estado e delivery. O backend (engine, worker, endpoints) está
+implementado; falta a interface do portal para criar/editar regras e acompanhar eventos, e a
+validação e2e do fluxo completo (regra criada → telemetria dispara → evento aparece → canal
+notifica). A arquitetura normativa está no
+[ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), complementada pelo
+[ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md); não deve ser substituída
+por um desenho novo durante a implementação.
 
 ## 6. Pendências de produção controlada
 
@@ -76,6 +104,9 @@ substituída por um desenho novo durante a implementação.
 - revogar/desativar o primeiro provisionamento Gateway sem uso registrado no relatório da Fase 5;
 - integrar sensor físico ao Gateway quando houver hardware identificado;
 - revisar guia do piloto, backup/restore e simulador.
+- construir a interface do portal para alertas (regras, eventos, histórico, reconhecimento);
+- revalidar a suíte de integração com o Postgres descartável real
+  (`scripts/tests/start-test-postgres.ps1`) após o lote de alertas/rejeições de 12/09/2026.
 
 A fonte autoritativa dos checkboxes é o [checklist de produção controlada](checklist-producao-controlada.md).
 
@@ -104,6 +135,7 @@ A fonte autoritativa dos checkboxes é o [checklist de produção controlada](ch
 - [ADR-0002 — Alertas com estado e delivery](adr/0002-alert-evaluation-state-and-delivery.md)
 - [ADR-0003 — Telemetry Query API](adr/0003-telemetry-query-api.md)
 - [ADR-0004 — Gateway Pi store-and-forward](adr/0004-pi-gateway-store-and-forward.md)
+- [ADR-0005 — Complemento de alertas (canais, histórico, isolamento)](adr/0005-alertas-canais-historico-isolamento-proposta.md)
 - [Escopo do MVP](product/mvp-scope.md)
 
 ## 9. Evidências
