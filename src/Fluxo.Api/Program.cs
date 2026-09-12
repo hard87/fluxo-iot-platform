@@ -106,6 +106,7 @@ builder.Services.AddScoped<GetWorkspaceDeviceProvisioningUseCase>();
 builder.Services.AddScoped<RotateWorkspaceDeviceCredentialUseCase>();
 builder.Services.AddScoped<GetWorkspaceDeviceTelemetryUseCase>();
 builder.Services.AddScoped<GetWorkspaceDashboardUseCase>();
+builder.Services.AddScoped<ListWorkspaceTelemetryRejectionsUseCase>();
 builder.Services.AddScoped<GetAuthorizedDeviceUseCase>();
 builder.Services.AddScoped<GetAuthorizedDevicesUseCase>();
 builder.Services.AddScoped<ResolveMetricDefinitionsUseCase>();

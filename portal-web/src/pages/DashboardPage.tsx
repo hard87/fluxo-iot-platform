@@ -122,6 +122,7 @@ export function DashboardPage() {
                 tone={dashboard.messagesRejected > 0 ? "danger" : "neutral"}
               />
             </div>
+            {workspaceId && dashboard.messagesRejected > 0 ? <p className="dashboard-investigation-link"><Link to={`/workspaces/${workspaceId}/rejections`}>Investigar mensagens rejeitadas</Link></p> : null}
           </section>
 
           <section className="dashboard-section" aria-labelledby="dashboard-activity-title">

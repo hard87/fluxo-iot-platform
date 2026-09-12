@@ -129,6 +129,27 @@ export interface DashboardResponse {
   messagesRejected: number;
 }
 
+export interface TelemetryRejectionItem {
+  id: string;
+  receivedAtUtc: string;
+  topic: string;
+  payloadPreview: string;
+  errorType: string;
+  reason: string;
+  deviceId?: string | null;
+  messageType?: string | null;
+  sequence?: number | null;
+  reprocessed: boolean;
+  reprocessAttempts: number;
+}
+
+export interface TelemetryRejectionPage {
+  items: TelemetryRejectionItem[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
 export interface StatusComponent {
   name: string;
   status: string;

@@ -405,6 +405,7 @@ public class TelemetryIngestionProcessorTests
         {
             return Task.FromResult((long)Records.Count);
         }
+
     }
 
     private sealed class FakeTelemetryIngestionRejectionRepository : ITelemetryIngestionRejectionRepository
@@ -425,6 +426,18 @@ public class TelemetryIngestionProcessorTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult((long)Records.Count);
+        }
+
+        public Task<(IReadOnlyList<TelemetryIngestionRejectionRecord> Items, long TotalCount)> ListByTenantWorkspaceAsync(
+            string tenantId,
+            Guid workspaceId,
+            int page,
+            int pageSize,
+            string? search,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<TelemetryIngestionRejectionRecord> items = Records.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Task.FromResult((items, (long)Records.Count));
         }
 
         public Task<IReadOnlyList<TelemetryIngestionRejectionRecord>> GetReprocessableBatchAsync(

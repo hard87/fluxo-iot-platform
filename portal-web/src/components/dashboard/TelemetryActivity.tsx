@@ -41,6 +41,7 @@ export function formatDashboardTimestamp(timestamp: string, now = Date.now()): F
 
 export function TelemetryActivity({ timestamp }: { timestamp?: string | null }) {
   const formatted = timestamp ? formatDashboardTimestamp(timestamp) : null;
+  const isRecent = timestamp ? Date.now() - new Date(timestamp).getTime() < 5 * 60 * 1000 : false;
 
   return (
     <article className="panel dashboard-activity-card">
@@ -49,13 +50,13 @@ export function TelemetryActivity({ timestamp }: { timestamp?: string | null }) 
       {timestamp && formatted ? (
         <>
           <span className="dashboard-activity-signal">
-            <span className="signal-pulse" aria-hidden="true" />
+            <span className={isRecent ? "signal-pulse" : "signal-dot-stale"} aria-hidden="true" />
             <strong className="dashboard-activity-relative">{formatted.relative}</strong>
           </span>
           <time dateTime={timestamp} title={timestamp}>
             {formatted.absolute}
           </time>
-          <small>Horário local</small>
+          <small>{isRecent ? "Recebendo dados · Horário local" : "Sem dados recentes · Horário local"}</small>
         </>
       ) : (
         <>

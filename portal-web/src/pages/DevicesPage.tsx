@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { DeviceStatusBadge } from "../components/DeviceStatusBadge";
 import { PageHeader } from "../components/PageHeader";
@@ -18,6 +18,13 @@ export function DevicesPage() {
   const [devices, setDevices] = useState<DeviceResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("all");
+  const visibleDevices = useMemo(() => devices.filter((device) => {
+    const matchesText = `${device.name} ${device.identifier} ${device.category}`.toLocaleLowerCase("pt-BR").includes(query.trim().toLocaleLowerCase("pt-BR"));
+    const normalizedStatus = typeof device.operationalStatus === "string" ? device.operationalStatus.toLowerCase() : String(device.operationalStatus);
+    return matchesText && (status === "all" || normalizedStatus === status);
+  }), [devices, query, status]);
 
   const isMountedRef = useRef(true);
   useEffect(() => {
@@ -99,22 +106,13 @@ export function DevicesPage() {
       ) : null}
 
       {!loading && !error && devices.length > 0 ? (
-        <ul className="list">
-          {devices.map((device) => (
-            <li key={device.id} className="list-item">
-              <div>
-                <strong>{device.name}</strong>
-                <p className="muted">{device.identifier}</p>
-                <DeviceStatusBadge status={device.operationalStatus} />
-              </div>
-              {workspaceId ? (
-                <Link className="button-secondary" to={`/workspaces/${workspaceId}/devices/${device.id}`}>
-                  Detalhes
-                </Link>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+        <div className="device-registry panel">
+          <div className="device-registry-filters">
+            <label>Buscar dispositivo<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nome, identificador ou categoria" /></label>
+            <label>Estado<select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">Todos</option><option value="online">Online</option><option value="offline">Offline</option><option value="unknown">Desconhecido</option></select></label>
+          </div>
+          {visibleDevices.length ? <div className="table-scroll"><table className="device-table"><caption className="visually-hidden">Dispositivos cadastrados neste workspace</caption><thead><tr><th scope="col">Dispositivo</th><th scope="col">Categoria</th><th scope="col">Estado</th><th scope="col">Última telemetria</th><th scope="col"><span className="visually-hidden">Ações</span></th></tr></thead><tbody>{visibleDevices.map((device) => <tr key={device.id}><td><strong>{device.name}</strong><code>{device.identifier}</code></td><td>{device.category}</td><td><DeviceStatusBadge status={device.operationalStatus} /></td><td>{device.lastTelemetryReceivedAtUtc ? <time dateTime={device.lastTelemetryReceivedAtUtc}>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(device.lastTelemetryReceivedAtUtc))}</time> : "Sem telemetria"}</td><td>{workspaceId ? <Link className="button-secondary" to={`/workspaces/${workspaceId}/devices/${device.id}`}>Abrir</Link> : null}</td></tr>)}</tbody></table></div> : <EmptyState compact title="Nenhum dispositivo encontrado" description="Revise a busca ou o filtro de estado." />}
+        </div>
       ) : null}
     </section>
   );

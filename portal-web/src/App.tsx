@@ -12,6 +12,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { WorkspacePage } from "./pages/WorkspacePage";
 import { TelemetryExplorerPage } from "./pages/TelemetryExplorerPage";
+import { TelemetryRejectionsPage } from "./pages/TelemetryRejectionsPage";
 
 function HomeRedirect() {
   const { isAuthenticated } = useAuth();
@@ -33,11 +34,11 @@ export function App() {
           <Route path="/workspaces/:workspaceId/devices/new" element={<NewDevicePage />} />
           <Route path="/workspaces/:workspaceId/devices/:deviceId" element={<DeviceDetailsPage />} />
           <Route path="/workspaces/:workspaceId/explorer" element={<TelemetryExplorerPage />} />
+          <Route path="/workspaces/:workspaceId/rejections" element={<TelemetryRejectionsPage />} />
           <Route path="/status" element={<HealthPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>
-
-      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

@@ -57,6 +57,26 @@ interface TooltipPayloadItem {
   color?: string;
 }
 
+function seriesSummary(model: SeriesModel) {
+  const values = model.series.points
+    .map((point) => model.series.valueType === "Boolean"
+      ? point.booleanValue === null ? null : Number(point.booleanValue)
+      : point.numericValue)
+    .filter((value): value is number => value !== null);
+  if (values.length === 0) return null;
+  const current = values[values.length - 1];
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const average = values.reduce((total, value) => total + value, 0) / values.length;
+  const delta = current - values[0];
+  const threshold = Math.max(Math.abs(values[0]) * 0.02, 0.01);
+  const trend = Math.abs(delta) <= threshold ? "estável" : delta > 0 ? "subindo" : "caindo";
+  const format = (value: number) => model.series.valueType === "Boolean"
+    ? value ? "true" : "false"
+    : `${formatTelemetryNumber(value)}${model.series.canonicalUnit ? ` ${model.series.canonicalUnit}` : ""}`;
+  return { current: format(current), minimum: format(minimum), maximum: format(maximum), average: format(average), trend };
+}
+
 function chartTickFormatter(timestamp: string, rangeMs: number) {
   const date = new Date(timestamp);
   const options: Intl.DateTimeFormatOptions = rangeMs > 7 * 86400000
@@ -195,7 +215,15 @@ export function TelemetrySeriesPanel({ group, aggregation, devices, definitions 
     <article className="panel telemetry-series-panel chart-panel">
       <SeriesPanelHeader title={displayName} technicalLabel={technicalLabel} series={firstSeries} unit={unit} />
       <EmptySeriesNote empty={empty} devices={devices} definitions={definitions} />
-      <div className="telemetry-chart" role="img" aria-label={`Gráfico de ${displayName}`}>
+      <div className="telemetry-accessible-summary" aria-live="polite">
+        {models.map((model) => {
+          const summary = seriesSummary(model);
+          return summary ? (
+            <p key={model.dataKey}><strong>{model.legendLabel}:</strong> atual {summary.current}, mínimo {summary.minimum}, máximo {summary.maximum}, média {summary.average}; tendência {summary.trend}.</p>
+          ) : null;
+        })}
+      </div>
+      <div className="telemetry-chart" role="img" aria-label={`Gráfico de ${displayName}. Um resumo textual e a tabela de valores estão disponíveis junto ao gráfico.`}>
         <ResponsiveContainer width="100%" height={360}>
           <LineChart data={chartData} margin={{ top: 12, right: 20, bottom: 8, left: unit ? 12 : 0 }}>
             <CartesianGrid stroke="#d9e2de" strokeDasharray="3 3" vertical={false} />
@@ -242,6 +270,21 @@ export function TelemetrySeriesPanel({ group, aggregation, devices, definitions 
           </li>
         ))}
       </ul>
+      <details className="telemetry-data-details">
+        <summary>Consultar valores em tabela</summary>
+        <div className="table-scroll">
+          <table className="telemetry-table">
+            <caption>Valores de {displayName} no período consultado</caption>
+            <thead><tr><th scope="col">Série</th><th scope="col">Data e hora</th><th scope="col">Valor</th></tr></thead>
+            <tbody>{models.flatMap((model) => model.series.points.map((point) => {
+              const value = model.series.valueType === "Boolean"
+                ? point.booleanValue === null ? "—" : point.booleanValue ? "true" : "false"
+                : point.numericValue === null ? "—" : formatTelemetryNumber(point.numericValue);
+              return <tr key={`${model.dataKey}-${point.timestampUtc}`}><td>{model.legendLabel}</td><td><time dateTime={point.timestampUtc}>{formatTelemetryTimestamp(point.timestampUtc)}</time></td><td>{value}{point.numericValue !== null && model.series.canonicalUnit ? ` ${model.series.canonicalUnit}` : ""}</td></tr>;
+            }))}</tbody>
+          </table>
+        </div>
+      </details>
     </article>
   );
 }

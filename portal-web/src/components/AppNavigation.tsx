@@ -31,6 +31,12 @@ export function AppNavigation({ workspaceId }: AppNavigationProps) {
       end: true,
       requiresWorkspace: true
     },
+    {
+      label: "Rejeições",
+      to: workspaceId ? `/workspaces/${workspaceId}/rejections` : null,
+      end: true,
+      requiresWorkspace: true
+    },
     { label: "Saúde da plataforma", to: "/status", end: true }
   ];
 

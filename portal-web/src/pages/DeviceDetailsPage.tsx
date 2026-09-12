@@ -5,6 +5,7 @@ import { DeviceStatusBadge } from "../components/DeviceStatusBadge";
 import { PageHeader } from "../components/PageHeader";
 import { Timestamp } from "../components/Timestamp";
 import { EmptyState, LoadingState } from "../components/feedback/FeedbackStates";
+import { DeviceOperationalOverview } from "../components/device/DeviceOperationalOverview";
 import { useAuth } from "../hooks/useAuth";
 import * as deviceService from "../services/api/deviceService";
 import type {
@@ -26,6 +27,7 @@ export function DeviceDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [rotating, setRotating] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const [view, setView] = useState<"overview" | "details">("overview");
 
   useEffect(() => {
     if (!token || !workspaceId || !deviceId) {
@@ -96,10 +98,18 @@ export function DeviceDetailsPage() {
 
   return (
     <section>
-      <PageHeader title="Detalhes do dispositivo" />
+      <PageHeader
+        title="Dispositivo"
+        description="Acompanhe o estado operacional ou consulte os detalhes de provisionamento."
+        actions={<div className="view-tabs" role="tablist" aria-label="Visualização do dispositivo">
+          <button type="button" role="tab" aria-selected={view === "overview"} onClick={() => setView("overview")}>Visão operacional</button>
+          <button type="button" role="tab" aria-selected={view === "details"} onClick={() => setView("details")}>Detalhes</button>
+        </div>}
+      />
       <ApiErrorMessage error={error} />
       {loading ? <LoadingState compact title="Carregando dispositivo" /> : null}
-      {device ? (
+      {device && view === "overview" && token && workspaceId ? <DeviceOperationalOverview device={device} telemetry={telemetry} token={token} workspaceId={workspaceId} /> : null}
+      {device && view === "details" ? (
         <article className="panel">
           <h2>{device.name}</h2>
           <p>
@@ -109,11 +119,11 @@ export function DeviceDetailsPage() {
             <strong>Status:</strong> <DeviceStatusBadge status={device.operationalStatus} />
           </p>
           <p>
-            <strong>Ultimo contato:</strong>{" "}
+            <strong>Último contato:</strong>{" "}
             {device.lastContactAtUtc ? <Timestamp value={device.lastContactAtUtc} /> : "Sem contato"}
           </p>
           <p>
-            <strong>Ultima telemetria:</strong>{" "}
+            <strong>Última telemetria:</strong>{" "}
             {device.lastTelemetryReceivedAtUtc ? (
               <Timestamp value={device.lastTelemetryReceivedAtUtc} />
             ) : (
@@ -121,20 +131,20 @@ export function DeviceDetailsPage() {
             )}
           </p>
           <p>
-            <strong>Ultimo payload:</strong>
+            <strong>Último payload:</strong>
           </p>
           <pre>{safeJsonPreview(device.lastTelemetryPayloadJson)}</pre>
         </article>
       ) : null}
 
-      {provisioning ? (
+      {provisioning && view === "details" ? (
         <article className="panel">
           <h2>Provisionamento</h2>
           <p>
-            <strong>Username ativo:</strong> {provisioning.activeCredentialUsername ?? "Nao disponivel"}
+            <strong>Usuário ativo:</strong> {provisioning.activeCredentialUsername ?? "Não disponível"}
           </p>
           <p>
-            <strong>Topico MQTT:</strong> <code>{provisioning.mqttPublishTopic}</code>
+            <strong>Tópico MQTT:</strong> <code>{provisioning.mqttPublishTopic}</code>
           </p>
           <button type="button" onClick={handleRotateCredential} disabled={rotating}>
             {rotating ? "Rotacionando..." : "Rotacionar credencial"}
@@ -142,7 +152,7 @@ export function DeviceDetailsPage() {
         </article>
       ) : null}
 
-      {rotatedCredential ? (
+      {rotatedCredential && view === "details" ? (
         <article className="panel success-box">
           <h2>Nova credencial gerada (mostrar uma unica vez)</h2>
           <p>
@@ -154,8 +164,8 @@ export function DeviceDetailsPage() {
         </article>
       ) : null}
 
-      <article className="panel">
-        <h2>Ultimas telemetrias</h2>
+      {view === "details" ? <article className="panel">
+        <h2>Últimas telemetrias</h2>
         {telemetry.length === 0 ? (
           <EmptyState
             compact
@@ -179,7 +189,7 @@ export function DeviceDetailsPage() {
             ))}
           </ul>
         )}
-      </article>
+      </article> : null}
 
       {workspaceId ? (
         <p>
