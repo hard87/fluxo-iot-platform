@@ -5,11 +5,20 @@ Este indice organiza os documentos tecnicos por objetivo de leitura.
 ## 1. Comece aqui
 
 - [README principal](../README.md)
+- [Estado atual do projeto](project-status.md) — fonte única de "onde estamos e para onde vamos"; leia antes de implementar qualquer fase
 - [Deploy local seguro](deploy-local-seguro.md)
 
 ## 2. Produto e portal
 
+- [Escopo do MVP comercial](product/mvp-scope.md) — tese do produto, o que entra e o que não entra
+- [Alertas — especificação consolidada (proposta)](product/alertas-especificacao.md)
+- [ADR-0005 — complemento ao ADR-0002 (proposto)](adr/0005-alertas-canais-historico-isolamento-proposta.md)
 - [Portal Web MVP](portal-web-mvp.md)
+- [Baseline do Portal antes da evolução visual](development/frontend-baseline.md)
+
+## 2.1 Desenvolvimento seguro
+
+- [Diagnóstico e normalização da working tree](development/worktree-baseline.md)
 
 ## 3. Seguranca
 

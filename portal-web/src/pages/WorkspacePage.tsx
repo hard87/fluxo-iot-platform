@@ -1,13 +1,26 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiErrorMessage } from "../components/ApiErrorMessage";
+import { PageHeader } from "../components/PageHeader";
+import { EmptyState, ErrorState, LoadingState } from "../components/feedback/FeedbackStates";
 import { useAuth } from "../hooks/useAuth";
 import { useWorkspaceSelection } from "../hooks/useWorkspaceSelection";
 import * as workspaceService from "../services/api/workspaceService";
+import { ApiError } from "../services/api/httpClient";
 import type { Workspace } from "../types";
 import { sanitizeText } from "../utils/sanitize";
 import { validateRequired } from "../utils/validators";
+
+function errorMessage(error: unknown): string {
+  return error instanceof ApiError ? error.message : "Ocorreu um erro inesperado.";
+}
+
+const roleLabels = { 1: "Owner", 2: "Admin", 3: "Viewer" } as const;
+
+function formatWorkspaceRole(role: Workspace["role"]): string {
+  return typeof role === "number" ? roleLabels[role] : role;
+}
 
 export function WorkspacePage() {
   const navigate = useNavigate();
@@ -18,22 +31,24 @@ export function WorkspacePage() {
   const [tenantId, setTenantId] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<unknown>(null);
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [formError, setFormError] = useState<unknown>(null);
 
+  const isMountedRef = useRef(true);
   useEffect(() => {
-    if (!token) {
-      return;
-    }
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
-    const authToken: string = token;
-
-    let isMounted = true;
-
-    async function load() {
+  const load = useCallback(
+    async (authToken: string) => {
       setLoading(true);
+      setLoadError(null);
       try {
         const items = await workspaceService.listWorkspaces(authToken);
-        if (!isMounted) {
+        if (!isMountedRef.current) {
           return;
         }
 
@@ -43,29 +58,33 @@ export function WorkspacePage() {
           setWorkspaceId(items[0].id);
         }
       } catch (err) {
-        if (isMounted) {
-          setError(err);
+        if (isMountedRef.current) {
+          setLoadError(err);
         }
       } finally {
-        if (isMounted) {
+        if (isMountedRef.current) {
           setLoading(false);
         }
       }
+    },
+    [selectedWorkspaceId, setWorkspaceId]
+  );
+
+  useEffect(() => {
+    if (!token) {
+      return;
     }
 
-    void load();
-    return () => {
-      isMounted = false;
-    };
-  }, [token, selectedWorkspaceId, setWorkspaceId]);
+    void load(token);
+  }, [token, load]);
 
   async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
+    setFormError(null);
 
     const nameError = validateRequired(name, "Nome do workspace");
     if (nameError) {
-      setError(new Error(nameError));
+      setFormError(new Error(nameError));
       return;
     }
 
@@ -85,7 +104,7 @@ export function WorkspacePage() {
       setName("");
       setTenantId("");
     } catch (err) {
-      setError(err);
+      setFormError(err);
     } finally {
       setSubmitting(false);
     }
@@ -98,40 +117,74 @@ export function WorkspacePage() {
 
   return (
     <section>
-      <h1>Workspaces</h1>
-      <p>Crie ou selecione um workspace para gerenciar dispositivos.</p>
-      <ApiErrorMessage error={error} />
+      <PageHeader
+        title="Workspaces"
+        description="Crie ou selecione um workspace para gerenciar dispositivos."
+      />
       <div className="panel-grid">
         <article className="panel">
           <h2>Meus workspaces</h2>
-          {loading ? <p>Carregando...</p> : null}
-          {!loading && workspaces.length === 0 ? <p>Nenhum workspace encontrado.</p> : null}
-          <ul className="list">
-            {workspaces.map((workspace) => (
-              <li key={workspace.id} className="list-item">
-                <div>
-                  <strong>{workspace.name}</strong>
-                  <p className="muted">tenant: {workspace.tenantId}</p>
-                </div>
-                <div className="inline-actions">
-                  <button
-                    type="button"
-                    className={selectedWorkspaceId === workspace.id ? "button-secondary active" : "button-secondary"}
-                    onClick={() => handleOpenWorkspace(workspace.id)}
-                  >
-                    Abrir
+
+          {loading ? <LoadingState compact title="Carregando workspaces" /> : null}
+
+          {!loading && loadError ? (
+            <ErrorState
+              title="Não foi possível carregar seus workspaces"
+              description={errorMessage(loadError)}
+              action={
+                token ? (
+                  <button type="button" className="button-secondary" onClick={() => void load(token)}>
+                    Tentar novamente
                   </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+                ) : undefined
+              }
+            />
+          ) : null}
+
+          {!loading && !loadError && workspaces.length === 0 ? (
+            <EmptyState
+              title="Nenhum workspace encontrado"
+              description="Crie o primeiro workspace ao lado para começar a gerenciar dispositivos."
+              action={<a href="#create-workspace">Ir para criação de workspace</a>}
+            />
+          ) : null}
+
+          {!loading && !loadError && workspaces.length > 0 ? (
+            <ul className="list">
+              {workspaces.map((workspace) => {
+                const isSelected = selectedWorkspaceId === workspace.id;
+                return (
+                  <li key={workspace.id} className="list-item">
+                    <div>
+                      <strong>{workspace.name}</strong>
+                      <p className="muted">
+                        tenant: {workspace.tenantId} ·{" "}
+                        <span className="badge">{formatWorkspaceRole(workspace.role)}</span>
+                      </p>
+                    </div>
+                    <div className="inline-actions">
+                      <button
+                        type="button"
+                        className={isSelected ? "button-secondary active" : "button-secondary"}
+                        aria-current={isSelected ? "true" : undefined}
+                        onClick={() => handleOpenWorkspace(workspace.id)}
+                      >
+                        {isSelected ? "Selecionado — Abrir" : "Abrir"}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+
           {selectedWorkspaceId ? (
             <p>
               Workspace selecionado. <Link to={`/workspaces/${selectedWorkspaceId}/devices`}>Ver dispositivos</Link>
             </p>
           ) : null}
         </article>
-        <article className="panel">
+        <article className="panel" id="create-workspace">
           <h2>Criar workspace</h2>
           <form onSubmit={handleCreateWorkspace} className="form-grid">
             <label>
@@ -156,6 +209,7 @@ export function WorkspacePage() {
             <button type="submit" disabled={submitting}>
               {submitting ? "Criando..." : "Criar workspace"}
             </button>
+            <ApiErrorMessage error={formError} />
           </form>
         </article>
       </div>

@@ -6,14 +6,14 @@ using Fluxo.Domain.Entities;
 using Fluxo.Domain.Enums;
 using Fluxo.Infrastructure.Data;
 using Fluxo.Infrastructure.Repositories;
+using Fluxo.IntegrationTests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 namespace Fluxo.IntegrationTests.Telemetry;
 
 public sealed class TelemetryQueryPostgreSqlTests
 {
-    [Fact]
+    [SkippableFact]
     public Task Query_UserNotMemberOfWorkspace_Returns404NotFound() => WithDatabaseAsync(async db =>
     {
         var seed = await SeedAsync(db, member: false);
@@ -21,7 +21,7 @@ public sealed class TelemetryQueryPostgreSqlTests
             Request(seed.Device.Id, seed.Metric.MetricKey), default));
     });
 
-    [Fact]
+    [SkippableFact]
     public Task Query_DeviceIdFromOtherWorkspace_Returns404NotFound() => WithDatabaseAsync(async db =>
     {
         var a = await SeedAsync(db); var b = await SeedAsync(db);
@@ -29,7 +29,7 @@ public sealed class TelemetryQueryPostgreSqlTests
             Request(b.Device.Id, a.Metric.MetricKey), default));
     });
 
-    [Fact]
+    [SkippableFact]
     public Task Query_MetricKeyFromOtherWorkspace_Returns404NotFound() => WithDatabaseAsync(async db =>
     {
         var a = await SeedAsync(db, metricKey:"metric_a"); var b = await SeedAsync(db, metricKey:"metric_b");
@@ -37,7 +37,7 @@ public sealed class TelemetryQueryPostgreSqlTests
             Request(a.Device.Id, b.Metric.MetricKey), default));
     });
 
-    [Fact]
+    [SkippableFact]
     public Task Query_PartialDeviceOwnership_RejectsEntireRequestNotJustMissingDevice() => WithDatabaseAsync(async db =>
     {
         var a = await SeedAsync(db); var b = await SeedAsync(db);
@@ -45,7 +45,7 @@ public sealed class TelemetryQueryPostgreSqlTests
         await Assert.ThrowsAsync<NotFoundException>(() => UseCase(db).ExecuteAsync(a.User.Id, a.Workspace.Id, request, default));
     });
 
-    [Fact]
+    [SkippableFact]
     public Task Query_ValidRequest_NeverReturnsPointsFromOtherWorkspace() => WithDatabaseAsync(async db =>
     {
         var a = await SeedAsync(db, value:11); _ = await SeedAsync(db, value:99);
@@ -53,7 +53,7 @@ public sealed class TelemetryQueryPostgreSqlTests
         Assert.All(response.Series.SelectMany(x=>x.Points), x => Assert.Equal(11, x.NumericValue));
     });
 
-    [Fact]
+    [SkippableFact]
     public Task Query_Raw_ReturnsPointsInAscendingOrder() => WithDatabaseAsync(async db =>
     {
         var seed = await SeedAsync(db, value:3, pointOffsets:[30, 10, 20]);
@@ -61,7 +61,7 @@ public sealed class TelemetryQueryPostgreSqlTests
         Assert.Equal(response.Series[0].Points.OrderBy(x=>x.TimestampUtc).Select(x=>x.TimestampUtc), response.Series[0].Points.Select(x=>x.TimestampUtc));
     });
 
-    [Fact]
+    [SkippableFact]
     public Task Query_Aggregated_BucketBoundariesUseUtc() => WithDatabaseAsync(async db =>
     {
         var seed = await SeedAsync(db, value:2, pointOffsets:[1, 61]);
@@ -70,7 +70,7 @@ public sealed class TelemetryQueryPostgreSqlTests
         Assert.All(response.Series[0].Points, x => { Assert.Equal(DateTimeKind.Utc, x.TimestampUtc.Kind); Assert.Equal(0, x.TimestampUtc.Second); });
     });
 
-    [Fact]
+    [SkippableFact]
     public Task Query_EmptySeriesForDeviceWithNoDataInPeriod_ReturnsEmptyPointsNotError() => WithDatabaseAsync(async db =>
     {
         var seed = await SeedAsync(db, pointOffsets:[]);
@@ -78,7 +78,7 @@ public sealed class TelemetryQueryPostgreSqlTests
         Assert.Empty(response.Series[0].Points);
     });
 
-    [Fact]
+    [SkippableFact]
     public Task Query_RawExceedsPerSeriesLimit_SetsTruncatedTrue() => WithDatabaseAsync(async db =>
     {
         var seed = await SeedAsync(db, pointOffsets:[]); var ingestion = new TelemetryIngestionRecord(seed.Workspace.TenantId,
@@ -92,7 +92,7 @@ public sealed class TelemetryQueryPostgreSqlTests
         Assert.Equal(20_000, response.Series[0].Points.Count); Assert.True(response.Series[0].Truncated);
     });
 
-    [Fact]
+    [SkippableFact]
     public Task Query_CancelledToken_ThrowsWithoutExecuting() => WithDatabaseAsync(async db =>
     {
         var seed = await SeedAsync(db); using var cts = new CancellationTokenSource(); cts.Cancel();
@@ -100,7 +100,7 @@ public sealed class TelemetryQueryPostgreSqlTests
             Request(seed.Device.Id, seed.Metric.MetricKey), cts.Token));
     });
 
-    [Fact]
+    [SkippableFact]
     public Task MetricDefinitions_List_OnlyReturnsIsQueryableTrue() => WithDatabaseAsync(async db =>
     {
         var seed = await SeedAsync(db); var hidden = new MetricDefinition(seed.Workspace.Id, seed.Workspace.TenantId, "hidden", MetricValueType.Text, DateTime.UtcNow);
@@ -120,7 +120,16 @@ public sealed class TelemetryQueryPostgreSqlTests
             ()=>QueryTelemetryUseCase.ValidateEstimatedPoints(request,25)).ErrorCode);
     }
 
-    private static readonly DateTime Base = new(2026, 7, 12, 12, 0, 0, DateTimeKind.Utc);
+    // telemetry_points is RANGE-partitioned on OccurredAtUtc, and the migration only creates
+    // partitions from the previous month through six months ahead. A hard-coded date (this
+    // was 2026-07-12) silently falls out of that window as time passes and every insert then
+    // fails with "no partition of relation telemetry_points found for row". The suite never
+    // caught it because it used to return early instead of running.
+    //
+    // Anchoring to the first day of the current month keeps every seeded point inside the
+    // window forever, and leaves room for the widest span used here (~33 minutes).
+    private static readonly DateTime Base = new(
+        DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 12, 0, 0, DateTimeKind.Utc);
     private static TelemetryQueryRequest Request(Guid device, string metric) =>
         new([device],[metric],Base,Base.AddHours(1),"raw",null);
 
@@ -144,11 +153,12 @@ public sealed class TelemetryQueryPostgreSqlTests
     private static FluxoDbContext Context(string cs)=>new(new DbContextOptionsBuilder<FluxoDbContext>().UseNpgsql(cs).Options);
     private static async Task WithDatabaseAsync(Func<FluxoDbContext,Task> test)
     {
-        var admin=Environment.GetEnvironmentVariable("FLUXO_TESTS_POSTGRES_ADMIN_CONNECTION"); if(string.IsNullOrWhiteSpace(admin)) return;
-        var name=$"fluxo_query_{Guid.NewGuid():N}"; var ab=new NpgsqlConnectionStringBuilder(admin);
-        await using(var c=new NpgsqlConnection(ab.ConnectionString)){await c.OpenAsync();await new NpgsqlCommand($"CREATE DATABASE \"{name}\"",c).ExecuteNonQueryAsync();}
-        var tb=new NpgsqlConnectionStringBuilder(admin){Database=name};
-        try { await using var db=Context(tb.ConnectionString); await db.Database.MigrateAsync(); await test(db); }
-        finally { await using var c=new NpgsqlConnection(ab.ConnectionString);await c.OpenAsync();await new NpgsqlCommand($"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='{name}' AND pid<>pg_backend_pid()",c).ExecuteNonQueryAsync();await new NpgsqlCommand($"DROP DATABASE IF EXISTS \"{name}\"",c).ExecuteNonQueryAsync(); }
+        DisposableTestDatabase.SkipUnlessAvailable();
+        await DisposableTestDatabase.WithDatabaseAsync("query", async cs =>
+        {
+            await using var db = Context(cs);
+            await db.Database.MigrateAsync();
+            await test(db);
+        });
     }
 }

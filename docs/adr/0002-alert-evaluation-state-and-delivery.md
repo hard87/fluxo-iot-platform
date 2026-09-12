@@ -5,6 +5,12 @@
 Aceito em 11 jul 2026 (Fase 0 do roadmap). Depende do ADR-0001 (`TelemetryPoint`/
 `MetricDefinition`) estar implementado — o worker de avaliação lê dessa tabela.
 
+Atualização de 06/09/2026: o [ADR-0005](0005-alertas-canais-historico-isolamento-proposta.md)
+foi aceito para o núcleo backend da Etapa 2. Sua consolidação tem precedência sobre os pontos
+explicitamente complementados (revisões, coordenação, retries por regra, transições e intenções).
+O texto original abaixo é preservado como histórico; webhook e demais transportes não são
+implementados na Etapa 2.
+
 ## Contexto
 
 A primeira proposta de motor de alertas (nota estratégica interna de 11 jul 2026) descrevia um

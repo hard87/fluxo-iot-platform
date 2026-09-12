@@ -4,12 +4,32 @@ on:
   push:
     branches:
       - main
-      - chore-piloto-local-docker-hardening
+      - 'feat/**'
+      - 'fix/**'
+      - 'chore/**'
+      - 'docs/**'
   pull_request:
 
 jobs:
   build-test:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: fluxo_test_admin
+          POSTGRES_USER: fluxo_test
+          POSTGRES_PASSWORD: fluxo_test_local_only
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U fluxo_test -d fluxo_test_admin"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+
+    env:
+      FLUXO_TESTS_POSTGRES_ADMIN_CONNECTION: Host=127.0.0.1;Port=55432;Database=fluxo_test_admin;Username=fluxo_test;Password=fluxo_test_local_only
+      FLUXO_TESTS_REQUIRE_POSTGRES: '1'
 
     steps:
       - name: Checkout
@@ -33,6 +53,9 @@ jobs:
       - name: Build
         run: dotnet build Fluxo.slnx --no-restore
 
+      - name: Mark disposable PostgreSQL
+        run: docker exec -i ${{ job.services.postgres.id }} psql -v ON_ERROR_STOP=1 -U fluxo_test -d fluxo_test_admin < docker/test/init/00-marker.sql
+
       - name: Test
         run: dotnet test Fluxo.slnx --no-build --verbosity normal
 
@@ -40,6 +63,89 @@ jobs:
         working-directory: portal-web
         run: npm ci
 
+      - name: Test frontend
+        working-directory: portal-web
+        run: npm test -- --run
+
       - name: Build frontend
         working-directory: portal-web
         run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: build-test
+
+    env:
+      # The API refuses to start (by design) if this is left at its docker-compose.yml
+      # placeholder default, so CI - which has no .env - must override it explicitly.
+      FLUXO_AUTH_SIGNING_KEY: ci-ephemeral-signing-key-not-used-outside-this-workflow-run
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install dotnet-ef
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.0.6
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Restore
+        run: dotnet restore Fluxo.slnx
+
+      - name: Build stack images
+        run: docker compose build
+
+      - name: Start database and broker
+        run: docker compose up -d --wait postgres mosquitto
+
+      - name: Apply migrations
+        env:
+          ConnectionStrings__DefaultConnection: Host=127.0.0.1;Port=5432;Database=fluxo_db;Username=fluxo;Password=fluxo
+        run: |
+          dotnet ef database update \
+            --project src/Fluxo.Infrastructure/Fluxo.Infrastructure.csproj \
+            --startup-project src/Fluxo.Api/Fluxo.Api.csproj
+
+      - name: Start full stack
+        run: docker compose up -d --wait
+
+      - name: Install Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run E2E golden path
+        working-directory: e2e
+        env:
+          FLUXO_E2E_BASE_URL: http://localhost:8080
+          CI: 'true'
+        run: npm test
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose down -v

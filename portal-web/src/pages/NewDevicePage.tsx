@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiErrorMessage } from "../components/ApiErrorMessage";
+import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../hooks/useAuth";
 import * as deviceService from "../services/api/deviceService";
 import type { DeviceResponse, ProvisionedDeviceResponse } from "../types";
@@ -79,8 +80,10 @@ export function NewDevicePage() {
 
   return (
     <section>
-      <h1>Novo dispositivo</h1>
-      <p>Cadastre e opcionalmente provisione com credencial MQTT inicial.</p>
+      <PageHeader
+        title="Novo dispositivo"
+        description="Cadastre e opcionalmente provisione com credencial MQTT inicial."
+      />
       <ApiErrorMessage error={error} />
       <form onSubmit={handleSubmit} className="form-grid panel">
         <label>

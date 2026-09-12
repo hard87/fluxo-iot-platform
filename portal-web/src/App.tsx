@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { AppLayout } from "./components/AppLayout";
+import { AppShell } from "./components/AppShell";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./hooks/useAuth";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -12,6 +12,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { WorkspacePage } from "./pages/WorkspacePage";
 import { TelemetryExplorerPage } from "./pages/TelemetryExplorerPage";
+import { TelemetryRejectionsPage } from "./pages/TelemetryRejectionsPage";
 
 function HomeRedirect() {
   const { isAuthenticated } = useAuth();
@@ -26,18 +27,18 @@ export function App() {
       <Route path="/register" element={<RegisterPage />} />
 
       <Route element={<ProtectedRoute />}>
-        <Route element={<AppLayout />}>
+        <Route element={<AppShell />}>
           <Route path="/workspaces" element={<WorkspacePage />} />
           <Route path="/workspaces/:workspaceId/dashboard" element={<DashboardPage />} />
           <Route path="/workspaces/:workspaceId/devices" element={<DevicesPage />} />
           <Route path="/workspaces/:workspaceId/devices/new" element={<NewDevicePage />} />
           <Route path="/workspaces/:workspaceId/devices/:deviceId" element={<DeviceDetailsPage />} />
           <Route path="/workspaces/:workspaceId/explorer" element={<TelemetryExplorerPage />} />
+          <Route path="/workspaces/:workspaceId/rejections" element={<TelemetryRejectionsPage />} />
           <Route path="/status" element={<HealthPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>
-
-      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

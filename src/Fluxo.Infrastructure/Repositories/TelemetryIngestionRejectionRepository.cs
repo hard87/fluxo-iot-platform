@@ -37,6 +37,34 @@ public class TelemetryIngestionRejectionRepository : ITelemetryIngestionRejectio
                 cancellationToken);
     }
 
+    public async Task<(IReadOnlyList<TelemetryIngestionRejectionRecord> Items, long TotalCount)> ListByTenantWorkspaceAsync(
+        string tenantId,
+        Guid workspaceId,
+        int page,
+        int pageSize,
+        string? search,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedTenantId = Device.NormalizeTenantId(tenantId);
+        var query = _context.TelemetryIngestionRejectionRecords.AsNoTracking()
+            .Where(x => x.TenantId == normalizedTenantId && x.WorkspaceId == workspaceId);
+
+        var normalizedSearch = search?.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedSearch))
+            query = query.Where(x =>
+                x.Topic.Contains(normalizedSearch) ||
+                x.Reason.Contains(normalizedSearch) ||
+                (x.DeviceId != null && x.DeviceId.Contains(normalizedSearch)) ||
+                (x.MessageType != null && x.MessageType.Contains(normalizedSearch)));
+
+        var total = await query.LongCountAsync(cancellationToken);
+        var items = await query.OrderByDescending(x => x.ReceivedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+        return (items, total);
+    }
+
     public async Task<IReadOnlyList<TelemetryIngestionRejectionRecord>> GetReprocessableBatchAsync(
         IReadOnlyCollection<TelemetryIngestionFailureType> errorTypes,
         int maxAttempts,

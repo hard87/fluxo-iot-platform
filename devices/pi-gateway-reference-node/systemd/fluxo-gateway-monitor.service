@@ -1,0 +1,24 @@
+[Unit]
+Description=Fluxo gateway operational monitor
+After=nodered.service
+Wants=nodered.service
+
+[Service]
+Type=simple
+User=junior
+Group=junior
+WorkingDirectory=/home/junior/.node-red/fluxo-gateway
+Environment=FLUXO_MONITOR_INTERVAL_SECONDS=900
+EnvironmentFile=-/home/junior/.node-red/environment
+ExecStart=/home/junior/.node-red/fluxo-gateway/scripts/monitor-continuous.sh
+Restart=always
+RestartSec=30
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/junior/.node-red/fluxo-gateway/state
+
+[Install]
+WantedBy=multi-user.target

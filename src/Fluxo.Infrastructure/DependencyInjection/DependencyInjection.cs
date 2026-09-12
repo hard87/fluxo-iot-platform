@@ -41,6 +41,15 @@ public static class DependencyInjection
                 : new EfTelemetryPointWriter(provider.GetRequiredService<FluxoDbContext>()));
         services.AddSingleton<IMetricDefinitionCache, MetricDefinitionCache>();
         services.AddScoped<ITelemetryIngestionRejectionRepository, TelemetryIngestionRejectionRepository>();
+        services.AddScoped<Fluxo.Application.UseCases.Portal.GetAuthorizedWorkspaceUseCase>();
+        services.AddScoped<Fluxo.Application.Alerts.IAlertManagement, Alerts.AlertManagement>();
+        services.AddScoped<Alerts.AlertEvaluationEngine>();
+        services.AddOptions<Fluxo.Application.Alerts.AlertEvaluationOptions>()
+            .Bind(configuration.GetSection("AlertEvaluation"))
+            .Validate(x => x.WorkItemLeaseSeconds > 0 && x.MaxAttempts > 0 && x.MaxAttempts <= 100 &&
+                x.RetryBaseSeconds > 0 && x.DefaultExpectedIntervalSec > 0 && x.PollIntervalMilliseconds >= 10,
+                "Alert evaluation settings must be positive; MaxAttempts <= 100 and PollIntervalMilliseconds >= 10.")
+            .ValidateOnStart();
 
         AddMqttDynamicSecurity(services, configuration);
 

@@ -20,17 +20,19 @@ public sealed class StatusController : ControllerBase
     public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
         var health = await _healthCheckService.CheckHealthAsync(cancellationToken);
+        var checkedAtUtc = DateTime.UtcNow;
 
         var response = new
         {
             status = health.Status.ToString(),
-            checkedAtUtc = DateTime.UtcNow,
+            checkedAtUtc,
             components = health.Entries.Select(entry => new
             {
                 name = entry.Key,
                 status = entry.Value.Status.ToString(),
                 durationMs = entry.Value.Duration.TotalMilliseconds,
-                description = entry.Value.Description
+                description = entry.Value.Description,
+                lastCheckedUtc = checkedAtUtc
             })
         };
 

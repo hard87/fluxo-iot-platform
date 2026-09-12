@@ -1,0 +1,58 @@
+# Disposable PostgreSQL for automated tests -- DURABILITY profile.
+#
+# Separate file, separate compose project, separate container and port from the
+# transactional profile, so the two never interfere and a `down` on one cannot reach the
+# other.
+#
+# VALID FOR:   crash recovery, restart survival, "crash between persist and send",
+#              write-ahead-log behaviour, anything asserting that a committed transaction is
+#              still there after the server dies.
+# WHY IT DIFFERS: fsync, synchronous_commit and full_page_writes are ON and the data
+#              directory is a real named volume scoped to this compose project. The
+#              transactional profile turns all of that off and stores data in RAM, which
+#              would make every durability assertion vacuously wrong.
+#
+# The volume is project-scoped (fluxo-tests-durability_postgres_data) and shares nothing
+# with the pilot's fluxo_postgres_data. Drive it through scripts/tests/start-test-postgres.ps1
+# -Profile durability, which pins the project name.
+#
+# Credentials are local-only test values on a loopback-bound container.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fluxo-tests-postgres-durability
+    # Must not come back on its own when the Docker daemon starts. Crash tests stop this
+    # container deliberately; an automatic restart would mask the very failure under test.
+    restart: "no"
+    environment:
+      POSTGRES_DB: fluxo_test_admin
+      POSTGRES_USER: fluxo_test
+      POSTGRES_PASSWORD: fluxo_test_local_only
+      # No --nosync here on purpose: initdb must lay the cluster down durably.
+    ports:
+      - "127.0.0.1:55433:5432"
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d:ro
+      - postgres_data:/var/lib/postgresql/data
+    command:
+      - postgres
+      - -c
+      - fsync=on
+      - -c
+      - synchronous_commit=on
+      - -c
+      - full_page_writes=on
+      - -c
+      - max_connections=200
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U fluxo_test -d fluxo_test_admin"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+volumes:
+  # Named, so data survives a container restart -- the point of this profile. Prefixed by the
+  # compose project (fluxo-tests-durability), never colliding with the pilot's volume.
+  postgres_data:

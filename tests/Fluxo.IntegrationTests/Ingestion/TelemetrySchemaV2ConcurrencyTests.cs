@@ -1,10 +1,11 @@
-using Fluxo.Application.Interfaces.Repositories;
+﻿using Fluxo.Application.Interfaces.Repositories;
 using Fluxo.Domain.Entities;
 using Fluxo.Domain.Exceptions;
 using Fluxo.Domain.Models;
 using Fluxo.Domain.Enums;
 using Fluxo.Infrastructure.Data;
 using Fluxo.Infrastructure.Repositories;
+using Fluxo.IntegrationTests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Microsoft.Extensions.Options;
@@ -17,7 +18,7 @@ namespace Fluxo.IntegrationTests.Ingestion;
 
 public sealed class TelemetrySchemaV2ConcurrencyTests
 {
-    [Fact]
+    [SkippableFact]
     public async Task SameDevice_ConcurrentDiscoveries_AcceptsExactlyTwenty()
     {
         await WithDatabaseAsync(async cs =>
@@ -42,7 +43,7 @@ public sealed class TelemetrySchemaV2ConcurrencyTests
         });
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task DifferentDevices_SameNewKey_ConvergeWithoutDuplicateClassification()
     {
         await WithDatabaseAsync(async cs =>
@@ -64,7 +65,7 @@ public sealed class TelemetrySchemaV2ConcurrencyTests
         });
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task WriterFailure_RollsBackEntireIngestionUnit()
     {
         await WithDatabaseAsync(async cs =>
@@ -84,7 +85,7 @@ public sealed class TelemetrySchemaV2ConcurrencyTests
         });
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task BinaryCopyFailure_RollsBackEntireIngestionUnit()
     {
         await WithDatabaseAsync(async cs =>
@@ -106,7 +107,7 @@ public sealed class TelemetrySchemaV2ConcurrencyTests
         });
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task WorkspaceLimit_AllowsFiveHundredthAndExistingButRejectsNewAtomically()
     {
         await WithDatabaseAsync(async cs =>
@@ -135,7 +136,7 @@ public sealed class TelemetrySchemaV2ConcurrencyTests
         });
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task DiscoveryWindow_UsesDatabaseCurrentTimestamp()
     {
         await WithDatabaseAsync(async cs =>
@@ -162,7 +163,7 @@ public sealed class TelemetrySchemaV2ConcurrencyTests
         });
     }
 
-    [Theory]
+    [SkippableTheory]
     [InlineData(MetricValueType.Numeric, MetricValueType.Boolean)]
     [InlineData(MetricValueType.Numeric, MetricValueType.Text)]
     [InlineData(MetricValueType.Boolean, MetricValueType.Numeric)]
@@ -198,7 +199,7 @@ public sealed class TelemetrySchemaV2ConcurrencyTests
         });
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task PartitionMaintenance_IsConcurrentIdempotent_AndHealthReflectsDatabase()
     {
         await WithDatabaseAsync(async cs =>
@@ -240,7 +241,7 @@ public sealed class TelemetrySchemaV2ConcurrencyTests
         });
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task PartitionMaintenance_ControlledFailure_TransitionsHealthToUnhealthy()
     {
         await WithDatabaseAsync(async cs =>
@@ -290,18 +291,15 @@ public sealed class TelemetrySchemaV2ConcurrencyTests
 
     private static async Task WithDatabaseAsync(Func<string, Task> test)
     {
-        var admin = Environment.GetEnvironmentVariable("FLUXO_TESTS_POSTGRES_ADMIN_CONNECTION");
-        if (string.IsNullOrWhiteSpace(admin)) return;
-        var name = $"fluxo_v2_{Guid.NewGuid():N}"; var adminBuilder = new NpgsqlConnectionStringBuilder(admin);
-        await using (var connection = new NpgsqlConnection(adminBuilder.ConnectionString))
-        { await connection.OpenAsync(); await using var command = new NpgsqlCommand($"CREATE DATABASE \"{name}\"", connection); await command.ExecuteNonQueryAsync(); }
-        var testBuilder = new NpgsqlConnectionStringBuilder(admin) { Database = name };
-        try { await using var db = CreateContext(testBuilder.ConnectionString); await db.Database.MigrateAsync(); await test(testBuilder.ConnectionString); }
-        finally
+        DisposableTestDatabase.SkipUnlessAvailable();
+        await DisposableTestDatabase.WithDatabaseAsync("v2", async connectionString =>
         {
-            await using var connection = new NpgsqlConnection(adminBuilder.ConnectionString); await connection.OpenAsync();
-            await using var terminate = new NpgsqlCommand($"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='{name}' AND pid<>pg_backend_pid()", connection); await terminate.ExecuteNonQueryAsync();
-            await using var drop = new NpgsqlCommand($"DROP DATABASE IF EXISTS \"{name}\"", connection); await drop.ExecuteNonQueryAsync();
-        }
+            await using (var db = CreateContext(connectionString))
+            {
+                await db.Database.MigrateAsync();
+            }
+
+            await test(connectionString);
+        });
     }
 }

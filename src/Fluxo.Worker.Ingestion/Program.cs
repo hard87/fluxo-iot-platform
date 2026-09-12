@@ -17,6 +17,7 @@ builder.Services.AddScoped<ITelemetryIngestionProcessor, TelemetryIngestionProce
 builder.Services.AddSingleton<IIngestionMetrics, IngestionMetrics>();
 builder.Services.AddHostedService<MqttTelemetryIngestionWorker>();
 builder.Services.AddHostedService<RejectionReprocessingWorker>();
+builder.Services.AddHostedService<AlertEvaluationWorker>();
 builder.Services.AddSingleton<TelemetryPartitionState>();
 builder.Services.AddHostedService<TelemetryPartitionMaintenanceService>();
 builder.Services.AddHealthChecks().AddCheck<TelemetryPartitionHealthCheck>("telemetry_partitions");

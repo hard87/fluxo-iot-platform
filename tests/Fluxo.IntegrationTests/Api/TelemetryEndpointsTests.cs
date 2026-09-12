@@ -6,6 +6,7 @@ using Fluxo.Application.DTOs.Devices;
 using Fluxo.Application.DTOs.Telemetry;
 using Fluxo.Application.DTOs.Workspaces;
 using Fluxo.Domain.Enums;
+using Fluxo.IntegrationTests.Infrastructure;
 
 namespace Fluxo.IntegrationTests.Api;
 
@@ -104,7 +105,7 @@ public class TelemetryEndpointsTests : IClassFixture<FluxoWebApplicationFactory>
         var response = await _client.PostAsJsonAsync("/api/devices", request);
         response.EnsureSuccessStatusCode();
 
-        var payload = await response.Content.ReadFromJsonAsync<DeviceResponse>();
+        var payload = await response.Content.ReadFromJsonAsync<DeviceResponse>(TestJsonOptions.Default);
         return payload!.Id;
     }
 

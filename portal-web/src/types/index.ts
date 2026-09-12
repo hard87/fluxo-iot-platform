@@ -36,7 +36,7 @@ export interface Workspace {
   id: string;
   tenantId: string;
   name: string;
-  role: "Owner" | "Admin" | "Viewer";
+  role: "Owner" | "Admin" | "Viewer" | 1 | 2 | 3;
   createdAtUtc: string;
 }
 
@@ -129,11 +129,33 @@ export interface DashboardResponse {
   messagesRejected: number;
 }
 
+export interface TelemetryRejectionItem {
+  id: string;
+  receivedAtUtc: string;
+  topic: string;
+  payloadPreview: string;
+  errorType: string;
+  reason: string;
+  deviceId?: string | null;
+  messageType?: string | null;
+  sequence?: number | null;
+  reprocessed: boolean;
+  reprocessAttempts: number;
+}
+
+export interface TelemetryRejectionPage {
+  items: TelemetryRejectionItem[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
 export interface StatusComponent {
   name: string;
   status: string;
   durationMs: number;
   description?: string;
+  lastCheckedUtc: string;
 }
 
 export interface PlatformStatusResponse {

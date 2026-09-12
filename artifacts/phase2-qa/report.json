@@ -1,0 +1,202 @@
+[
+  {
+    "width": 360,
+    "height": 800,
+    "route": "/workspaces",
+    "screenshot": "360-workspaces.png",
+    "innerWidth": 360,
+    "scrollWidth": 360,
+    "title": "Workspaces",
+    "errors": []
+  },
+  {
+    "width": 360,
+    "height": 800,
+    "route": "/workspaces/44babeb0-7f43-4619-83f7-6fce5ddd43c5/dashboard",
+    "screenshot": "360-workspaces-44babeb0-7f43-4619-83f7-6fce5ddd43c5-dashboard.png",
+    "innerWidth": 360,
+    "scrollWidth": 360,
+    "title": "Dashboard do workspace",
+    "errors": []
+  },
+  {
+    "width": 360,
+    "height": 800,
+    "route": "/workspaces/44babeb0-7f43-4619-83f7-6fce5ddd43c5/devices",
+    "screenshot": "360-workspaces-44babeb0-7f43-4619-83f7-6fce5ddd43c5-devices.png",
+    "innerWidth": 360,
+    "scrollWidth": 360,
+    "title": "Dispositivos",
+    "errors": []
+  },
+  {
+    "width": 360,
+    "height": 800,
+    "route": "/workspaces/44babeb0-7f43-4619-83f7-6fce5ddd43c5/explorer",
+    "screenshot": "360-workspaces-44babeb0-7f43-4619-83f7-6fce5ddd43c5-explorer.png",
+    "innerWidth": 360,
+    "scrollWidth": 360,
+    "title": "Telemetry Explorer",
+    "errors": []
+  },
+  {
+    "width": 360,
+    "height": 800,
+    "route": "/status",
+    "screenshot": "360-status.png",
+    "innerWidth": 360,
+    "scrollWidth": 360,
+    "title": "Saude da plataforma",
+    "errors": []
+  },
+  {
+    "width": 768,
+    "height": 900,
+    "route": "/workspaces",
+    "screenshot": "768-workspaces.png",
+    "innerWidth": 768,
+    "scrollWidth": 768,
+    "title": "Workspaces",
+    "errors": []
+  },
+  {
+    "width": 768,
+    "height": 900,
+    "route": "/workspaces/44babeb0-7f43-4619-83f7-6fce5ddd43c5/dashboard",
+    "screenshot": "768-workspaces-44babeb0-7f43-4619-83f7-6fce5ddd43c5-dashboard.png",
+    "innerWidth": 768,
+    "scrollWidth": 768,
+    "title": "Dashboard do workspace",
+    "errors": []
+  },
+  {
+    "width": 768,
+    "height": 900,
+    "route": "/workspaces/44babeb0-7f43-4619-83f7-6fce5ddd43c5/devices",
+    "screenshot": "768-workspaces-44babeb0-7f43-4619-83f7-6fce5ddd43c5-devices.png",
+    "innerWidth": 768,
+    "scrollWidth": 768,
+    "title": "Dispositivos",
+    "errors": []
+  },
+  {
+    "width": 768,
+    "height": 900,
+    "route": "/workspaces/44babeb0-7f43-4619-83f7-6fce5ddd43c5/explorer",
+    "screenshot": "768-workspaces-44babeb0-7f43-4619-83f7-6fce5ddd43c5-explorer.png",
+    "innerWidth": 768,
+    "scrollWidth": 768,
+    "title": "Telemetry Explorer",
+    "errors": []
+  },
+  {
+    "width": 768,
+    "height": 900,
+    "route": "/status",
+    "screenshot": "768-status.png",
+    "innerWidth": 768,
+    "scrollWidth": 768,
+    "title": "Saude da plataforma",
+    "errors": []
+  },
+  {
+    "width": 1024,
+    "height": 900,
+    "route": "/workspaces",
+    "screenshot": "1024-workspaces.png",
+    "innerWidth": 1024,
+    "scrollWidth": 1024,
+    "title": "Workspaces",
+    "errors": []
+  },
+  {
+    "width": 1024,
+    "height": 900,
+    "route": "/workspaces/44babeb0-7f43-4619-83f7-6fce5ddd43c5/dashboard",
+    "screenshot": "1024-workspaces-44babeb0-7f43-4619-83f7-6fce5ddd43c5-dashboard.png",
+    "innerWidth": 1024,
+    "scrollWidth": 1024,
+    "title": "Dashboard do workspace",
+    "errors": []
+  },
+  {
+    "width": 1024,
+    "height": 900,
+    "route": "/workspaces/44babeb0-7f43-4619-83f7-6fce5ddd43c5/devices",
+    "screenshot": "1024-workspaces-44babeb0-7f43-4619-83f7-6fce5ddd43c5-devices.png",
+    "innerWidth": 1024,
+    "scrollWidth": 1024,
+    "title": "Dispositivos",
+    "errors": []
+  },
+  {
+    "width": 1024,
+    "height": 900,
+    "route": "/workspaces/44babeb0-7f43-4619-83f7-6fce5ddd43c5/explorer",
+    "screenshot": "1024-workspaces-44babeb0-7f43-4619-83f7-6fce5ddd43c5-explorer.png",
+    "innerWidth": 1024,
+    "scrollWidth": 1024,
+    "title": "Telemetry Explorer",
+    "errors": []
+  },
+  {
+    "width": 1024,
+    "height": 900,
+    "route": "/status",
+    "screenshot": "1024-status.png",
+    "innerWidth": 1024,
+    "scrollWidth": 1024,
+    "title": "Saude da plataforma",
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "height": 1000,
+    "route": "/workspaces",
+    "screenshot": "1440-workspaces.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "title": "Workspaces",
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "height": 1000,
+    "route": "/workspaces/44babeb0-7f43-4619-83f7-6fce5ddd43c5/dashboard",
+    "screenshot": "1440-workspaces-44babeb0-7f43-4619-83f7-6fce5ddd43c5-dashboard.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "title": "Dashboard do workspace",
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "height": 1000,
+    "route": "/workspaces/44babeb0-7f43-4619-83f7-6fce5ddd43c5/devices",
+    "screenshot": "1440-workspaces-44babeb0-7f43-4619-83f7-6fce5ddd43c5-devices.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "title": "Dispositivos",
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "height": 1000,
+    "route": "/workspaces/44babeb0-7f43-4619-83f7-6fce5ddd43c5/explorer",
+    "screenshot": "1440-workspaces-44babeb0-7f43-4619-83f7-6fce5ddd43c5-explorer.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "title": "Telemetry Explorer",
+    "errors": []
+  },
+  {
+    "width": 1440,
+    "height": 1000,
+    "route": "/status",
+    "screenshot": "1440-status.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "title": "Saude da plataforma",
+    "errors": []
+  }
+]

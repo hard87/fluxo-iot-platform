@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiErrorMessage } from "../components/ApiErrorMessage";
 import { DeviceStatusBadge } from "../components/DeviceStatusBadge";
+import { PageHeader } from "../components/PageHeader";
+import { Timestamp } from "../components/Timestamp";
+import { EmptyState, LoadingState } from "../components/feedback/FeedbackStates";
+import { DeviceOperationalOverview } from "../components/device/DeviceOperationalOverview";
 import { useAuth } from "../hooks/useAuth";
 import * as deviceService from "../services/api/deviceService";
 import type {
@@ -23,6 +27,7 @@ export function DeviceDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [rotating, setRotating] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const [view, setView] = useState<"overview" | "details">("overview");
 
   useEffect(() => {
     if (!token || !workspaceId || !deviceId) {
@@ -93,10 +98,18 @@ export function DeviceDetailsPage() {
 
   return (
     <section>
-      <h1>Detalhes do dispositivo</h1>
+      <PageHeader
+        title="Dispositivo"
+        description="Acompanhe o estado operacional ou consulte os detalhes de provisionamento."
+        actions={<div className="view-tabs" role="tablist" aria-label="Visualização do dispositivo">
+          <button type="button" role="tab" aria-selected={view === "overview"} onClick={() => setView("overview")}>Visão operacional</button>
+          <button type="button" role="tab" aria-selected={view === "details"} onClick={() => setView("details")}>Detalhes</button>
+        </div>}
+      />
       <ApiErrorMessage error={error} />
-      {loading ? <p>Carregando...</p> : null}
-      {device ? (
+      {loading ? <LoadingState compact title="Carregando dispositivo" /> : null}
+      {device && view === "overview" && token && workspaceId ? <DeviceOperationalOverview device={device} telemetry={telemetry} token={token} workspaceId={workspaceId} /> : null}
+      {device && view === "details" ? (
         <article className="panel">
           <h2>{device.name}</h2>
           <p>
@@ -106,26 +119,32 @@ export function DeviceDetailsPage() {
             <strong>Status:</strong> <DeviceStatusBadge status={device.operationalStatus} />
           </p>
           <p>
-            <strong>Ultimo contato:</strong> {device.lastContactAtUtc ?? "Sem contato"}
+            <strong>Último contato:</strong>{" "}
+            {device.lastContactAtUtc ? <Timestamp value={device.lastContactAtUtc} /> : "Sem contato"}
           </p>
           <p>
-            <strong>Ultima telemetria:</strong> {device.lastTelemetryReceivedAtUtc ?? "Sem telemetria"}
+            <strong>Última telemetria:</strong>{" "}
+            {device.lastTelemetryReceivedAtUtc ? (
+              <Timestamp value={device.lastTelemetryReceivedAtUtc} />
+            ) : (
+              "Sem telemetria"
+            )}
           </p>
           <p>
-            <strong>Ultimo payload:</strong>
+            <strong>Último payload:</strong>
           </p>
           <pre>{safeJsonPreview(device.lastTelemetryPayloadJson)}</pre>
         </article>
       ) : null}
 
-      {provisioning ? (
+      {provisioning && view === "details" ? (
         <article className="panel">
           <h2>Provisionamento</h2>
           <p>
-            <strong>Username ativo:</strong> {provisioning.activeCredentialUsername ?? "Nao disponivel"}
+            <strong>Usuário ativo:</strong> {provisioning.activeCredentialUsername ?? "Não disponível"}
           </p>
           <p>
-            <strong>Topico MQTT:</strong> <code>{provisioning.mqttPublishTopic}</code>
+            <strong>Tópico MQTT:</strong> <code>{provisioning.mqttPublishTopic}</code>
           </p>
           <button type="button" onClick={handleRotateCredential} disabled={rotating}>
             {rotating ? "Rotacionando..." : "Rotacionar credencial"}
@@ -133,7 +152,7 @@ export function DeviceDetailsPage() {
         </article>
       ) : null}
 
-      {rotatedCredential ? (
+      {rotatedCredential && view === "details" ? (
         <article className="panel success-box">
           <h2>Nova credencial gerada (mostrar uma unica vez)</h2>
           <p>
@@ -145,21 +164,32 @@ export function DeviceDetailsPage() {
         </article>
       ) : null}
 
-      <article className="panel">
-        <h2>Ultimas telemetrias</h2>
-        {telemetry.length === 0 ? <p>Sem telemetria registrada.</p> : null}
-        <ul className="list">
-          {telemetry.map((item) => (
-            <li key={item.id} className="list-item telemetry-item">
-              <div>
-                <strong>{item.occurredAtUtc}</strong>
-                <p className="muted">Ingerido em {item.ingestedAtUtc}</p>
-                <pre>{safeJsonPreview(item.payloadJson)}</pre>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </article>
+      {view === "details" ? <article className="panel">
+        <h2>Últimas telemetrias</h2>
+        {telemetry.length === 0 ? (
+          <EmptyState
+            compact
+            title="Sem telemetria registrada"
+            description="Este dispositivo ainda não enviou dados de telemetria."
+          />
+        ) : (
+          <ul className="list">
+            {telemetry.map((item) => (
+              <li key={item.id} className="list-item telemetry-item">
+                <div>
+                  <strong>
+                    <Timestamp value={item.occurredAtUtc} />
+                  </strong>
+                  <p className="muted">
+                    Ingerido em <Timestamp value={item.ingestedAtUtc} />
+                  </p>
+                  <pre>{safeJsonPreview(item.payloadJson)}</pre>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </article> : null}
 
       {workspaceId ? (
         <p>

@@ -2,12 +2,12 @@ using Fluxo.Domain.Entities;
 using Fluxo.Domain.Enums;
 using Fluxo.Infrastructure.Data;
 using Fluxo.Infrastructure.Repositories;
+using Fluxo.IntegrationTests.Infrastructure;
 using Fluxo.Worker.Ingestion.Options;
 using Fluxo.Worker.Ingestion.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Npgsql;
 
 namespace Fluxo.IntegrationTests.Ingestion;
 
@@ -16,26 +16,15 @@ public class TelemetryIngestionPostgreSqlTests
     private static readonly ILogger<TelemetryIngestionProcessor> Logger =
         LoggerFactory.Create(_ => { }).CreateLogger<TelemetryIngestionProcessor>();
 
-    [Fact]
+    [SkippableFact]
     public async Task Processor_Should_Persist_Handle_Duplicate_And_Record_Rejections_On_PostgreSql()
     {
-        var adminConnection = ResolveAdminConnectionString();
-        if (string.IsNullOrWhiteSpace(adminConnection))
-            return;
+        DisposableTestDatabase.SkipUnlessAvailable();
 
-        var databaseName = $"fluxo_it_{Guid.NewGuid():N}";
-        var adminBuilder = new NpgsqlConnectionStringBuilder(adminConnection);
-        var testBuilder = new NpgsqlConnectionStringBuilder(adminConnection)
-        {
-            Database = databaseName
-        };
-
-        await CreateDatabaseAsync(adminBuilder.ConnectionString, databaseName);
-
-        try
+        await DisposableTestDatabase.WithDatabaseAsync("it", async connectionString =>
         {
             var options = new DbContextOptionsBuilder<FluxoDbContext>()
-                .UseNpgsql(testBuilder.ConnectionString)
+                .UseNpgsql(connectionString)
                 .Options;
 
             await using var context = new FluxoDbContext(options);
@@ -101,44 +90,7 @@ public class TelemetryIngestionPostgreSqlTests
             var refreshedDevice = await context.Devices.AsNoTracking().SingleAsync(x => x.Id == device.Id);
             Assert.NotNull(refreshedDevice.LastContactAtUtc);
             Assert.Equal(101, refreshedDevice.LastTelemetrySequence);
-        }
-        finally
-        {
-            await DropDatabaseAsync(adminBuilder.ConnectionString, databaseName);
-        }
-    }
-
-    private static async Task CreateDatabaseAsync(string adminConnectionString, string databaseName)
-    {
-        await using var connection = new NpgsqlConnection(adminConnectionString);
-        await connection.OpenAsync();
-
-        await using var command = connection.CreateCommand();
-        command.CommandText = $"CREATE DATABASE \"{databaseName}\"";
-        await command.ExecuteNonQueryAsync();
-    }
-
-    private static async Task DropDatabaseAsync(string adminConnectionString, string databaseName)
-    {
-        await using var connection = new NpgsqlConnection(adminConnectionString);
-        await connection.OpenAsync();
-
-        await using var terminateCommand = connection.CreateCommand();
-        terminateCommand.CommandText = $@"
-SELECT pg_terminate_backend(pid)
-FROM pg_stat_activity
-WHERE datname = '{databaseName}'
-  AND pid <> pg_backend_pid();";
-        await terminateCommand.ExecuteNonQueryAsync();
-
-        await using var dropCommand = connection.CreateCommand();
-        dropCommand.CommandText = $"DROP DATABASE IF EXISTS \"{databaseName}\"";
-        await dropCommand.ExecuteNonQueryAsync();
-    }
-
-    private static string? ResolveAdminConnectionString()
-    {
-        return Environment.GetEnvironmentVariable("FLUXO_TESTS_POSTGRES_ADMIN_CONNECTION");
+        });
     }
 
     private static string BuildPayload(string deviceId, long sequence)

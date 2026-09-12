@@ -17,10 +17,459 @@ namespace Fluxo.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.6")
+                .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertAcknowledgement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("WorkspaceId", "Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("EventId", "AuthorId")
+                        .IsUnique();
+
+                    b.HasIndex("WorkspaceId", "EventId");
+
+                    b.ToTable("alert_acknowledgements", (string)null);
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertDeliveryIntent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TransitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("WorkspaceId", "Id");
+
+                    b.HasIndex("TransitionId")
+                        .IsUnique();
+
+                    b.HasIndex("WorkspaceId", "TransitionId");
+
+                    b.ToTable("alert_delivery_intents", (string)null);
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertDeviceCoordination", b =>
+                {
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DeviceIdentifier")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<long>("NextOrder")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("WorkspaceId", "DeviceIdentifier");
+
+                    b.ToTable("alert_device_coordination", (string)null);
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertEvaluationAttempt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ClaimedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DeviceIdentifier")
+                        .IsRequired()
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<Guid?>("LeaseToken")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("LeaseUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("QueueOrder")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("RevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RuleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("WorkItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("WorkspaceId", "Id");
+
+                    b.HasIndex("Status", "NextAttemptAtUtc", "LeaseUntilUtc");
+
+                    b.HasIndex("WorkItemId", "RuleId", "RevisionId")
+                        .IsUnique();
+
+                    b.HasIndex("WorkspaceId", "RuleId", "RevisionId");
+
+                    b.HasIndex("WorkspaceId", "DeviceIdentifier", "QueueOrder", "WorkItemId");
+
+                    b.HasIndex("WorkspaceId", "DeviceIdentifier", "RuleId", "QueueOrder");
+
+                    b.ToTable("alert_evaluation_attempts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_alert_attempt_status", "\"Status\" IN ('Pending','Claimed','Completed','Failed','DeadLetter','Skipped')");
+                        });
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertEvaluationWorkItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeviceIdentifier")
+                        .IsRequired()
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<Guid>("IngestionRecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("QueueOrder")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("WorkspaceId", "Id");
+
+                    b.HasIndex("WorkspaceId", "IngestionRecordId")
+                        .IsUnique();
+
+                    b.HasIndex("WorkspaceId", "DeviceIdentifier", "IngestionRecordId");
+
+                    b.HasIndex("WorkspaceId", "DeviceIdentifier", "QueueOrder")
+                        .IsUnique();
+
+                    b.ToTable("alert_evaluation_work_items", (string)null);
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DeviceIdentifier")
+                        .IsRequired()
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("RevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RuleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("TriggeredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkspaceId", "DeviceIdentifier");
+
+                    b.HasIndex("WorkspaceId", "RuleId", "DeviceIdentifier")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 'Firing'");
+
+                    b.HasIndex("WorkspaceId", "RuleId", "RevisionId");
+
+                    b.ToTable("alert_events", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_alert_event_status", "\"Status\" IN ('Firing','Resolved','Closed')");
+                        });
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertEventTransition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool?>("BooleanValue")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("EvaluatorVersion")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("IngestionRecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double?>("NumericValue")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("RecordedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId", "Ordinal")
+                        .IsUnique();
+
+                    b.HasIndex("WorkspaceId", "EventId");
+
+                    b.HasIndex("WorkspaceId", "IngestionRecordId");
+
+                    b.ToTable("alert_event_transitions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_alert_transition_kind", "\"Kind\" IN ('Firing','Resolved','Closed')");
+                        });
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CurrentRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkspaceId", "Id", "CurrentRevisionId");
+
+                    b.ToTable("alert_rules", (string)null);
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertRuleRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ActivatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CooldownSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeviceIdentifier")
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<int>("DurationSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("ExpectedIntervalSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("Hysteresis")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid>("MetricDefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Operator")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("RuleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double?>("Threshold")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("ThresholdHigh")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Unit")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ValueType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("WorkspaceId", "Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("WorkspaceId", "DeviceIdentifier");
+
+                    b.HasIndex("WorkspaceId", "MetricDefinitionId");
+
+                    b.HasIndex("WorkspaceId", "RuleId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("alert_rule_revisions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_alert_revision_parameters", "\"DurationSeconds\" >= 0 AND \"CooldownSeconds\" >= 0 AND \"ExpectedIntervalSeconds\" > 0 AND \"Hysteresis\" >= 0 AND \"Version\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertRuleState", b =>
+                {
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RuleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DeviceIdentifier")
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<Guid?>("ActiveEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("FirstViolationAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool?>("LastBooleanValue")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("LastIngestionRecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("LastNumericValue")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("LastObservedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("LastSequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("LastTriggeredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RevisionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("WorkspaceId", "RuleId", "DeviceIdentifier");
+
+                    b.HasIndex("WorkspaceId", "DeviceIdentifier");
+
+                    b.HasIndex("WorkspaceId", "RuleId", "RevisionId");
+
+                    b.HasIndex("WorkspaceId", "RuleId", "DeviceIdentifier", "ActiveEventId");
+
+                    b.ToTable("alert_rule_states", (string)null);
+                });
 
             modelBuilder.Entity("Fluxo.Domain.Entities.Device", b =>
                 {
@@ -594,6 +1043,165 @@ namespace Fluxo.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("workspace_memberships", (string)null);
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertAcknowledgement", b =>
+                {
+                    b.HasOne("Fluxo.Domain.Entities.PlatformUser", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fluxo.Domain.Alerts.AlertEvent", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "EventId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertDeliveryIntent", b =>
+                {
+                    b.HasOne("Fluxo.Domain.Alerts.AlertEventTransition", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "TransitionId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertEvaluationAttempt", b =>
+                {
+                    b.HasOne("Fluxo.Domain.Alerts.AlertRuleRevision", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "RuleId", "RevisionId")
+                        .HasPrincipalKey("WorkspaceId", "RuleId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fluxo.Domain.Alerts.AlertEvaluationWorkItem", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "DeviceIdentifier", "QueueOrder", "WorkItemId")
+                        .HasPrincipalKey("WorkspaceId", "DeviceIdentifier", "QueueOrder", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertEvaluationWorkItem", b =>
+                {
+                    b.HasOne("Fluxo.Domain.Alerts.AlertDeviceCoordination", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "DeviceIdentifier")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fluxo.Domain.Entities.TelemetryIngestionRecord", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "DeviceIdentifier", "IngestionRecordId")
+                        .HasPrincipalKey("WorkspaceId", "DeviceId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertEvent", b =>
+                {
+                    b.HasOne("Fluxo.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "DeviceIdentifier")
+                        .HasPrincipalKey("WorkspaceId", "Identifier")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fluxo.Domain.Alerts.AlertRuleRevision", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "RuleId", "RevisionId")
+                        .HasPrincipalKey("WorkspaceId", "RuleId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertEventTransition", b =>
+                {
+                    b.HasOne("Fluxo.Domain.Alerts.AlertEvent", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "EventId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fluxo.Domain.Entities.TelemetryIngestionRecord", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "IngestionRecordId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertRule", b =>
+                {
+                    b.HasOne("Fluxo.Domain.Entities.Workspace", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fluxo.Domain.Alerts.AlertRuleRevision", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "Id", "CurrentRevisionId")
+                        .HasPrincipalKey("WorkspaceId", "RuleId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertRuleRevision", b =>
+                {
+                    b.HasOne("Fluxo.Domain.Entities.PlatformUser", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fluxo.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "DeviceIdentifier")
+                        .HasPrincipalKey("WorkspaceId", "Identifier")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Fluxo.Domain.Entities.MetricDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "MetricDefinitionId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fluxo.Domain.Alerts.AlertRule", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "RuleId")
+                        .HasPrincipalKey("WorkspaceId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Fluxo.Domain.Alerts.AlertRuleState", b =>
+                {
+                    b.HasOne("Fluxo.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "DeviceIdentifier")
+                        .HasPrincipalKey("WorkspaceId", "Identifier")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fluxo.Domain.Alerts.AlertRuleRevision", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "RuleId", "RevisionId")
+                        .HasPrincipalKey("WorkspaceId", "RuleId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fluxo.Domain.Alerts.AlertEvent", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId", "RuleId", "DeviceIdentifier", "ActiveEventId")
+                        .HasPrincipalKey("WorkspaceId", "RuleId", "DeviceIdentifier", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Fluxo.Domain.Entities.DeviceCredential", b =>

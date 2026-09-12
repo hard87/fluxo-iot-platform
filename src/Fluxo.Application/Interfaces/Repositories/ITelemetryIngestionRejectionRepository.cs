@@ -14,6 +14,14 @@ public interface ITelemetryIngestionRejectionRepository
         Guid workspaceId,
         CancellationToken cancellationToken = default);
 
+    Task<(IReadOnlyList<TelemetryIngestionRejectionRecord> Items, long TotalCount)> ListByTenantWorkspaceAsync(
+        string tenantId,
+        Guid workspaceId,
+        int page,
+        int pageSize,
+        string? search,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<TelemetryIngestionRejectionRecord>> GetReprocessableBatchAsync(
         IReadOnlyCollection<TelemetryIngestionFailureType> errorTypes,
         int maxAttempts,
