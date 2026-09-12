@@ -37,10 +37,19 @@ aberto quando não há evidência executada; validação de Compose não prova o
 - [x] Concorrência do guardrail e corrida cross-device/same-key validadas em PostgreSQL.
 - [x] Gate dense CPU normalizado aprovado: 1,0801 cores em budget de 2 cores = 54,01%. (Ver [benchmark normalizado](benchmarks/phase1-normalized-2026-07-11.md).)
 - [x] `npm run build` executado. (2026-07-12: inclui `tsc --noEmit`; Vite verde.)
-- [x] `npm audit --omit=dev` executado sem vulnerabilidades de produção. (2026-07-12.)
+- [x] `npm audit --omit=dev` executado sem vulnerabilidades de produção. (2026-07-12; revalidação
+      de 2026-09-06 encontrou 2 vulnerabilidades moderadas no React Router — correção exige
+      migração breaking para 7.x, ainda não tratada; ver riscos ativos em
+      [project-status.md](project-status.md).)
 - [x] `docker compose config` validado para desenvolvimento. (2026-07-12.)
 - [x] `docker compose -f docker-compose.controlled-prod.yml config` validado. (2026-07-12; não comprova TLS ou health checks operacionais.)
 - [x] Telemetry Query API e Telemetry Explorer: 71 testes unitários, 40 de integração e 5 de componente verdes; Q1–Q7 em 5.115.083 pontos. (2026-07-12.)
+- [x] Teste de contrato JSON (`JsonContractTests`) validado contra o formato real enviado pelo
+      navegador (JSON cru), não o objeto C# tipado que os demais testes de integração usam. Pegou
+      e corrigiu um bug real: cadastro de device era impossível pelo portal. (2026-09-12.)
+- [x] Suite E2E (Playwright) cobrindo os golden paths — registro, login, criação de workspace,
+      provisionamento de device, persistência de sessão no reload, página de rejeições, rota
+      inexistente — rodando automaticamente como check obrigatório no CI. (2026-09-12.)
 
 ## Devices
 

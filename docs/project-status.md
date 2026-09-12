@@ -127,7 +127,7 @@ A fonte autoritativa dos checkboxes é o [checklist de produção controlada](ch
   disponível exige migração breaking para 7.x e deve ser tratada em trabalho próprio.
 - Recharts 2.x requer decisão futura explícita antes de eventual migração.
 - Google Font externa bloqueada pela CSP, com fallback local.
-- Sessão em memória perdida no refresh.
+- ~~Sessão em memória perdida no refresh.~~ Corrigido em 12/09/2026 — ver atividade recente (2.1).
 
 ## 8. Documentos normativos
 
