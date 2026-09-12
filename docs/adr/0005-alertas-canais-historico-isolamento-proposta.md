@@ -2,6 +2,11 @@
 
 Data: 2026-09-05. Status: Proposto. Complementa o ADR-0002; não o substitui integralmente.
 
+**Atualização de autoridade — 06/09/2026:** após aprovar o encerramento da Etapa 1, o operador
+autorizou explicitamente a Etapa 2 e a consolidação das decisões aplicáveis abaixo. O registro
+original de proposta é preservado. Estado atual: **aceito para o núcleo backend da Etapa 2**;
+canais/transportes/interface permanecem dependentes da aprovação da Etapa 3.
+
 ## Contexto
 
 O responsável pelo produto definiu portal e e-mail como canais nativos configuráveis. O ADR-0002 descreve entrega específica por webhook e contém pontos que precisam ser fechados antes da implementação. A [especificação consolidada](../product/alertas-especificacao.md) define o comportamento proposto.
@@ -87,6 +92,45 @@ Custos: novas entidades, fan-out de avaliações, serialização por dispositivo
 Antes da Etapa 2 (motor): aceitar este ADR, mapear o modelo real de acesso, registrar a semântica de dados atrasados e estabelecer baseline isolado. Antes da Etapa 3 (canais): verificar o estado de verificação de e-mail e definir seu fluxo, além de selecionar/configurar o transporte. Verificação de e-mail não bloqueia o desenvolvimento isolado do motor. Antes de liberar: cumprir a matriz de aceite da especificação, testar migração/rollback, falha e concorrência e validar quotas/retenção. Não executar ensaios na stack ativa do piloto.
 
 ## Referências
+
+## Consolidação para a Etapa 2 — 06/09/2026
+
+- Aplicam-se revisões imutáveis, transições imutáveis, Closed administrativo, reconhecimento
+  separado, coordenação por dispositivo, retry por regra, fencing e ordem temporal com desempate.
+- Identidade autenticada vem do JWT; `PlatformUser` deve estar ativo. `GetAuthorizedWorkspaceUseCase`
+  continua a verificar associação e workspace ativo: Owner/Admin gerenciam regras e reconhecem
+  ocorrências; Viewer/roles superiores consultam regras e histórico. Diagnósticos exigem Admin.
+  Nenhum papel novo é criado. Workspace sem associação responde 404; privilégio insuficiente, 403.
+- `DeviceIdentifier` usa a identidade textual da ingestão, resolvida no workspace autorizado;
+  `MetricDefinitionId` também é validado nesse workspace. Chaves compostas garantem escopo das
+  referências de regra/revisão/estado/ocorrência/transição/trabalho no banco.
+- Mensagem aceita gera work item atomicamente; revisão aplicável é fixada na ingestão. Mensagem
+  rejeitada (inclusive `TimestampOutsideWindow`) e duplicata não geram trabalho. Rejeição permanece
+  no diagnóstico de ingestão existente; não é convertida em evento do motor de alertas.
+- A cobertura mensal pode não cobrir `MaxPastDays`, especialmente no início de março; corrigir
+  partições/retencão é pendência separada. Não se altera contrato V2, janela de aceitação,
+  manutenção de partições ou expurgo nesta etapa.
+- Ordem de chegada é um ordinal por workspace/dispositivo, alocado sob lock de linha na mesma
+  transação da ingestão. Não se usa sequence do dispositivo como cursor da fila. O desempate
+  temporal é `(OccurredAtUtc, Sequence, IngestionRecordId)`; UUID comparado em hexadecimal ordinal.
+- Aquisição de locks: catálogo do workspace (compartilhado na ingestão/avaliação; exclusivo
+  na edição) antes da linha do dispositivo. Edição invalida pendências antigas, fecha ocorrências
+  e cria revisão em uma transação. Toda edição reinicia estado, inclusive renomeação; o texto
+  original permite, mas não exige, otimização para renomear sem reiniciar.
+- Sem cache de regras nesta primeira implementação: ler revisões sob a coordenação transacional
+  evita invalidadores entre processos. Isso substitui a antecipação de cache do ADR-0002 para
+  esta etapa; medir custo antes de introduzi-lo. Paralelismo permanece entre dispositivos;
+  alteração de regra bloqueia brevemente o catálogo do workspace.
+- Criação de regra é desabilitada; ativação/edição usa `ExpectedVersion`. Apenas amostras com
+  tempo de ocorrência estritamente posterior à ativação podem mudar estado. Atrasadas aceitas
+  permanecem no histórico; unidades não aplicadas registram motivo explícito.
+- Intenção de entrega nesta etapa é uma outbox imutável por `TransitionId`, sem canal/destinatário,
+  endereço ou chamada externa. A Etapa 3 resolverá assinaturas/autorização e criará entregas por
+  canal. Não se simula e-mail verificado nem notificação do portal para habilitar o motor.
+- Worker de avaliação desabilitado por padrão. Sem avaliação por NoData, transporte, interface,
+  feedback/ML, expurgo ou ativação operacional nesta etapa.
+
+## Referências preservadas
 
 - [ADR-0002](0002-alert-evaluation-state-and-delivery.md)
 - [ADR-0001](0001-telemetry-schema-v2.md)

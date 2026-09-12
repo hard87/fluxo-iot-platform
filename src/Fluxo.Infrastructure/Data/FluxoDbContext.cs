@@ -25,6 +25,7 @@ public class FluxoDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(FluxoDbContext).Assembly);
+        Alerts.AlertModelConfiguration.Configure(modelBuilder);
         base.OnModelCreating(modelBuilder);
     }
 }

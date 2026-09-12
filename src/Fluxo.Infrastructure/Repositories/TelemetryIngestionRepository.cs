@@ -34,6 +34,7 @@ public class TelemetryIngestionRepository : ITelemetryIngestionRepository
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         try
         {
+            await Alerts.AlertTransactions.LockIngestionAsync(_context, telemetry, cancellationToken);
             await _context.TelemetryIngestionRecords.AddAsync(telemetry, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
             var points = new List<TelemetryPoint>(metrics.Count);
@@ -93,6 +94,7 @@ public class TelemetryIngestionRepository : ITelemetryIngestionRepository
                     definition.Id, telemetry.OccurredAtUtc, telemetry.Id, metric.NumericValue, metric.BooleanValue, metric.TextValue));
             }
             await _pointWriter.WriteAsync(points, cancellationToken);
+            await Alerts.AlertTransactions.EnqueueAsync(_context, telemetry, points, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             foreach (var update in cacheUpdates) _definitionCache.Set(telemetry.WorkspaceId, update.Key, update.Entry);
@@ -163,6 +165,7 @@ public class TelemetryIngestionRepository : ITelemetryIngestionRepository
     private static bool IsUniqueViolation(DbUpdateException exception)
     {
         return exception.InnerException is PostgresException postgres &&
-               postgres.SqlState == PostgresErrorCodes.UniqueViolation;
+               postgres.SqlState == PostgresErrorCodes.UniqueViolation &&
+               postgres.ConstraintName == "UX_telemetry_ingestion_records_tenant_workspace_device_sequence";
     }
 }
