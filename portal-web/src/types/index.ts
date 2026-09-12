@@ -163,3 +163,104 @@ export interface PlatformStatusResponse {
   checkedAtUtc: string;
   components: StatusComponent[];
 }
+
+// --- Alerts ---
+
+export type AlertOperator =
+  | "GreaterThan"
+  | "GreaterOrEqual"
+  | "LessThan"
+  | "LessOrEqual"
+  | "InsideRange"
+  | "OutsideRange"
+  | "IsTrue"
+  | "IsFalse";
+
+export type AlertSeverity = "Info" | "Warning" | "Critical";
+
+export type AlertEventStatus = "Firing" | "Resolved" | "Closed";
+
+export interface AlertRuleRevision {
+  id: string;
+  workspaceId: string;
+  ruleId: string;
+  version: number;
+  name: string;
+  metricDefinitionId: string;
+  deviceIdentifier: string | null;
+  valueType: MetricValueType;
+  unit: string | null;
+  operator: AlertOperator;
+  threshold: number | null;
+  thresholdHigh: number | null;
+  hysteresis: number;
+  durationSeconds: number;
+  cooldownSeconds: number;
+  expectedIntervalSeconds: number;
+  severity: AlertSeverity;
+  enabled: boolean;
+  activatedAtUtc: string;
+  createdAtUtc: string;
+  authorId: string;
+}
+
+export interface AlertEvent {
+  id: string;
+  workspaceId: string;
+  ruleId: string;
+  revisionId: string;
+  deviceIdentifier: string;
+  triggeredAtUtc: string;
+  status: AlertEventStatus;
+  ordinal: number;
+}
+
+export interface AlertEventTransition {
+  id: string;
+  workspaceId: string;
+  eventId: string;
+  ordinal: number;
+  kind: AlertEventStatus;
+  occurredAtUtc: string;
+  recordedAtUtc: string;
+  receivedAtUtc: string | null;
+  ingestionRecordId: string | null;
+  numericValue: number | null;
+  booleanValue: boolean | null;
+  reason: string;
+  evaluatorVersion: string;
+}
+
+export interface AlertAcknowledgement {
+  id: string;
+  workspaceId: string;
+  eventId: string;
+  authorId: string;
+  createdAtUtc: string;
+}
+
+export interface AlertDeliveryIntent {
+  id: string;
+  workspaceId: string;
+  transitionId: string;
+  createdAtUtc: string;
+}
+
+export interface AlertHistory {
+  event: AlertEvent;
+  revision: AlertRuleRevision;
+  transitions: AlertEventTransition[];
+  acknowledgements: AlertAcknowledgement[];
+  deliveryIntents: AlertDeliveryIntent[];
+}
+
+export interface AlertAttemptDiagnostic {
+  id: string;
+  workItemId: string;
+  ruleId: string;
+  deviceIdentifier: string;
+  status: "Failed" | "DeadLetter";
+  attemptCount: number;
+  nextAttemptAtUtc: string | null;
+  reason: string | null;
+}
