@@ -11,13 +11,20 @@ using Fluxo.Application.UseCases.Telemetry;
 using Fluxo.Application.UseCases.Workspaces;
 using Fluxo.Infrastructure.Data;
 using Fluxo.Infrastructure.DependencyInjection;
+using Fluxo.Domain.Enums;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using System.Security.Claims;
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+// Only DeviceCategory is converted: the portal already sends/reads it as a string
+// ("Sensor", "Actuator", ...), so the plain numeric enum converter rejected every
+// device-creation request from the browser. Other enums (e.g. WorkspaceMembershipRole)
+// are left as their default numeric wire format to avoid widening this fix's blast radius.
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter<DeviceCategory>()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options =>

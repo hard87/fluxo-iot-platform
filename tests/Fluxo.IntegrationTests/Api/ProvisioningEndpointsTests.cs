@@ -5,6 +5,7 @@ using Fluxo.Application.DTOs.Auth;
 using Fluxo.Application.DTOs.Provisioning;
 using Fluxo.Application.DTOs.Workspaces;
 using Fluxo.Domain.Enums;
+using Fluxo.IntegrationTests.Infrastructure;
 
 namespace Fluxo.IntegrationTests.Api;
 
@@ -37,7 +38,7 @@ public class ProvisioningEndpointsTests : IClassFixture<FluxoWebApplicationFacto
         var response = await _client.PostAsJsonAsync("/api/provisioning/devices", request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var payload = await response.Content.ReadFromJsonAsync<ProvisionedDeviceResponse>();
+        var payload = await response.Content.ReadFromJsonAsync<ProvisionedDeviceResponse>(TestJsonOptions.Default);
 
         Assert.NotNull(payload);
         Assert.Equal(request.TenantId, payload.TenantId);
@@ -65,7 +66,7 @@ public class ProvisioningEndpointsTests : IClassFixture<FluxoWebApplicationFacto
         });
 
         provision.EnsureSuccessStatusCode();
-        var provisioned = await provision.Content.ReadFromJsonAsync<ProvisionedDeviceResponse>();
+        var provisioned = await provision.Content.ReadFromJsonAsync<ProvisionedDeviceResponse>(TestJsonOptions.Default);
         Assert.NotNull(provisioned);
 
         var rotate = await _client.PostAsync(

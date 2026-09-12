@@ -6,6 +6,7 @@ using Fluxo.Application.DTOs.Portal;
 using Fluxo.Application.DTOs.Provisioning;
 using Fluxo.Application.DTOs.Workspaces;
 using Fluxo.Domain.Enums;
+using Fluxo.IntegrationTests.Infrastructure;
 
 namespace Fluxo.IntegrationTests.Api;
 
@@ -89,7 +90,7 @@ public class PortalAuthWorkspaceEndpointsTests : IClassFixture<FluxoWebApplicati
             });
 
         Assert.Equal(HttpStatusCode.Created, provision.StatusCode);
-        var provisioned = await provision.Content.ReadFromJsonAsync<ProvisionedDeviceResponse>();
+        var provisioned = await provision.Content.ReadFromJsonAsync<ProvisionedDeviceResponse>(TestJsonOptions.Default);
         Assert.NotNull(provisioned);
         Assert.False(string.IsNullOrWhiteSpace(provisioned.ProvisioningSecret));
 
@@ -121,7 +122,7 @@ public class PortalAuthWorkspaceEndpointsTests : IClassFixture<FluxoWebApplicati
             });
 
         provision.EnsureSuccessStatusCode();
-        var provisionedA = await provision.Content.ReadFromJsonAsync<ProvisionedDeviceResponse>();
+        var provisionedA = await provision.Content.ReadFromJsonAsync<ProvisionedDeviceResponse>(TestJsonOptions.Default);
         Assert.NotNull(provisionedA);
 
         var tokenB = await RegisterAndLoginAsync();

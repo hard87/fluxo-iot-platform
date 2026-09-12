@@ -7,6 +7,7 @@ using Fluxo.Application.DTOs.Workspaces;
 using Fluxo.Domain.Entities;
 using Fluxo.Domain.Enums;
 using Fluxo.Infrastructure.Data;
+using Fluxo.IntegrationTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Fluxo.IntegrationTests.Api;
@@ -42,7 +43,7 @@ public class DevicesEndpointsTests : IClassFixture<FluxoWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
-        var payload = await response.Content.ReadFromJsonAsync<DeviceResponse>();
+        var payload = await response.Content.ReadFromJsonAsync<DeviceResponse>(TestJsonOptions.Default);
         Assert.NotNull(payload);
         Assert.Equal(request.WorkspaceId, payload.WorkspaceId);
         Assert.Equal(request.Identifier, payload.Identifier);
