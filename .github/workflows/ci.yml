@@ -75,6 +75,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-test
 
+    env:
+      # The API refuses to start (by design) if this is left at its docker-compose.yml
+      # placeholder default, so CI - which has no .env - must override it explicitly.
+      FLUXO_AUTH_SIGNING_KEY: ci-ephemeral-signing-key-not-used-outside-this-workflow-run
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
