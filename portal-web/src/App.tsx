@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./hooks/useAuth";
+import { AlertRulesPage } from "./pages/AlertRulesPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DeviceDetailsPage } from "./pages/DeviceDetailsPage";
 import { DevicesPage } from "./pages/DevicesPage";
@@ -33,6 +34,7 @@ export function App() {
           <Route path="/workspaces/:workspaceId/devices" element={<DevicesPage />} />
           <Route path="/workspaces/:workspaceId/devices/new" element={<NewDevicePage />} />
           <Route path="/workspaces/:workspaceId/devices/:deviceId" element={<DeviceDetailsPage />} />
+          <Route path="/workspaces/:workspaceId/alerts" element={<AlertRulesPage />} />
           <Route path="/workspaces/:workspaceId/explorer" element={<TelemetryExplorerPage />} />
           <Route path="/workspaces/:workspaceId/rejections" element={<TelemetryRejectionsPage />} />
           <Route path="/status" element={<HealthPage />} />
