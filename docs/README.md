@@ -30,11 +30,14 @@ Este indice organiza os documentos tecnicos por objetivo de leitura.
 - [Guia do piloto real controlado](piloto-real-controlado.md)
 - [Backup e restore PostgreSQL](backup-restore-postgresql.md)
 - [Simulador MQTT de dispositivos](simulador-dispositivos-mqtt.md)
+- [Cenario de piloto industrial com 100 devices](simulacao-piloto-industria-alimentos-100-devices.md)
 - [Checklist de producao controlada](checklist-producao-controlada.md)
 
 ## 5. Escala e roadmap
 
 - [Roadmap para producao com 1000 dispositivos](roadmap-production-1000-devices.md)
+- [Plano de acao E1, E2, E3 e E5](plano-acao-e1-e2-e3-e5.md) — sequencia executavel para
+  concluir alertas, piloto controlado e inteligencia operacional; E4/E6 em stand by
 
 ## 6. Documentacao de sprint
 

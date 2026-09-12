@@ -3,9 +3,12 @@
 ## 1. Snapshot
 
 - Consolidação documental: 12 set 2026.
-- Branch observada: `fix/portal-same-origin-auth`.
-- HEAD observado: `0499dcfd7223bd9914809787bba06ef7b7287f9f`.
-- Working tree observada: limpa, exceto um rascunho pessoal não rastreado (`inicio.txt`).
+- Branch observada: `main`.
+- HEAD observado: `baf346470a436f39109a42de7fe61578c5c1f11f`.
+- Working tree observada: limpa, exceto documentos novos não rastreados do plano de ação
+  (`docs/plano-acao-e1-e2-e3-e5.md`, `docs/simulacao-piloto-industria-alimentos-100-devices.md`),
+  uma alteração em `docs/README.md` que os referencia, e um rascunho pessoal não rastreado
+  (`inicio.txt`).
 - Esta consolidação não declara suporte de produção a 1000 devices.
 
 ## 2. Estado das trilhas
@@ -44,8 +47,30 @@
 - Cobertura unitária cresceu para 97 testes (0 falhas) com a adição de `AlertEvaluatorTests` e
   cobertura de rejeições. A suíte de integração local (sem o Postgres descartável de
   `scripts/tests/start-test-postgres.ps1` rodando) mantém 26 aprovados e 41 ignorados por
-  ausência do servidor — **revalidação completa com Postgres descartável real ainda não foi
-  executada após este lote de mudanças**.
+  ausência do servidor — revalidação completa com Postgres descartável real executada em
+  12/09/2026 (ver 2.2).
+
+### 2.2 Baseline M0.1 revalidada (12/09/2026)
+
+Execução da baseline exigida pelo [plano de ação E1/E2/E3/E5](plano-acao-e1-e2-e3-e5.md) antes de
+iniciar o E1, sobre HEAD `baf346470a436f39109a42de7fe61578c5c1f11f` em `main`:
+
+- `dotnet build Fluxo.slnx`: sucesso, 0 avisos, 0 erros.
+- `dotnet test Fluxo.slnx` com Postgres descartável real (perfil `transactional`) e
+  `FLUXO_TESTS_REQUIRE_POSTGRES=1`: **97/97 testes unitários** e **71/71 testes de integração**
+  aprovados, **0 ignorados**, 0 falhas. Nenhum teste relacional foi contado como aprovado por
+  ausência de banco.
+- `npm test` (portal-web): **44/44 testes** aprovados em 11 arquivos.
+- `npm run build` (portal-web): `tsc --noEmit` sem erros e `vite build` concluído; permanece o
+  aviso conhecido de bundle acima de 500 kB (ver Riscos, seção 7).
+- `npm test` (e2e/Playwright, cenário `golden-path.spec.ts`) contra a stack de desenvolvimento já
+  em execução (`docker compose up`, portal em `127.0.0.1:8080`): **1/1 teste** aprovado.
+- `docker compose config`: perfil dev válido; perfil `docker-compose.controlled-prod.yml` válido
+  quando avaliado com os placeholders de `.env.example` (o arquivo real exige variáveis
+  obrigatórias sem default, por design).
+
+Gate de saída da M0.1 cumprido: nenhuma falha encontrada, nenhuma correção separada necessária
+antes do E1.
 
 ## 3. Arquitetura atual
 
@@ -104,9 +129,7 @@ por um desenho novo durante a implementação.
 - revogar/desativar o primeiro provisionamento Gateway sem uso registrado no relatório da Fase 5;
 - integrar sensor físico ao Gateway quando houver hardware identificado;
 - revisar guia do piloto, backup/restore e simulador.
-- construir a interface do portal para alertas (regras, eventos, histórico, reconhecimento);
-- revalidar a suíte de integração com o Postgres descartável real
-  (`scripts/tests/start-test-postgres.ps1`) após o lote de alertas/rejeições de 12/09/2026.
+- construir a interface do portal para alertas (regras, eventos, histórico, reconhecimento).
 
 A fonte autoritativa dos checkboxes é o [checklist de produção controlada](checklist-producao-controlada.md).
 
