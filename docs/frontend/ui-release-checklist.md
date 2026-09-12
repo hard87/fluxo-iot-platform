@@ -6,6 +6,7 @@ Checklist reutilizável para qualquer entrega que toque `portal-web/`. Combina o
 
 - [ ] `git status` limpo antes de começar.
 - [ ] Escopo da mudança entendido e delimitado (qual etapa do `ui-roadmap.md`, quais páginas).
+- [ ] Entrega identificada no `portal-evolution.md`, com estado inicial, aceite e evidências esperadas.
 
 ## Testes automatizados
 
@@ -57,6 +58,8 @@ Percorrer manualmente contra um backend real (não mockado):
 - [ ] `git diff` revisado linha a linha.
 - [ ] Diff limitado ao frontend e à documentação da etapa (sem refatoração não relacionada).
 - [ ] `docs/frontend/design-system.md` e/ou `docs/frontend/ui-roadmap.md` atualizados se algo do escopo documentado mudou de estado.
+- [ ] `docs/frontend/portal-evolution.md` atualizado com o estado real da entrega, comandos executados, resultado e validações ainda pendentes.
+- [ ] Nenhum item marcado como comprovado apenas com base na existência do código; evidências automatizadas, visuais e operacionais estão separadas.
 - [ ] Commit único e semanticamente coerente.
 - [ ] `git status` limpo ao final.
 
