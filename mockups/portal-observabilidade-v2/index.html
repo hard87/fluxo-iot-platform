@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="auto" data-contrast="normal" data-text-scale="100" data-motion="system">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POC — Observabilidade do dispositivo · Fluxo Portal</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Pular para o conteúdo</a>
+
+<header class="appbar">
+  <div class="appbar-inner">
+    <a class="brand" href="#">
+      <b>Fluxo</b><span>Portal IoT — protótipo</span>
+    </a>
+    <div class="appbar-actions">
+      <span class="demo-flag" title="Todos os dados desta tela são simulados">● DEMONSTRAÇÃO — dados simulados</span>
+      <button class="icon-btn" id="open-prefs" aria-haspopup="dialog">Aparência</button>
+    </div>
+  </div>
+</header>
+
+<nav class="subnav" aria-label="Navegação principal">
+  <div class="subnav-inner">
+    <a href="#">Workspaces</a>
+    <a href="#">Dashboard</a>
+    <a href="#" aria-current="page">Dispositivos</a>
+    <a href="#">Telemetry Explorer</a>
+    <a href="#">Saúde da plataforma</a>
+  </div>
+</nav>
+
+<main id="main" class="page" tabindex="-1">
+  <p class="crumb"><a href="#">Workspaces</a> / <a href="#">Gateway Pi Pilot</a> / <a href="#">Dispositivos</a> / <b>Edgewarden Gateway</b></p>
+
+  <div class="page-head">
+    <div>
+      <h1>Edgewarden Gateway</h1>
+      <p class="sub">Visão operacional — o que está acontecendo com o dispositivo, em uma leitura. As métricas continuam armazenadas e consultáveis individualmente como séries nativas.</p>
+    </div>
+    <div class="head-actions">
+      <label class="btn btn-ghost" for="scenario" style="gap:8px">
+        Cenário
+        <select id="scenario" style="min-height:32px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:2px 6px"></select>
+      </label>
+      <a class="btn btn-ghost" href="#">Abrir no Telemetry Explorer</a>
+    </div>
+  </div>
+
+  <div id="state-banner" role="status" aria-live="polite"></div>
+
+  <section class="status-header" id="status-header" aria-label="Estado atual do dispositivo"></section>
+
+  <section class="section" aria-labelledby="signals-title">
+    <h2 id="signals-title">Sinais consolidados</h2>
+    <p class="section-note">
+      Valor atual em unidade nativa, tendência da janela, pico e estado frente à faixa esperada quando disponível.
+      A etiqueta <span class="origin-tag" data-o="derived">derivado</span> marca métricas calculadas no portal;
+      <span class="origin-tag" data-o="backend">backend</span>, as que dependem de mudança no backend.
+    </p>
+    <div id="signals"></div>
+  </section>
+
+  <section class="card" aria-labelledby="chart-title" id="chart-card">
+    <div class="chart-toolbar">
+      <div>
+        <h2 id="chart-title" style="font-size:var(--step-1)">Comportamento no tempo</h2>
+        <p class="section-note" id="chart-period-label"></p>
+      </div>
+      <div class="seg" role="group" aria-label="Período">
+        <button type="button" data-range="1h">1 h</button>
+        <button type="button" data-range="6h" aria-pressed="true">6 h</button>
+        <button type="button" data-range="24h">24 h</button>
+        <button type="button" data-range="all">Ver tudo</button>
+      </div>
+    </div>
+
+    <div class="view-toggle" role="group" aria-label="Modo de visualização">
+      <span>Modo:</span>
+      <div class="seg">
+        <button type="button" id="view-mult" aria-pressed="true">Pequenos múltiplos</button>
+        <button type="button" id="view-overlay" aria-pressed="false">Sobreposição normalizada</button>
+      </div>
+    </div>
+
+    <div id="chart-body"></div>
+
+    <div class="chart-cursor-readout" id="cursor-readout" aria-live="polite"></div>
+
+    <div class="legend" id="legend" aria-label="Séries — clique para isolar, clique de novo para restaurar"></div>
+
+    <section aria-labelledby="summary-title" class="section" style="margin-top:var(--space-2)">
+      <h3 id="summary-title" style="font-size:var(--step-0)">Resumo do comportamento</h3>
+      <ul class="summary-list" id="summary"></ul>
+      <details class="data-table" id="table-details">
+        <summary>Ver tabela de dados (alternativa textual ao gráfico)</summary>
+        <div class="table-scroll" id="table-wrap"></div>
+      </details>
+    </section>
+  </section>
+
+  <section class="section" aria-labelledby="events-title">
+    <h2 id="events-title">Eventos correlacionados</h2>
+    <p class="section-note">Co-ocorrência de mudanças detectada na janela. A causa não é inferida.</p>
+    <div class="events" id="events"></div>
+  </section>
+
+  <p class="footer-note">
+    Protótipo de avaliação — <code>Fluxo/mockups/portal-observabilidade-v2/</code>. Não é o portal oficial.
+    Atualização automática simulada a cada 15 s · <span id="tz-note"></span>
+  </p>
+</main>
+
+<div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" hidden tabindex="-1">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+    <h2 id="drawer-title">Aparência</h2>
+    <button class="btn btn-ghost close" id="close-prefs">Fechar</button>
+  </div>
+  <p class="section-note">Preferências combináveis. Ficam salvas neste navegador. O padrão respeita as configurações do seu sistema.</p>
+
+  <fieldset class="pref-group" style="border:0;padding:0;margin:0">
+    <legend>Tema</legend>
+    <div class="choice" data-pref="theme">
+      <label><input type="radio" name="theme" value="auto"> Automático</label>
+      <label><input type="radio" name="theme" value="light"> Claro</label>
+      <label><input type="radio" name="theme" value="dark"> Escuro</label>
+    </div>
+    <span class="hint">Automático segue o <code>prefers-color-scheme</code> do sistema.</span>
+  </fieldset>
+
+  <fieldset class="pref-group" style="border:0;padding:0;margin:0">
+    <legend>Contraste</legend>
+    <div class="choice" data-pref="contrast">
+      <label><input type="radio" name="contrast" value="normal"> Padrão</label>
+      <label><input type="radio" name="contrast" value="high"> Alto</label>
+      <label><input type="radio" name="contrast" value="low"> Reduzido</label>
+    </div>
+    <span class="hint">"Reduzido" baixa o brilho e o contraste para sensibilidade à luz / fotofobia, mantendo a legibilidade mínima.</span>
+  </fieldset>
+
+  <fieldset class="pref-group" style="border:0;padding:0;margin:0">
+    <legend>Escala de texto</legend>
+    <div class="choice" data-pref="text-scale">
+      <label><input type="radio" name="text-scale" value="100"> 100%</label>
+      <label><input type="radio" name="text-scale" value="112"> 112%</label>
+      <label><input type="radio" name="text-scale" value="125"> 125%</label>
+    </div>
+  </fieldset>
+
+  <fieldset class="pref-group" style="border:0;padding:0;margin:0">
+    <legend>Movimento</legend>
+    <div class="choice" data-pref="motion">
+      <label><input type="radio" name="motion" value="system"> Conforme o sistema</label>
+      <label><input type="radio" name="motion" value="reduced"> Sempre reduzido</label>
+    </div>
+    <span class="hint">Remove o pulso "ao vivo" e todas as transições.</span>
+  </fieldset>
+
+  <p class="section-note">A paleta dos gráficos já é segura para daltonismo (Okabe–Ito) e as séries também são diferenciadas por padrão de traço — isso não é uma opção, é o padrão.</p>
+</aside>
+
+<script src="demo-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
