@@ -1,7 +1,8 @@
 # Fluxo — Roadmap técnico para produção e produto
 
-Consolidação: 12 jul 2026. Este documento mantém duas trilhas distintas. A meta de 1000 devices
-é uma referência de escala, não uma capacidade de produção comprovada.
+Consolidação: 12 jul 2026 (revisado em 12 set 2026: status da Fase 3 e riscos resolvidos — ver
+nota ao final da seção de riscos). Este documento mantém duas trilhas distintas. A meta de 1000
+devices é uma referência de escala, não uma capacidade de produção comprovada.
 
 ## Meta de escala
 
@@ -93,11 +94,15 @@ e o [benchmark Q1–Q7](benchmarks/phase2-query-explain-2026-07-12.md).
 
 ### Produto Fase 3 — Alertas com estado e delivery
 
-Status: **PRÓXIMA**.
+Status: **EM ANDAMENTO** — backend concluído em 12/09/2026, portal pendente.
 
-Ainda não iniciada. Implementar somente conforme o
-[ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md): estado persistido, fila transacional,
-avaliação reprodutível e delivery at-least-once. `NoData` permanece na Fase 4.
+Engine de avaliação, worker dedicado e endpoints de regras/eventos/histórico/reconhecimento
+implementados conforme [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), complementado
+pelo [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md): estado persistido, fila
+transacional, avaliação reprodutível e delivery at-least-once. Falta a interface do portal
+(criar/editar regra, listar eventos) e a validação e2e do fluxo completo (regra criada →
+telemetria dispara → evento aparece → canal notifica). `NoData` permanece na Fase 4. Ver
+[estado atual do projeto](project-status.md) para o detalhe mais recente.
 
 ### Produto Fase 4 — Inteligência operacional barata
 
@@ -126,10 +131,17 @@ Validar os perfis industrial, ambiente e mobilidade no mesmo backend, sem migrat
 | Explorer no bundle principal | Sem lazy loading; não bloqueia o MVP | Produto, revisão futura |
 | Recharts 2.x | Entregue conforme ADR; evolução para v3 requer decisão explícita | Produto, revisão futura |
 | Fonte externa do portal | Google Font bloqueada pela CSP; fallback local ativo | Produto, revisão futura |
-| Sessão do portal | Token em memória perdido no refresh | Produto, revisão futura |
 
 Particionamento de `TelemetryPoint`, benchmark da Fase 1, Schema V2, Binary COPY, Telemetry Query
 API e Telemetry Explorer não são riscos abertos: foram implementados e possuem evidência.
+
+**Riscos resolvidos desde a consolidação de 12/07/2026:**
+- *Sessão do portal perdida no refresh* — corrigido 2026-09-12: sessão agora persiste em
+  `sessionStorage`, confirmado manualmente (F5 mantém login) e coberto pela suite E2E.
+- *Cadastro de device pelo portal quebrado* — corrigido 2026-09-12: a API rejeitava `category`
+  como string (só aceitava o enum numérico padrão do System.Text.Json), então nenhum device era
+  cadastrável pelo navegador. Não estava listado aqui porque nunca havia sido descoberto; agora
+  guardado por `JsonContractTests` e pela suite E2E.
 
 ## Critério para declarar produção pronta para 1000 devices
 
