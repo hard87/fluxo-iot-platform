@@ -96,6 +96,9 @@ jobs:
           dotnet tool install --global dotnet-ef --version 10.0.6
           echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
 
+      - name: Restore
+        run: dotnet restore Fluxo.slnx
+
       - name: Build stack images
         run: docker compose build
 
