@@ -20,6 +20,7 @@ Este projeto e um portfolio tecnico com foco em:
 Exemplo de nomes de branch:
 - `feat/...`
 - `fix/...`
+- `test/...`
 - `chore/...`
 - `docs/...`
 
@@ -57,3 +58,27 @@ Campos esperados:
 - como validar;
 - riscos e limitacoes;
 - checklist tecnico.
+
+## PRs empilhados (stacked PRs)
+
+Regra: **todo PR que pode receber merge precisa ter `main` como base.** Um PR cuja base é outra
+branch (não `main`) é considerado empilhado e não pode ser mergeado enquanto essa base não mudar.
+
+- Se o seu trabalho depende de um PR ainda não integrado a `main`, abra o PR filho com base na
+  branch do PR pai, mas **marque-o como Draft** e escreva `Depends on #NN` no corpo (ou aplique a
+  label `stacked-pr`, quando disponível). Isso permite revisão antecipada sem risco de merge
+  acidental.
+- Um check obrigatório (`pr-policy`, ver `.github/workflows/pr-policy.yml`) falha automaticamente
+  se um PR sair de Draft ("Ready for review") com uma base diferente de `main` — é o gate técnico
+  que impede o incidente de um PR aparecer como "Merged" no GitHub sem que seu conteúdo chegue a
+  `main`.
+- Depois que o PR pai for mergeado em `main`:
+  1. atualize sua branch sobre `main` (`git rebase main` ou `git merge main`, conforme o histórico
+     do repositório);
+  2. mude a base do PR filho para `main` na interface do GitHub;
+  3. deixe o CI rodar de novo sobre a base atualizada;
+  4. peça (ou aguarde) aprovação;
+  5. só então marque o PR como "Ready for review" — o check falha antes disso se a base ainda não
+     for `main`.
+- Nunca declare uma etapa concluída em documentação (`docs/project-status.md` ou equivalente) só
+  porque um PR aparece como "Merged" — confirme que o conteúdo está no HEAD real de `main`.
