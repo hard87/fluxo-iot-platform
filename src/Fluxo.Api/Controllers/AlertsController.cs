@@ -35,6 +35,9 @@ public sealed class AlertsController(IAlertManagement alerts) : ControllerBase
     [HttpGet("notifications")]
     public async Task<IActionResult> Notifications(Guid workspaceId, CancellationToken ct, int page = 1) =>
         Ok(await alerts.NotificationsAsync(User.GetRequiredUserId(), workspaceId, page, ct));
+    [HttpGet("rules/{ruleId:guid}/portal-recipients")]
+    public async Task<IActionResult> PortalRecipients(Guid workspaceId, Guid ruleId, CancellationToken ct) =>
+        Ok(await alerts.PortalRecipientsAsync(User.GetRequiredUserId(), workspaceId, ruleId, ct));
     [HttpPost("notifications/{notificationId:guid}/read")]
     public async Task<IActionResult> MarkNotificationRead(Guid workspaceId, Guid notificationId, CancellationToken ct)
     {

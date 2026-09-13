@@ -204,4 +204,14 @@ public sealed class AlertManagement(FluxoDbContext db, GetAuthorizedWorkspaceUse
             await db.SaveChangesAsync(ct);
         }
     }
+
+    public async Task<IReadOnlyList<Guid>> PortalRecipientsAsync(Guid userId, Guid workspaceId, Guid ruleId, CancellationToken ct)
+    {
+        await AuthorizeAsync(userId, workspaceId, true, ct);
+        if (!await db.Set<AlertRule>().AnyAsync(x => x.WorkspaceId == workspaceId && x.Id == ruleId, ct))
+            throw new NotFoundException("Alert rule not found.");
+        return await db.Set<NotificationSubscription>().AsNoTracking()
+            .Where(x => x.WorkspaceId == workspaceId && x.RuleId == ruleId && x.Channel == "Portal")
+            .Select(x => x.MemberId).ToListAsync(ct);
+    }
 }

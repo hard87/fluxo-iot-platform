@@ -103,6 +103,23 @@ public sealed class AlertPortalNotificationTests
     });
 
     [SkippableFact]
+    public Task PortalRecipientsAsync_ReturnsCurrentSubscribersForTheRule() => Run(async cs =>
+    {
+        await using var harness = await AlertWorkerHarness.StartAsync(cs);
+        var memberB = await harness.AddMemberAsync();
+        var rule = await harness.CreateRuleAsync(harness.Request() with
+        {
+            PortalRecipientUserIds = [harness.User.Id, memberB.Id]
+        });
+
+        await using var db = harness.Db();
+        var recipients = await harness.Management(db).PortalRecipientsAsync(harness.User.Id, harness.Workspace.Id, rule.RuleId, default);
+        Assert.Equal(2, recipients.Count);
+        Assert.Contains(harness.User.Id, recipients);
+        Assert.Contains(memberB.Id, recipients);
+    });
+
+    [SkippableFact]
     public Task MarkNotificationRead_IsIdempotent_AndOnlyByRecipient() => Run(async cs =>
     {
         await using var harness = await AlertWorkerHarness.StartAsync(cs);

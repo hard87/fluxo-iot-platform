@@ -25,6 +25,7 @@ public interface IAlertManagement
     Task<IReadOnlyList<AlertAttemptDiagnostic>> DiagnosticsAsync(Guid userId, Guid workspaceId, int page, CancellationToken ct);
     Task<IReadOnlyList<PortalNotificationItem>> NotificationsAsync(Guid userId, Guid workspaceId, int page, CancellationToken ct);
     Task MarkNotificationReadAsync(Guid userId, Guid workspaceId, Guid notificationId, CancellationToken ct);
+    Task<IReadOnlyList<Guid>> PortalRecipientsAsync(Guid userId, Guid workspaceId, Guid ruleId, CancellationToken ct);
 }
 
 public sealed record AlertAttemptDiagnostic(Guid Id, Guid WorkItemId, Guid RuleId, string DeviceIdentifier,
