@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,7 +17,8 @@ vi.mock("../services/api/alertRulesService", async () => {
   return {
     ...actual,
     listAlertRules: vi.fn(),
-    updateAlertRule: vi.fn()
+    updateAlertRule: vi.fn(),
+    getPortalRecipients: vi.fn()
   };
 });
 
@@ -27,6 +28,7 @@ vi.mock("../services/api/telemetryService", () => ({
 
 const listMock = vi.mocked(alertRulesService.listAlertRules);
 const updateMock = vi.mocked(alertRulesService.updateAlertRule);
+const getPortalRecipientsMock = vi.mocked(alertRulesService.getPortalRecipients);
 const metricsMock = vi.mocked(telemetryService.listMetricDefinitions);
 
 function alertRuleFixture(overrides: Partial<AlertRuleRevision> = {}): AlertRuleRevision {
@@ -84,6 +86,7 @@ describe("AlertRulesPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     metricsMock.mockResolvedValue([metricDefinitionFixture()]);
+    getPortalRecipientsMock.mockResolvedValue([]);
   });
 
   it("lista regras usando o workspace da rota e resolve o nome da métrica", async () => {
@@ -188,6 +191,27 @@ describe("AlertRulesPage", () => {
       expect.objectContaining({ enabled: false, expectedVersion: 1 })
     );
     expect(await screen.findByRole("button", { name: "Ativar" })).toBeInTheDocument();
+  });
+
+  it("preserva os destinatarios de portal existentes ao ativar/desativar (nao vem em AlertRuleRevision)", async () => {
+    const user = userEvent.setup();
+    listMock.mockResolvedValue([alertRuleFixture({ enabled: true })]);
+    getPortalRecipientsMock.mockResolvedValue(["user-1", "user-2"]);
+    updateMock.mockResolvedValue(alertRuleFixture({ enabled: false, version: 2 }));
+    renderPage();
+
+    await screen.findByText("Temperatura alta");
+    await user.click(screen.getByRole("button", { name: "Desativar" }));
+
+    expect(getPortalRecipientsMock).toHaveBeenCalledWith("token", "workspace-1", "rule-1");
+    await waitFor(() =>
+      expect(updateMock).toHaveBeenCalledWith(
+        "token",
+        "workspace-1",
+        "rule-1",
+        expect.objectContaining({ portalRecipientUserIds: ["user-1", "user-2"] })
+      )
+    );
   });
 
   it("mostra um erro seguro e preserva o botão anterior quando o toggle falha", async () => {
