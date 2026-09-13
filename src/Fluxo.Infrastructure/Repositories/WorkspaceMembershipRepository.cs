@@ -53,4 +53,17 @@ public sealed class WorkspaceMembershipRepository : IWorkspaceMembershipReposito
             .Where(x => x.UserId == userId)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<WorkspaceMemberSummary>> ListActiveByWorkspaceAsync(
+        Guid workspaceId,
+        CancellationToken cancellationToken = default)
+    {
+        return await (
+            from m in _context.WorkspaceMemberships.AsNoTracking()
+            join u in _context.PlatformUsers.AsNoTracking() on m.UserId equals u.Id
+            where m.WorkspaceId == workspaceId && u.IsActive
+            orderby u.Email
+            select new WorkspaceMemberSummary(u.Id, u.Email, m.Role)
+        ).ToListAsync(cancellationToken);
+    }
 }

@@ -40,6 +40,12 @@ export interface Workspace {
   createdAtUtc: string;
 }
 
+export interface WorkspaceMember {
+  userId: string;
+  email: string;
+  role: "Owner" | "Admin" | "Viewer" | 1 | 2 | 3;
+}
+
 export interface DeviceResponse {
   id: string;
   tenantId: string;
