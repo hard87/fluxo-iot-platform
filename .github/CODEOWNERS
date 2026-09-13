@@ -1,0 +1,37 @@
+# Mapa de responsabilidade por área do repositório.
+#
+# Com um único mantenedor hoje, este arquivo NÃO ativa exigência de aprovação
+# (branch protection de main mantém "require code owner reviews" desligado).
+# Serve para deixar claro quem é o responsável por cada área e para já estar
+# pronto quando houver um segundo revisor — ver decisão registrada na
+# avaliação do plano de governança de PRs.
+
+# CI e governança
+/.github/                                   @hard87
+
+# Segurança e autenticação
+/src/Fluxo.Api/Controllers/AuthController.cs   @hard87
+/src/Fluxo.Api/Options/AuthenticationOptions.cs @hard87
+/src/Fluxo.Api/Services/                       @hard87
+/src/Fluxo.Application/UseCases/Auth/          @hard87
+/src/Fluxo.Application/DTOs/Auth/              @hard87
+/src/Fluxo.Infrastructure/Mqtt/                @hard87
+
+# Banco de dados
+/src/Fluxo.Infrastructure/Migrations/       @hard87
+/src/Fluxo.Infrastructure/Data/             @hard87
+/src/Fluxo.Infrastructure/Repositories/     @hard87
+
+# Operação
+docker-compose*.yml                         @hard87
+**/Dockerfile                               @hard87
+/docker/                                    @hard87
+
+# Alertas
+/src/Fluxo.Domain/Alerts/                   @hard87
+/src/Fluxo.Application/Alerts/              @hard87
+/src/Fluxo.Infrastructure/Alerts/           @hard87
+/src/Fluxo.Worker.Ingestion/                @hard87
+
+# Portal
+/portal-web/                                @hard87
