@@ -132,3 +132,27 @@ public sealed class AlertDeliveryIntent
     public Guid TransitionId { get; init; }
     public DateTime CreatedAtUtc { get; init; }
 }
+
+// Who receives a rule's Firing/Resolved transitions on a given channel. Replaced wholesale
+// on each rule save (same pattern as AlertRuleState on revision replace), not diffed.
+public sealed class NotificationSubscription
+{
+    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid WorkspaceId { get; init; }
+    public Guid RuleId { get; init; }
+    public Guid MemberId { get; init; }
+    public string Channel { get; init; } = "Portal";
+    public DateTime CreatedAtUtc { get; init; }
+}
+
+// One row per (transition, recipient). The unique index is what makes creation idempotent
+// across worker retries/reprocessing -- see AlertTransactions.Transition.
+public sealed class PortalNotification
+{
+    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid WorkspaceId { get; init; }
+    public Guid TransitionId { get; init; }
+    public Guid RecipientUserId { get; init; }
+    public DateTime CreatedAtUtc { get; init; }
+    public DateTime? ReadAtUtc { get; set; }
+}

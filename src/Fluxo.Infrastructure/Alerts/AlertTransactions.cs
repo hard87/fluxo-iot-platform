@@ -63,8 +63,8 @@ internal static class AlertTransactions
             });
     }
 
-    public static void Transition(FluxoDbContext db, AlertEvent occurrence, string kind, DateTime occurred,
-        DateTime now, string reason, TelemetryIngestionRecord? record = null, TelemetryPoint? point = null)
+    public static async Task Transition(FluxoDbContext db, AlertEvent occurrence, string kind, DateTime occurred,
+        DateTime now, string reason, CancellationToken ct, TelemetryIngestionRecord? record = null, TelemetryPoint? point = null)
     {
         occurrence.Status = kind;
         var transition = new AlertEventTransition
@@ -76,6 +76,29 @@ internal static class AlertTransactions
         };
         db.Add(transition);
         db.Add(new AlertDeliveryIntent { WorkspaceId = occurrence.WorkspaceId, TransitionId = transition.Id, CreatedAtUtc = now });
+        // Portal is the only channel with an implemented adapter today (E2.4); email stays a gate
+        // pending provider selection (docs/product/alertas-especificacao.md §8). Only Firing/
+        // Resolved are notified in this first cut -- Closed (administrative) is not yet.
+        if (kind is "Firing" or "Resolved")
+            await NotifyPortalSubscribersAsync(db, occurrence, transition, now, ct);
+    }
+
+    private static async Task NotifyPortalSubscribersAsync(FluxoDbContext db, AlertEvent occurrence,
+        AlertEventTransition transition, DateTime now, CancellationToken ct)
+    {
+        var recipients = await (
+            from s in db.Set<NotificationSubscription>()
+            join m in db.WorkspaceMemberships on new { WorkspaceId = s.WorkspaceId, UserId = s.MemberId } equals new { m.WorkspaceId, m.UserId }
+            join u in db.PlatformUsers on s.MemberId equals u.Id
+            where s.WorkspaceId == occurrence.WorkspaceId && s.RuleId == occurrence.RuleId && s.Channel == "Portal" && u.IsActive
+            select s.MemberId
+        ).Distinct().ToListAsync(ct);
+        foreach (var recipient in recipients)
+            db.Add(new PortalNotification
+            {
+                WorkspaceId = occurrence.WorkspaceId, TransitionId = transition.Id,
+                RecipientUserId = recipient, CreatedAtUtc = now
+            });
     }
 
     public static async Task CompleteParentAsync(FluxoDbContext db, Guid workspace, Guid workId, CancellationToken ct)

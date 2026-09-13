@@ -40,6 +40,12 @@ export interface Workspace {
   createdAtUtc: string;
 }
 
+export interface WorkspaceMember {
+  userId: string;
+  email: string;
+  role: "Owner" | "Admin" | "Viewer" | 1 | 2 | 3;
+}
+
 export interface DeviceResponse {
   id: string;
   tenantId: string;
@@ -263,4 +269,18 @@ export interface AlertAttemptDiagnostic {
   attemptCount: number;
   nextAttemptAtUtc: string | null;
   reason: string | null;
+}
+
+// Portal notification channel (E2.4) -- Firing/Resolved only in this first delivery; email is a
+// separate channel pending provider selection, not implemented yet.
+export interface PortalNotification {
+  id: string;
+  eventId: string;
+  ruleId: string;
+  ruleName: string;
+  deviceIdentifier: string;
+  eventStatus: AlertEventStatus;
+  transitionKind: AlertEventStatus;
+  createdAtUtc: string;
+  readAtUtc: string | null;
 }

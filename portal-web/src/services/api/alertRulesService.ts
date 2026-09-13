@@ -30,6 +30,9 @@ export interface SaveAlertRulePayload {
   severity?: AlertSeverity;
   enabled?: boolean;
   expectedVersion?: number | null;
+  /** Portal-channel recipients (member user ids). Omitted/empty means no portal notifications
+   * are configured for this rule -- not an error, the channel is simply unused. */
+  portalRecipientUserIds?: string[] | null;
 }
 
 export async function createAlertRule(
@@ -89,6 +92,20 @@ export async function listAllAlertRules(token: string, workspaceId: string): Pro
     }
   }
   return all;
+}
+
+/** Admin only (same rule-management role as create/update). Current portal-channel recipients
+ * for a rule -- not carried on AlertRuleRevision, which is why this is a separate call. */
+export async function getPortalRecipients(
+  token: string,
+  workspaceId: string,
+  ruleId: string,
+  signal?: AbortSignal
+): Promise<string[]> {
+  return await apiRequest<string[]>(
+    `/api/workspaces/${workspaceId}/alerts/rules/${ruleId}/portal-recipients`,
+    { token, signal }
+  );
 }
 
 export async function listAlertRuleRevisions(

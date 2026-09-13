@@ -9,7 +9,15 @@ import type { SaveAlertRulePayload } from "../services/api/alertRulesService";
 import * as deviceService from "../services/api/deviceService";
 import { ApiError } from "../services/api/httpClient";
 import * as telemetryService from "../services/api/telemetryService";
-import type { AlertOperator, AlertRuleRevision, AlertSeverity, DeviceResponse, MetricDefinitionResponse } from "../types";
+import * as workspaceMembersService from "../services/api/workspaceMembersService";
+import type {
+  AlertOperator,
+  AlertRuleRevision,
+  AlertSeverity,
+  DeviceResponse,
+  MetricDefinitionResponse,
+  WorkspaceMember
+} from "../types";
 import { getApiErrorMessage } from "../utils/apiErrorMessage";
 import { sanitizeText } from "../utils/sanitize";
 
@@ -91,6 +99,7 @@ export function AlertRuleFormPage() {
 
   const [metrics, setMetrics] = useState<MetricDefinitionResponse[]>([]);
   const [devices, setDevices] = useState<DeviceResponse[]>([]);
+  const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [optionsError, setOptionsError] = useState<unknown>(null);
 
@@ -98,6 +107,9 @@ export function AlertRuleFormPage() {
   const [loadingRule, setLoadingRule] = useState(isEditMode);
   const [ruleError, setRuleError] = useState<unknown>(null);
   const [ruleNotFound, setRuleNotFound] = useState(false);
+
+  const [loadingPortalRecipients, setLoadingPortalRecipients] = useState(isEditMode);
+  const [portalRecipientsError, setPortalRecipientsError] = useState<unknown>(null);
 
   const [name, setName] = useState("");
   const [metricDefinitionId, setMetricDefinitionId] = useState("");
@@ -110,6 +122,7 @@ export function AlertRuleFormPage() {
   const [cooldownSeconds, setCooldownSeconds] = useState("0");
   const [severity, setSeverity] = useState<AlertSeverity>("Warning");
   const [enabled, setEnabled] = useState(false);
+  const [portalRecipientUserIds, setPortalRecipientUserIds] = useState<string[]>([]);
 
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [showActiveConfirm, setShowActiveConfirm] = useState(false);
@@ -120,13 +133,15 @@ export function AlertRuleFormPage() {
     setLoadingOptions(true);
     setOptionsError(null);
     try {
-      const [metricDefinitions, deviceList] = await Promise.all([
+      const [metricDefinitions, deviceList, memberList] = await Promise.all([
         telemetryService.listMetricDefinitions(authToken, wsId),
-        deviceService.listDevices(authToken, wsId)
+        deviceService.listDevices(authToken, wsId),
+        workspaceMembersService.listWorkspaceMembers(authToken, wsId)
       ]);
       if (isMountedRef.current) {
         setMetrics(metricDefinitions.filter((metric) => metric.valueType !== "Text" && metric.status !== "Ignored"));
         setDevices(deviceList.filter((device) => device.isActive));
+        setMembers(memberList);
       }
     } catch (err) {
       if (isMountedRef.current) {
@@ -203,6 +218,41 @@ export function AlertRuleFormPage() {
 
     void loadRule(token, workspaceId, ruleId);
   }, [isEditMode, token, workspaceId, ruleId, loadRule, location.state]);
+
+  // Portal-channel recipients live in a separate table (NotificationSubscription), not on
+  // AlertRuleRevision, so they can't come from location.state's rule shortcut above -- always
+  // fetched from the server when editing.
+  const loadPortalRecipients = useCallback(async (authToken: string, wsId: string, id: string) => {
+    setLoadingPortalRecipients(true);
+    setPortalRecipientsError(null);
+    try {
+      const recipients = await alertRulesService.getPortalRecipients(authToken, wsId, id);
+      if (isMountedRef.current) {
+        setPortalRecipientUserIds(recipients);
+      }
+    } catch (err) {
+      if (isMountedRef.current) {
+        setPortalRecipientsError(err);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setLoadingPortalRecipients(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isEditMode || !token || !workspaceId || !ruleId) {
+      return;
+    }
+    void loadPortalRecipients(token, workspaceId, ruleId);
+  }, [isEditMode, token, workspaceId, ruleId, loadPortalRecipients]);
+
+  function togglePortalRecipient(userId: string, checked: boolean) {
+    setPortalRecipientUserIds((current) =>
+      checked ? [...current, userId] : current.filter((id) => id !== userId)
+    );
+  }
 
   function handleMetricChange(newMetricId: string) {
     setMetricDefinitionId(newMetricId);
@@ -307,7 +357,8 @@ export function AlertRuleFormPage() {
       cooldownSeconds: Number(cooldownSeconds || "0"),
       severity,
       enabled: isEditMode ? enabled : false,
-      expectedVersion: isEditMode && existingRule ? existingRule.version : undefined
+      expectedVersion: isEditMode && existingRule ? existingRule.version : undefined,
+      portalRecipientUserIds
     };
   }
 
@@ -360,7 +411,7 @@ export function AlertRuleFormPage() {
     return getApiErrorMessage(error, "Ocorreu um erro inesperado ao salvar a regra.");
   }
 
-  if (!isEditMode ? loadingOptions : loadingOptions || loadingRule) {
+  if (!isEditMode ? loadingOptions : loadingOptions || loadingRule || loadingPortalRecipients) {
     return (
       <section>
         <PageHeader title={isEditMode ? "Editar regra de alerta" : "Nova regra de alerta"} />
@@ -398,6 +449,25 @@ export function AlertRuleFormPage() {
           action={
             token && workspaceId && ruleId ? (
               <button type="button" className="button-secondary" onClick={() => void loadRule(token, workspaceId, ruleId)}>
+                Tentar novamente
+              </button>
+            ) : undefined
+          }
+        />
+      </section>
+    );
+  }
+
+  if (isEditMode && portalRecipientsError) {
+    return (
+      <section>
+        <PageHeader title="Editar regra de alerta" />
+        <ErrorState
+          title="Não foi possível carregar os destinatários de notificação no portal"
+          description={getApiErrorMessage(portalRecipientsError, "Ocorreu um erro inesperado ao carregar os destinatários.")}
+          action={
+            token && workspaceId && ruleId ? (
+              <button type="button" className="button-secondary" onClick={() => void loadPortalRecipients(token, workspaceId, ruleId)}>
                 Tentar novamente
               </button>
             ) : undefined
@@ -554,6 +624,29 @@ export function AlertRuleFormPage() {
             <option value="Critical">Crítico</option>
           </select>
         </label>
+
+        <fieldset>
+          <legend>Notificação no portal</legend>
+          {members.length === 0 ? (
+            <p className="muted">Nenhum membro elegível encontrado neste workspace.</p>
+          ) : (
+            <>
+              <p className="muted">
+                Disparo e resolução notificam os membros selecionados na caixa de notificações do portal.
+              </p>
+              {members.map((member) => (
+                <label key={member.userId} className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={portalRecipientUserIds.includes(member.userId)}
+                    onChange={(event) => togglePortalRecipient(member.userId, event.target.checked)}
+                  />
+                  {member.email}
+                </label>
+              ))}
+            </>
+          )}
+        </fieldset>
 
         {isEditMode ? (
           <label className="checkbox-field">

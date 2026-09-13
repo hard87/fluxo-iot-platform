@@ -4,7 +4,7 @@
 
 - Última revisão deste snapshot: 13 set 2026.
 - Branch observada: `main`.
-- HEAD observado: `5932f16737c39cff57f63ba77a2d77fe7b051778` (PR #17).
+- HEAD observado: `1e4c4b76411cec429ce2082a134459b68a4b02d3` (PR #27 — canal de portal do E2.4).
 - Esta consolidação não declara suporte de produção a 1000 devices.
 - Incidente de governança registrado e corrigido em 13/09/2026: os PRs #15 e #16 (harness e
   confiabilidade do E2) foram mergeados em branches intermediárias (`fix/enable-alert-evaluation-worker`
@@ -19,8 +19,10 @@
   `AlertEvaluationWorker` nunca avaliava nenhuma regra (ver seção 2.4 e Riscos ativos — item
   resolvido).
 - E2 (núcleo — avaliação → evento → reconhecimento) comprovado ponta a ponta em 13/09/2026 com o
-  `AlertEvaluationWorker` real rodando (não mais um drain manual) — ver seção 2.5. Canal de entrega
-  (E2.4) continua sem adaptador implementado; não faz parte desta comprovação.
+  `AlertEvaluationWorker` real rodando (não mais um drain manual) — ver seção 2.5.
+- E2.4 (canal de portal) implementado e comprovado em 13/09/2026 — ver seção 2.6. E-mail (o
+  segundo canal nativo decidido) continua sem adaptador, explicitamente pendente de escolha de
+  provedor/transporte; a Fase 3 não é declarada concluída enquanto isso não fechar.
 
 ## 2. Estado das trilhas
 
@@ -29,7 +31,7 @@
 | Produto | Fase 0 — decisões e baseline | CONCLUÍDA | ADRs aceitos e benchmark executado |
 | Produto | Fase 1 — Schema V2 e ingestão | CONCLUÍDA | [Relatório Fase 1](handoff/relatorio-fase-1-schema-v2-2026-07-11.md) |
 | Produto | Fase 2 — Telemetry Query API e Explorer | CONCLUÍDA | [Relatório Fase 2](handoff/relatorio-fase-2-telemetry-explorer-2026-07-12.md) |
-| Produto | Fase 3 — alertas | EM ANDAMENTO — backend e portal (E1) concluídos; worker de avaliação corrigido e habilitado (ver 2.4); núcleo do E2 (avaliação → evento → reconhecimento) comprovado ponta a ponta com o worker real (ver 2.5); canal de entrega (E2.4) ainda sem adaptador implementado | [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md) |
+| Produto | Fase 3 — alertas | EM ANDAMENTO — backend e portal (E1) concluídos; worker de avaliação corrigido e habilitado (ver 2.4); núcleo do E2 (avaliação → evento → reconhecimento) comprovado ponta a ponta com o worker real (ver 2.5); canal de portal implementado e comprovado (ver 2.6); e-mail ainda sem adaptador, pendente de escolha de provedor | [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md) |
 | Produto | Fase 4 — inteligência operacional | NÃO INICIADA | [Escopo do MVP](product/mvp-scope.md) |
 | Produto | Fase 5 — pilotos físicos | EM PILOTO | [Relatório Gateway Pi](handoff/relatorio-fase-5-piloto-fisico-gateway-pi-2026-07-31.md) |
 | Infraestrutura | Infra Fase 1 — hardening | CONCLUÍDA | Baseline de autenticação, ACL, TLS MQTT e ingestão |
@@ -204,6 +206,53 @@ Não alterado nesta entrega: portal (nenhuma mudança em `portal-web/`), e2e Pla
 (sem novo spec de navegador para alertas — decisão registrada: a camada de aplicação real +
 worker real cobre o risco que estava aberto; a UI já tem cobertura própria do E1).
 
+### 2.6 — E2.4: canal de notificação no portal implementado (13/09/2026)
+
+`docs/adr/0005-alertas-canais-historico-isolamento-proposta.md` e
+`docs/product/alertas-especificacao.md` decidem dois canais nativos — portal e e-mail — com
+portal primeiro na sequência de implementação proposta (§8) e e-mail travado atrás de uma decisão
+de provedor/transporte que não pode ser tomada durante a implementação. Nesta entrega:
+implementado só o canal de portal; e-mail permanece gate aberto, sem fornecedor escolhido.
+
+- Pré-requisito novo: `GET /api/workspaces/{id}/members` — não existia nenhuma forma de listar
+  membros de um workspace (`IWorkspaceMembershipRepository` só resolvia por usuário, nunca por
+  workspace).
+- Novos modelos `NotificationSubscription` (workspace/regra/membro/canal) e `PortalNotification`
+  (transição/destinatário, único por par — idempotente a reprocessamento do work item),
+  migration `AddAlertPortalNotifications`.
+- `AlertTransactions.Transition` (o único ponto que já criava `AlertDeliveryIntent` a cada
+  transição) passa a criar também uma `PortalNotification` por assinante ativo do canal Portal,
+  quando a transição é `Firing` ou `Resolved` — `Closed` (encerramento administrativo) não notifica
+  nesta primeira entrega, escopo reduzido deliberadamente e documentado, sem quebra de schema para
+  estender depois.
+- `SaveAlertRuleRequest` ganha `PortalRecipientUserIds`; salvar uma regra substitui por completo as
+  assinaturas do canal Portal daquela regra (mesmo padrão já usado para `AlertRuleState` na troca
+  de revisão) e valida que cada destinatário é membro ativo do workspace.
+- Portal: seção "Notificação no portal" no formulário de regra (seleção de destinatários,
+  pré-marcados ao editar via `GET .../portal-recipients`) e nova página
+  `/workspaces/{id}/alerts/notifications` — inbox pessoal do usuário logado, filtro lido/não lido,
+  marcar como lida (idempotente, só o próprio destinatário).
+
+Evidência de verificação (13/09/2026):
+
+- Backend: `dotnet test Fluxo.slnx` com Postgres descartável real e
+  `FLUXO_TESTS_REQUIRE_POSTGRES=1`: **97/97 unitários** e **81/81 integração** (76 anteriores + 5
+  novos: destinatários próprios recebem notificação em Firing/Resolved, editar a regra para
+  remover um destinatário não afeta notificações já criadas, destinatário inválido é rejeitado com
+  rollback completo da transação, marcar como lida é idempotente e restrito ao próprio
+  destinatário, consulta de destinatários atuais de uma regra), 0 ignorados, 0 falhas. Testes
+  provados através do `AlertWorkerHarness` (worker real), não de chamada direta ao motor.
+- Frontend: `npm test` em `portal-web/` — **148/148** (132 base + 16 novos); `npm run build` —
+  `tsc --noEmit` sem erros, `vite build` concluído.
+- **Não executado nesta entrega:** verificação manual via `docker compose up` com clique real no
+  navegador — outra sessão já tinha o stack de desenvolvimento ativo com os mesmos nomes fixos de
+  container (`docker-compose.yml` não prefixa `container_name` pelo projeto), então não foi
+  possível subir um segundo stack local sem derrubar o dela. O job `e2e` do CI (ambiente isolado
+  por execução) passou para as três PRs desta entrega, o que dá alguma evidência de integração real
+  além dos testes automatizados, mas não substitui uma passada manual completa da inbox de
+  notificações no navegador antes de assumir o canal de portal como comprovado para demonstração ao
+  piloto.
+
 ## 3. Arquitetura atual
 
 - Portal: React, Vite, TypeScript e Recharts 2.x.
@@ -243,10 +292,11 @@ Produto Fase 3 — Alertas com estado e delivery. Backend e portal (E1) estão i
 comprovados na interface (seção 2.3); o worker de avaliação, que estava desabilitado em todos os
 ambientes, foi corrigido e habilitado em 13/09/2026 (seção 2.4); o núcleo do E2 (regra criada →
 telemetria dispara → worker real abre evento → histórico → reconhecimento) está comprovado ponta a
-ponta com o worker real, sem drain manual (seção 2.5). Falta apenas a definição e evidência real do
-canal de entrega (E2.4) — sem isso, a Fase 3 não pode ser declarada CONCLUÍDA, ainda que o núcleo
-de avaliação/evento/reconhecimento já esteja verde. A arquitetura normativa está no
-[ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), complementada pelo
+ponta com o worker real, sem drain manual (seção 2.5); o canal de portal (E2.4) está implementado e
+comprovado por teste automatizado, com verificação manual no navegador ainda pendente (seção 2.6).
+Falta apenas o canal de e-mail — bloqueado numa decisão de provedor/transporte que não pode ser
+tomada durante a implementação — para a Fase 3 ser declarada CONCLUÍDA. A arquitetura normativa
+está no [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), complementada pelo
 [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md); não deve ser substituída
 por um desenho novo durante a implementação.
 

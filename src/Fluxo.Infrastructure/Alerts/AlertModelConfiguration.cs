@@ -93,6 +93,20 @@ internal static class AlertModelConfiguration
         intent.HasIndex(x => x.TransitionId).IsUnique();
         intent.HasOne<AlertEventTransition>().WithMany().HasForeignKey(x => new { x.WorkspaceId, x.TransitionId })
             .HasPrincipalKey(x => new { x.WorkspaceId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+
+        var subscription = Scoped<NotificationSubscription>(m, "alert_notification_subscriptions");
+        subscription.Property(x => x.Channel).HasMaxLength(20);
+        subscription.HasIndex(x => new { x.WorkspaceId, x.RuleId, x.MemberId, x.Channel }).IsUnique();
+        subscription.HasOne<AlertRule>().WithMany().HasForeignKey(x => new { x.WorkspaceId, x.RuleId })
+            .HasPrincipalKey(x => new { x.WorkspaceId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        subscription.HasOne<PlatformUser>().WithMany().HasForeignKey(x => x.MemberId).OnDelete(DeleteBehavior.Restrict);
+        subscription.ToTable(t => t.HasCheckConstraint("CK_alert_notification_subscription_channel", "\"Channel\" IN ('Portal')"));
+
+        var notification = Scoped<PortalNotification>(m, "portal_notifications");
+        notification.HasIndex(x => new { x.WorkspaceId, x.TransitionId, x.RecipientUserId }).IsUnique();
+        notification.HasOne<AlertEventTransition>().WithMany().HasForeignKey(x => new { x.WorkspaceId, x.TransitionId })
+            .HasPrincipalKey(x => new { x.WorkspaceId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        notification.HasOne<PlatformUser>().WithMany().HasForeignKey(x => x.RecipientUserId).OnDelete(DeleteBehavior.Restrict);
     }
 
     private static EntityTypeBuilder<T> Scoped<T>(ModelBuilder m, string table) where T : class

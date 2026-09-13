@@ -4,6 +4,7 @@ import { ApiError } from "./httpClient";
 import {
   ALERTS_PAGE_SIZE,
   createAlertRule,
+  getPortalRecipients,
   hasPossibleNextAlertsPage,
   listAlertRuleRevisions,
   listAlertRules,
@@ -103,6 +104,32 @@ describe("alertRulesService", () => {
 
     const [url] = vi.mocked(fetch).mock.calls[0];
     expect(url).toBe("/api/workspaces/workspace-1/alerts/rules?page=2");
+  });
+
+  it("createAlertRule forwards portalRecipientUserIds in the payload", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(200, alertRuleRevisionFixture()));
+
+    await createAlertRule("token", "workspace-1", {
+      name: "Temperatura alta",
+      metricDefinitionId: "metric-1",
+      operator: "GreaterThan",
+      threshold: 30,
+      enabled: false,
+      portalRecipientUserIds: ["user-1", "user-2"]
+    });
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    expect(JSON.parse(init?.body as string).portalRecipientUserIds).toEqual(["user-1", "user-2"]);
+  });
+
+  it("getPortalRecipients fetches the nested portal-recipients route", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(200, ["user-1", "user-2"]));
+
+    const result = await getPortalRecipients("token", "workspace-1", "rule-1");
+
+    expect(result).toEqual(["user-1", "user-2"]);
+    const [url] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("/api/workspaces/workspace-1/alerts/rules/rule-1/portal-recipients");
   });
 
   it("listAlertRuleRevisions builds the nested revisions route with ?page=", async () => {
