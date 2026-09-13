@@ -10,6 +10,11 @@
   uma alteração em `docs/README.md` que os referencia, e um rascunho pessoal não rastreado
   (`inicio.txt`).
 - Esta consolidação não declara suporte de produção a 1000 devices.
+- O portal de alertas (E1, ver seção 2.3) foi concluído nesta sessão em quatro PRs empilhados
+  ainda não mergeados em `main`: `feat/portal-alert-contracts` (#7) →
+  `feat/portal-alert-rules` (#8) → `feat/portal-alert-rule-editor` (#9) →
+  `feat/portal-alert-events` (#10) → `feat/portal-alert-diagnostics` (#11). Mergear na ordem;
+  cada PR reaponta sozinho para `main` no GitHub assim que o anterior é integrado.
 
 ## 2. Estado das trilhas
 
@@ -18,7 +23,7 @@
 | Produto | Fase 0 — decisões e baseline | CONCLUÍDA | ADRs aceitos e benchmark executado |
 | Produto | Fase 1 — Schema V2 e ingestão | CONCLUÍDA | [Relatório Fase 1](handoff/relatorio-fase-1-schema-v2-2026-07-11.md) |
 | Produto | Fase 2 — Telemetry Query API e Explorer | CONCLUÍDA | [Relatório Fase 2](handoff/relatorio-fase-2-telemetry-explorer-2026-07-12.md) |
-| Produto | Fase 3 — alertas | EM ANDAMENTO — backend concluído, portal pendente | [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md) |
+| Produto | Fase 3 — alertas | EM ANDAMENTO — backend e portal (E1) concluídos; worker de avaliação desabilitado em todos os ambientes (ver 2.3/Riscos); E2 (validação ponta a ponta) e canal de entrega pendentes | [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md) |
 | Produto | Fase 4 — inteligência operacional | NÃO INICIADA | [Escopo do MVP](product/mvp-scope.md) |
 | Produto | Fase 5 — pilotos físicos | EM PILOTO | [Relatório Gateway Pi](handoff/relatorio-fase-5-piloto-fisico-gateway-pi-2026-07-31.md) |
 | Infraestrutura | Infra Fase 1 — hardening | CONCLUÍDA | Baseline de autenticação, ACL, TLS MQTT e ingestão |
@@ -72,6 +77,46 @@ iniciar o E1, sobre HEAD `baf346470a436f39109a42de7fe61578c5c1f11f` em `main`:
 Gate de saída da M0.1 cumprido: nenhuma falha encontrada, nenhuma correção separada necessária
 antes do E1.
 
+### 2.3 Portal de alertas concluído — E1 (12–13/09/2026)
+
+Executado o [plano de ação E1-E5](plano-acao-e1-e2-e3-e5.md), etapas E1.1 a E1.5, em quatro PRs
+empilhados (ver seção 1). Todas as operações do backend de alertas agora têm interface no portal:
+
+- `/workspaces/{id}/alerts` — lista paginada de regras (nome, métrica, escopo, condição,
+  severidade, estado) com ativar/desativar inline via `PUT` (única operação que o contrato
+  suporta sem ambiguidade — reenvia a revisão atual com `expectedVersion`).
+- `/workspaces/{id}/alerts/new` e `/workspaces/{id}/alerts/{ruleId}/edit` — formulário guiado
+  pelo `ValueType` da métrica (operadores numéricos vs. booleanos), com validação client-side de
+  apoio (servidor continua autoritativo) e confirmação explícita ao editar uma regra ativa.
+- `/workspaces/{id}/alerts/events` — eventos ativos/resolvidos com filtro de estado/severidade
+  aplicado apenas à página carregada (sem paginação client-side inventada).
+- `/workspaces/{id}/alerts/events/{eventId}` — histórico de transições (valor, timestamps com
+  fuso explícito, atraso de ingestão nunca mascarado como zero saudável) e reconhecimento
+  idempotente com autoria.
+- `/workspaces/{id}/alerts/diagnostics` — falhas de avaliação (`Failed`/`DeadLetter`, os únicos
+  estados que este endpoint expõe; não existe ainda estado de entrega por canal de notificação).
+
+Cobertura do portal cresceu de 44 para 132 testes (Vitest + Testing Library). Verificação
+ponta a ponta feita ao vivo contra a API e o Postgres reais (não só mockada): dispositivo
+provisionado, telemetria Schema V2 publicada via `scripts/mqtt-device-simulator.py`, regra criada
+e ativada, evento disparado, listado, histórico consultado e reconhecido — idempotência do
+reconhecimento confirmada (mesmo `id` retornado ao chamar duas vezes). `docker compose build/up`
+e o E2E `golden-path.spec.ts` revalidados sem regressão em autenticação/ingestão. Auditoria de
+1600/1024/768/375 px: nenhum componente novo do alertas overflowa horizontalmente; o overflow em
+375 px encontrado nas telas de regras/eventos vem do `.app-navigation-list` pré-existente (mesmo
+bug reproduzido em `/devices`, portanto não é regressão desta entrega — ver Riscos).
+
+**Achado crítico durante a verificação:** o `AlertEvaluationWorker` nunca avalia nenhuma regra em
+nenhum ambiente hoje. `AlertEvaluationOptions.Enabled` é um `bool` sem default explícito (logo
+`false`) e a chave `AlertEvaluation:Enabled` não é definida em `docker-compose.yml`,
+`docker-compose.controlled-prod.yml` nem em `appsettings.json` — o worker executa
+`if (!options.Value.Enabled) return;` e encerra sem processar a fila. Os testes de integração
+(`AlertBackendTests`) não pegam isso porque instanciam `AlertEvaluationEngine` diretamente,
+pulando esse gate. Confirmado ao vivo via `docker exec fluxo-postgres psql`: um work item ficou
+`Pending`/`AttemptCount=0` indefinidamente até a flag ser ligada manualmente (não commitado). Ou
+seja, **o portal de alertas está completo e funcional, mas nenhuma regra dispara de fato em
+nenhum ambiente configurado até essa flag ser corrigida** — ver Riscos ativos (seção 7).
+
 ## 3. Arquitetura atual
 
 - Portal: React, Vite, TypeScript e Recharts 2.x.
@@ -107,10 +152,12 @@ pronto para 1000 devices em produção.
 
 ## 5. Próxima fase de produto
 
-Produto Fase 3 — Alertas com estado e delivery. O backend (engine, worker, endpoints) está
-implementado; falta a interface do portal para criar/editar regras e acompanhar eventos, e a
-validação e2e do fluxo completo (regra criada → telemetria dispara → evento aparece → canal
-notifica). A arquitetura normativa está no
+Produto Fase 3 — Alertas com estado e delivery. Backend e portal (E1) estão implementados e
+comprovados na interface (seção 2.3), mas o worker de avaliação está desabilitado em todos os
+ambientes (ver Riscos) — corrigir isso é pré-requisito antes de qualquer demonstração ou piloto
+que dependa de alertas realmente dispararem. Falta a validação e2e automatizada do fluxo completo
+(E2 do plano de ação: regra criada → telemetria dispara → evento aparece → canal notifica) e a
+definição do canal de entrega (E2.4, ainda em aberto). A arquitetura normativa está no
 [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), complementada pelo
 [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md); não deve ser substituída
 por um desenho novo durante a implementação.
@@ -129,12 +176,22 @@ por um desenho novo durante a implementação.
 - revogar/desativar o primeiro provisionamento Gateway sem uso registrado no relatório da Fase 5;
 - integrar sensor físico ao Gateway quando houver hardware identificado;
 - revisar guia do piloto, backup/restore e simulador.
-- construir a interface do portal para alertas (regras, eventos, histórico, reconhecimento).
+- habilitar `AlertEvaluation:Enabled` em todos os ambientes — hoje o worker de avaliação de
+  alertas nunca dispara (ver seção 2.3 e Riscos ativos).
 
 A fonte autoritativa dos checkboxes é o [checklist de produção controlada](checklist-producao-controlada.md).
 
 ## 7. Riscos ativos
 
+- **Crítico:** `AlertEvaluationWorker` nunca avalia nenhuma regra em nenhum ambiente hoje —
+  `AlertEvaluation:Enabled` não é definido em `docker-compose.yml`,
+  `docker-compose.controlled-prod.yml` nem `appsettings.json`, e o default de `bool` em C# é
+  `false`. O portal de alertas (seção 2.3) está completo e funcional, mas nenhum alerta dispara de
+  fato até essa flag ser ligada. Detalhes e correção sugerida registrados como tarefa separada
+  nesta sessão (não corrigido aqui para não misturar fix de infraestrutura com entrega de portal).
+- `.app-navigation-list` não tem layout responsivo e força rolagem horizontal da página inteira em
+  larguras de ~375 px, em qualquer rota (reproduzido em `/devices` e nas novas rotas de alertas) —
+  pré-existente, não é regressão do E1; registrado como tarefa separada.
 - HA completo do broker, serviços e PostgreSQL ainda não comprovado.
 - Tracing fim a fim ainda ausente.
 - Retenção, arquivamento, backup e restore carecem de política/exercício operacional.
