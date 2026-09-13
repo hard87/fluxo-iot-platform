@@ -5,17 +5,23 @@ using Fluxo.Application.DTOs.Auth;
 using Fluxo.Application.DTOs.Portal;
 using Fluxo.Application.DTOs.Provisioning;
 using Fluxo.Application.DTOs.Workspaces;
+using Fluxo.Application.Interfaces.Repositories;
+using Fluxo.Domain.Entities;
 using Fluxo.Domain.Enums;
+using Fluxo.Infrastructure.Data;
 using Fluxo.IntegrationTests.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Fluxo.IntegrationTests.Api;
 
 public class PortalAuthWorkspaceEndpointsTests : IClassFixture<FluxoWebApplicationFactory>
 {
+    private readonly FluxoWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
     public PortalAuthWorkspaceEndpointsTests(FluxoWebApplicationFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -137,6 +143,58 @@ public class PortalAuthWorkspaceEndpointsTests : IClassFixture<FluxoWebApplicati
     }
 
     [Fact]
+    public async Task Members_Should_List_Active_Members_With_Roles()
+    {
+        var (ownerId, ownerToken) = await RegisterAndLoginWithUserIdAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ownerToken);
+        var workspace = await CreateWorkspaceAsync("Members Workspace");
+
+        var (viewerId, _) = await RegisterAndLoginWithUserIdAsync();
+        await AddMembershipAsync(workspace.Id, viewerId, WorkspaceMembershipRole.Viewer);
+
+        var response = await _client.GetAsync($"/api/workspaces/{workspace.Id}/members");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var members = await response.Content.ReadFromJsonAsync<List<WorkspaceMemberSummary>>();
+        Assert.NotNull(members);
+        Assert.Contains(members, x => x.UserId == ownerId && x.Role == WorkspaceMembershipRole.Owner);
+        Assert.Contains(members, x => x.UserId == viewerId && x.Role == WorkspaceMembershipRole.Viewer);
+        Assert.Equal(2, members.Count);
+    }
+
+    [Fact]
+    public async Task Members_Should_Be_Readable_By_Any_Active_Member_Not_Only_Admins()
+    {
+        var (_, ownerToken) = await RegisterAndLoginWithUserIdAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ownerToken);
+        var workspace = await CreateWorkspaceAsync("Viewer Read Workspace");
+
+        var (viewerId, viewerToken) = await RegisterAndLoginWithUserIdAsync();
+        await AddMembershipAsync(workspace.Id, viewerId, WorkspaceMembershipRole.Viewer);
+
+        using var viewerClient = _factory.CreateClient();
+        viewerClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", viewerToken);
+        var response = await viewerClient.GetAsync($"/api/workspaces/{workspace.Id}/members");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Members_Should_Not_Be_Readable_By_Users_Outside_The_Workspace()
+    {
+        var (_, ownerToken) = await RegisterAndLoginWithUserIdAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ownerToken);
+        var workspace = await CreateWorkspaceAsync("Isolated Workspace");
+
+        var (_, strangerToken) = await RegisterAndLoginWithUserIdAsync();
+        using var strangerClient = _factory.CreateClient();
+        strangerClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", strangerToken);
+        var response = await strangerClient.GetAsync($"/api/workspaces/{workspace.Id}/members");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Register_With_Weak_Password_Should_Return_BadRequest()
     {
         var response = await _client.PostAsJsonAsync("/api/auth/register", new RegisterUserRequest
@@ -162,7 +220,13 @@ public class PortalAuthWorkspaceEndpointsTests : IClassFixture<FluxoWebApplicati
 
     private async Task<string> RegisterAndLoginAsync()
     {
-        var email = $"user-{Guid.NewGuid():N}@fluxo.local";
+        var (_, token) = await RegisterAndLoginWithUserIdAsync();
+        return token;
+    }
+
+    private async Task<(Guid UserId, string Token)> RegisterAndLoginWithUserIdAsync()
+    {
+        var email = $"portal-member-user-{Guid.NewGuid():N}@fluxo.local";
         const string password = "Abcdef!23456";
 
         var register = await _client.PostAsJsonAsync("/api/auth/register", new RegisterUserRequest
@@ -180,6 +244,14 @@ public class PortalAuthWorkspaceEndpointsTests : IClassFixture<FluxoWebApplicati
         login.EnsureSuccessStatusCode();
 
         var payload = await login.Content.ReadFromJsonAsync<LoginResponse>();
-        return payload!.AccessToken;
+        return (payload!.User.UserId, payload.AccessToken);
+    }
+
+    private async Task AddMembershipAsync(Guid workspaceId, Guid userId, WorkspaceMembershipRole role)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<FluxoDbContext>();
+        dbContext.WorkspaceMemberships.Add(new WorkspaceMembership(workspaceId, userId, role));
+        await dbContext.SaveChangesAsync();
     }
 }

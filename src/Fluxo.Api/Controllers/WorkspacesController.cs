@@ -13,13 +13,16 @@ public sealed class WorkspacesController : ControllerBase
 {
     private readonly CreateWorkspaceUseCase _createWorkspaceUseCase;
     private readonly ListUserWorkspacesUseCase _listUserWorkspacesUseCase;
+    private readonly ListWorkspaceMembersUseCase _listWorkspaceMembersUseCase;
 
     public WorkspacesController(
         CreateWorkspaceUseCase createWorkspaceUseCase,
-        ListUserWorkspacesUseCase listUserWorkspacesUseCase)
+        ListUserWorkspacesUseCase listUserWorkspacesUseCase,
+        ListWorkspaceMembersUseCase listWorkspaceMembersUseCase)
     {
         _createWorkspaceUseCase = createWorkspaceUseCase;
         _listUserWorkspacesUseCase = listUserWorkspacesUseCase;
+        _listWorkspaceMembersUseCase = listWorkspaceMembersUseCase;
     }
 
     [HttpPost]
@@ -37,6 +40,14 @@ public sealed class WorkspacesController : ControllerBase
     {
         var userId = User.GetRequiredUserId();
         var result = await _listUserWorkspacesUseCase.ExecuteAsync(userId, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpGet("{workspaceId:guid}/members")]
+    public async Task<IActionResult> Members(Guid workspaceId, CancellationToken cancellationToken)
+    {
+        var userId = User.GetRequiredUserId();
+        var result = await _listWorkspaceMembersUseCase.ExecuteAsync(userId, workspaceId, cancellationToken);
         return Ok(result);
     }
 }

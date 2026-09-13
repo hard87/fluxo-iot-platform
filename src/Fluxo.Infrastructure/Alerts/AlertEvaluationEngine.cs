@@ -106,12 +106,12 @@ public sealed class AlertEvaluationEngine(FluxoDbContext db, IOptions<AlertEvalu
                 var occurrence = new AlertEvent { WorkspaceId = claim.WorkspaceId, RuleId = rule.Id, RevisionId = revision.Id,
                     DeviceIdentifier = claim.DeviceIdentifier, TriggeredAtUtc = record.OccurredAtUtc };
                 db.Add(occurrence); state.ActiveEventId = occurrence.Id;
-                AlertTransactions.Transition(db, occurrence, "Firing", record.OccurredAtUtc, now, "ConditionSatisfied", record, point);
+                await AlertTransactions.Transition(db, occurrence, "Firing", record.OccurredAtUtc, now, "ConditionSatisfied", ct, record, point);
             }
             else if (result == "Resolved")
             {
                 var occurrence = await db.Set<AlertEvent>().SingleAsync(x => x.WorkspaceId == claim.WorkspaceId && x.Id == state.ActiveEventId, ct);
-                AlertTransactions.Transition(db, occurrence, "Resolved", record.OccurredAtUtc, now, "RecoveryObserved", record, point);
+                await AlertTransactions.Transition(db, occurrence, "Resolved", record.OccurredAtUtc, now, "RecoveryObserved", ct, record, point);
                 state.ActiveEventId = null;
             }
         }
