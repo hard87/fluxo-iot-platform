@@ -16,6 +16,9 @@
 - Corrigido em 13/09/2026: `AlertEvaluation:Enabled` estava ausente de toda configuração e o
   `AlertEvaluationWorker` nunca avaliava nenhuma regra (ver seção 2.4 e Riscos ativos — item
   resolvido).
+- E2 (núcleo — avaliação → evento → reconhecimento) comprovado ponta a ponta em 13/09/2026 com o
+  `AlertEvaluationWorker` real rodando (não mais um drain manual) — ver seção 2.5. Canal de entrega
+  (E2.4) continua sem adaptador implementado; não faz parte desta comprovação.
 
 ## 2. Estado das trilhas
 
@@ -24,7 +27,7 @@
 | Produto | Fase 0 — decisões e baseline | CONCLUÍDA | ADRs aceitos e benchmark executado |
 | Produto | Fase 1 — Schema V2 e ingestão | CONCLUÍDA | [Relatório Fase 1](handoff/relatorio-fase-1-schema-v2-2026-07-11.md) |
 | Produto | Fase 2 — Telemetry Query API e Explorer | CONCLUÍDA | [Relatório Fase 2](handoff/relatorio-fase-2-telemetry-explorer-2026-07-12.md) |
-| Produto | Fase 3 — alertas | EM ANDAMENTO — backend e portal (E1) concluídos; worker de avaliação corrigido e habilitado (ver 2.4); E2 (validação ponta a ponta) e canal de entrega pendentes | [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md) |
+| Produto | Fase 3 — alertas | EM ANDAMENTO — backend e portal (E1) concluídos; worker de avaliação corrigido e habilitado (ver 2.4); núcleo do E2 (avaliação → evento → reconhecimento) comprovado ponta a ponta com o worker real (ver 2.5); canal de entrega (E2.4) ainda sem adaptador implementado | [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md) |
 | Produto | Fase 4 — inteligência operacional | NÃO INICIADA | [Escopo do MVP](product/mvp-scope.md) |
 | Produto | Fase 5 — pilotos físicos | EM PILOTO | [Relatório Gateway Pi](handoff/relatorio-fase-5-piloto-fisico-gateway-pi-2026-07-31.md) |
 | Infraestrutura | Infra Fase 1 — hardening | CONCLUÍDA | Baseline de autenticação, ACL, TLS MQTT e ingestão |
@@ -151,6 +154,54 @@ Evidência de verificação (13/09/2026, HEAD `9eb3df5` + este fix):
   container `frontend`, que não havia sido recriado junto do `api`/`worker` — não é regressão
   desta mudança; resolvido com `docker compose restart frontend` e confirmado no rerun).
 
+### 2.5 — E2: alertas ponta a ponta, núcleo comprovado (13/09/2026)
+
+Executado o E2.1/E2.2/E2.3 do [plano de ação](plano-acao-e1-e2-e3-e5.md) (`test/alerts-e2e-harness`
+→ `test/alerts-e2e-reliability`, ambas com base em `fix/enable-alert-evaluation-worker`). Achado
+central da investigação: nenhum teste do repositório hospedava o `AlertEvaluationWorker` rodando
+de verdade — `AlertBackendTests.cs` dirige `AlertEvaluationEngine.ClaimAsync`/`EvaluateAsync`
+manualmente num loop síncrono (`Scenario.Drain`), então nenhum teste existente teria pego o bug da
+flag corrigido na seção 2.4.
+
+- `AlertWorkerHarness` (novo) hospeda o `AlertEvaluationWorker` real — o `BackgroundService` com
+  seu próprio poll loop, não mais um drain manual — contra Postgres descartável real.
+- `AlertGoldenPathTests` cobre os 7 passos do E2.2 via `IAlertManagement` (mesma interface que
+  `AlertsController` chama): regra criada e ativada → telemetria dispara a condição → worker real
+  abre exatamente 1 evento → histórico consultável → reconhecimento idempotente (dois
+  `AcknowledgeAsync` retornam o mesmo id) → leitura de resolução fecha o evento sem duplicata.
+  Inclui um teste canário: com `Enabled=false`, nenhuma regra jamais dispara — documenta em teste
+  o exato bug da seção 2.4, para que uma regressão futura da flag quebre CI em vez de passar
+  silenciosamente.
+- `AlertReliabilityTests` fecha as duas lacunas do E2.3 que `AlertBackendTests.cs` não cobria:
+  regra global (`DeviceIdentifier=null`) mantém estado independente por device (dois devices, sem
+  vazamento de transição entre eles) e dois `AlertEvaluationWorker` **reais** rodando
+  concorrentemente contra o mesmo banco não produzem evento duplicado (o teste de concorrência
+  existente só sincronizava duas instâncias de engine construídas manualmente em torno de um único
+  claim, nunca dois loops de worker de verdade). Os demais itens do E2.3 (duração/gap/histerese/
+  cooldown, duplicata, lease/reclaim, crash rollback, retry/backoff/dead-letter, isolamento entre
+  workspaces, fencing de edição, telemetria atrasada) já estavam cobertos por `AlertBackendTests.cs`
+  e não foram reimplementados.
+- **E2.4 (canal de entrega) permanece em aberto, deliberadamente.** Nenhum adaptador
+  (`WebhookDelivery`/`NotificationDelivery`) existe no código — confirmado por busca; só existe
+  `AlertDeliveryIntent`, um registro de rastreio sem transporte. Um teste dedicado
+  (`DeliveryIntent_IsTrackedButNoChannelAdapterExistsYet`) documenta exatamente esse estado, sem
+  inventar fornecedor ou credencial, conforme o próprio plano autoriza (§6: "o núcleo
+  avaliação/evento/reconhecimento pode ficar verde, mas a Fase 3 só é declarada totalmente
+  concluída quando o canal assumido pelo escopo possuir evidência real").
+
+Evidência de verificação (13/09/2026):
+
+- `dotnet build Fluxo.slnx`: sucesso, 0 avisos, 0 erros.
+- `dotnet test Fluxo.slnx` com Postgres descartável real e `FLUXO_TESTS_REQUIRE_POSTGRES=1`:
+  **97/97 unitários** e **76/76 integração** (73 anteriores + 5 novos: 2 de golden path, 3 de
+  confiabilidade) aprovados, 0 ignorados, 0 falhas.
+- Teste de concorrência (`ConcurrentRealWorkers_ProduceNoDuplicateEvents`) executado 5 vezes
+  seguidas sem falha, para descartar flakiness antes de aceitar como evidência.
+
+Não alterado nesta entrega: portal (nenhuma mudança em `portal-web/`), e2e Playwright existente
+(sem novo spec de navegador para alertas — decisão registrada: a camada de aplicação real +
+worker real cobre o risco que estava aberto; a UI já tem cobertura própria do E1).
+
 ## 3. Arquitetura atual
 
 - Portal: React, Vite, TypeScript e Recharts 2.x.
@@ -188,9 +239,11 @@ pronto para 1000 devices em produção.
 
 Produto Fase 3 — Alertas com estado e delivery. Backend e portal (E1) estão implementados e
 comprovados na interface (seção 2.3); o worker de avaliação, que estava desabilitado em todos os
-ambientes, foi corrigido e habilitado em 13/09/2026 (seção 2.4). Falta a validação e2e automatizada
-do fluxo completo (E2 do plano de ação: regra criada → telemetria dispara → evento aparece → canal
-notifica) e a definição do canal de entrega (E2.4, ainda em aberto). A arquitetura normativa está no
+ambientes, foi corrigido e habilitado em 13/09/2026 (seção 2.4); o núcleo do E2 (regra criada →
+telemetria dispara → worker real abre evento → histórico → reconhecimento) está comprovado ponta a
+ponta com o worker real, sem drain manual (seção 2.5). Falta apenas a definição e evidência real do
+canal de entrega (E2.4) — sem isso, a Fase 3 não pode ser declarada CONCLUÍDA, ainda que o núcleo
+de avaliação/evento/reconhecimento já esteja verde. A arquitetura normativa está no
 [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), complementada pelo
 [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md); não deve ser substituída
 por um desenho novo durante a implementação.
