@@ -1,0 +1,90 @@
+name: post-merge-check
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  check-merge-base:
+    # Safety net, not the preventive gate (that's pr-policy). Fires only when a PR actually
+    # got merged with a base other than main — i.e. the exact incident that lost the E2 work
+    # from PRs #15/#16 before it was recovered by PR #17.
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare merged head against main and open incident issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const base = pr.base.ref;
+            const head = pr.head.ref;
+            const headSha = pr.head.sha;
+            const mergeSha = pr.merge_commit_sha;
+            const prNumber = pr.number;
+
+            let missingSummary =
+              'Não foi possível calcular automaticamente o diff contra `main` (ver logs do job).';
+            try {
+              const compare = await github.rest.repos.compareCommits({
+                owner,
+                repo,
+                base: 'main',
+                head: headSha,
+              });
+              const aheadBy = compare.data.ahead_by;
+              const commitLines = compare.data.commits
+                .slice(-20)
+                .map((c) => `- \`${c.sha.slice(0, 7)}\` ${c.commit.message.split('\n')[0]}`)
+                .join('\n');
+              const fileLines = (compare.data.files || [])
+                .slice(0, 50)
+                .map((f) => `- \`${f.filename}\``)
+                .join('\n');
+              missingSummary =
+                `\`main\` esta ${aheadBy} commit(s) atras do head deste PR (\`${headSha.slice(0, 7)}\`).\n\n` +
+                `**Commits ainda ausentes de main:**\n${commitLines || '(nenhum listado)'}\n\n` +
+                `**Arquivos potencialmente afetados:**\n${fileLines || '(nenhum listado)'}`;
+            } catch (err) {
+              missingSummary += `\n\nErro: ${err.message}`;
+            }
+
+            const body = [
+              `PR #${prNumber} foi mergeado como "Merged" no GitHub, mas sua base era \`${base}\`, nao \`main\`.`,
+              '',
+              `- Base: \`${base}\``,
+              `- Head: \`${head}\` (\`${headSha}\`)`,
+              `- Merge commit: \`${mergeSha}\``,
+              '',
+              missingSummary,
+              '',
+              '---',
+              '',
+              'O conteudo deste PR ainda nao esta necessariamente no HEAD real de `main`. Nao declare',
+              'nenhuma etapa relacionada como concluida em `docs/project-status.md` (ou documentacao',
+              'equivalente) ate confirmar isso. Para corrigir, abra um novo PR com base `main` trazendo',
+              'o conteudo faltante, e feche esta issue quando `main` contiver essas mudancas.',
+            ].join('\n');
+
+            const issue = await github.rest.issues.create({
+              owner,
+              repo,
+              title: `Incidente: PR #${prNumber} mergeado fora de main (base: ${base})`,
+              body,
+              labels: ['merge-not-in-main'],
+            });
+
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: prNumber,
+              labels: ['merge-not-in-main'],
+            });
+
+            core.warning(`Issue de incidente aberta: ${issue.data.html_url}`);

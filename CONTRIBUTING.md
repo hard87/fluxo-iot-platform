@@ -82,3 +82,6 @@ branch (não `main`) é considerado empilhado e não pode ser mergeado enquanto 
      for `main`.
 - Nunca declare uma etapa concluída em documentação (`docs/project-status.md` ou equivalente) só
   porque um PR aparece como "Merged" — confirme que o conteúdo está no HEAD real de `main`.
+- Como rede de segurança (não como substituto do `pr-policy`), `.github/workflows/post-merge-check.yml`
+  roda a cada PR fechado como "Merged": se a base não era `main`, abre automaticamente uma issue de
+  incidente com label `merge-not-in-main` listando o que ainda falta chegar a `main`.
