@@ -5,11 +5,14 @@ namespace Fluxo.Application.Alerts;
 public sealed record SaveAlertRuleRequest(string Name, Guid MetricDefinitionId, string? DeviceIdentifier,
     string Operator, double? Threshold = null, double? ThresholdHigh = null, double Hysteresis = 0,
     int DurationSeconds = 0, int CooldownSeconds = 0, string Severity = "Warning", bool Enabled = false,
-    int? ExpectedVersion = null);
+    int? ExpectedVersion = null, IReadOnlyList<Guid>? PortalRecipientUserIds = null);
 
 public sealed record AlertHistory(AlertEvent Event, AlertRuleRevision Revision,
     IReadOnlyList<AlertEventTransition> Transitions, IReadOnlyList<AlertAcknowledgement> Acknowledgements,
     IReadOnlyList<AlertDeliveryIntent> DeliveryIntents);
+
+public sealed record PortalNotificationItem(Guid Id, Guid EventId, Guid RuleId, string RuleName,
+    string DeviceIdentifier, string EventStatus, string TransitionKind, DateTime CreatedAtUtc, DateTime? ReadAtUtc);
 
 public interface IAlertManagement
 {
@@ -20,6 +23,8 @@ public interface IAlertManagement
     Task<AlertHistory> HistoryAsync(Guid userId, Guid workspaceId, Guid eventId, CancellationToken ct);
     Task<AlertAcknowledgement> AcknowledgeAsync(Guid userId, Guid workspaceId, Guid eventId, CancellationToken ct);
     Task<IReadOnlyList<AlertAttemptDiagnostic>> DiagnosticsAsync(Guid userId, Guid workspaceId, int page, CancellationToken ct);
+    Task<IReadOnlyList<PortalNotificationItem>> NotificationsAsync(Guid userId, Guid workspaceId, int page, CancellationToken ct);
+    Task MarkNotificationReadAsync(Guid userId, Guid workspaceId, Guid notificationId, CancellationToken ct);
 }
 
 public sealed record AlertAttemptDiagnostic(Guid Id, Guid WorkItemId, Guid RuleId, string DeviceIdentifier,

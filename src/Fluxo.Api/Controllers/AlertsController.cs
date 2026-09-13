@@ -32,4 +32,13 @@ public sealed class AlertsController(IAlertManagement alerts) : ControllerBase
     [HttpGet("diagnostics")]
     public async Task<IActionResult> Diagnostics(Guid workspaceId, CancellationToken ct, int page = 1) =>
         Ok(await alerts.DiagnosticsAsync(User.GetRequiredUserId(), workspaceId, page, ct));
+    [HttpGet("notifications")]
+    public async Task<IActionResult> Notifications(Guid workspaceId, CancellationToken ct, int page = 1) =>
+        Ok(await alerts.NotificationsAsync(User.GetRequiredUserId(), workspaceId, page, ct));
+    [HttpPost("notifications/{notificationId:guid}/read")]
+    public async Task<IActionResult> MarkNotificationRead(Guid workspaceId, Guid notificationId, CancellationToken ct)
+    {
+        await alerts.MarkNotificationReadAsync(User.GetRequiredUserId(), workspaceId, notificationId, ct);
+        return NoContent();
+    }
 }

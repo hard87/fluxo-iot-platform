@@ -137,6 +137,17 @@ internal sealed class AlertWorkerHarness : IAsyncDisposable
         return device;
     }
 
+    /// <summary>Adds another active member to the workspace -- used as a portal-notification recipient.</summary>
+    public async Task<PlatformUser> AddMemberAsync(WorkspaceMembershipRole role = WorkspaceMembershipRole.Viewer)
+    {
+        var member = new PlatformUser($"member-{Guid.NewGuid():N}@example.test", "hash", "salt");
+        await using var db = Db();
+        db.Add(member);
+        db.Add(new WorkspaceMembership(Workspace.Id, member.Id, role));
+        await db.SaveChangesAsync();
+        return member;
+    }
+
     public async Task PublishTelemetryAsync(long sequence, DateTime occurredAtUtc, object value,
         string? metricKey = null, string? deviceIdentifier = null)
     {

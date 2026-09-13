@@ -53,7 +53,7 @@ public sealed class AlertManagement(FluxoDbContext db, GetAuthorizedWorkspaceUse
         {
             var events = await db.Set<AlertEvent>().Where(x => x.WorkspaceId == workspaceId && x.RuleId == rule.Id && x.Status == "Firing").ToListAsync(ct);
             foreach (var occurrence in events)
-                AlertTransactions.Transition(db, occurrence, "Closed", now, now, request.Enabled ? "RuleRevised" : "RuleDisabled");
+                await AlertTransactions.Transition(db, occurrence, "Closed", now, now, request.Enabled ? "RuleRevised" : "RuleDisabled", ct);
             var attempts = await db.Set<AlertEvaluationAttempt>().Where(x => x.WorkspaceId == workspaceId && x.RuleId == rule.Id &&
                 (x.Status == "Pending" || x.Status == "Claimed" || x.Status == "Failed")).ToListAsync(ct);
             foreach (var attempt in attempts)
@@ -66,12 +66,33 @@ public sealed class AlertManagement(FluxoDbContext db, GetAuthorizedWorkspaceUse
             foreach (var work in attempts.Select(x => x.WorkItemId).Distinct())
                 await AlertTransactions.CompleteParentAsync(db, workspaceId, work, ct);
         }
+        await ReplacePortalSubscriptionsAsync(db, workspaceId, rule.Id, request.PortalRecipientUserIds, now, ct);
         db.Add(revision);
         await db.SaveChangesAsync(ct);
         rule.CurrentRevisionId = revision.Id; rule.Version = revision.Version;
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return revision;
+    }
+
+    // Replaced wholesale on every save (same style as AlertRuleState on revision replace above),
+    // not diffed. E2.4 scope: portal channel only; email stays a gate pending provider selection.
+    private static async Task ReplacePortalSubscriptionsAsync(FluxoDbContext db, Guid workspaceId, Guid ruleId,
+        IReadOnlyList<Guid>? recipientUserIds, DateTime now, CancellationToken ct)
+    {
+        db.RemoveRange(await db.Set<NotificationSubscription>()
+            .Where(x => x.WorkspaceId == workspaceId && x.RuleId == ruleId && x.Channel == "Portal").ToListAsync(ct));
+        if (recipientUserIds is null || recipientUserIds.Count == 0) return;
+        var distinct = recipientUserIds.Distinct().ToArray();
+        var validCount = await (
+            from m in db.WorkspaceMemberships
+            join u in db.PlatformUsers on m.UserId equals u.Id
+            where m.WorkspaceId == workspaceId && distinct.Contains(m.UserId) && u.IsActive
+            select m.UserId
+        ).Distinct().CountAsync(ct);
+        if (validCount != distinct.Length) throw new ValidationException("Portal recipient is not an active member of this workspace.");
+        foreach (var userId in distinct)
+            db.Add(new NotificationSubscription { WorkspaceId = workspaceId, RuleId = ruleId, MemberId = userId, Channel = "Portal", CreatedAtUtc = now });
     }
 
     public static void Validate(SaveAlertRuleRequest r, MetricValueType type)
@@ -155,5 +176,32 @@ public sealed class AlertManagement(FluxoDbContext db, GetAuthorizedWorkspaceUse
         return await db.Set<AlertEvaluationAttempt>().AsNoTracking().Where(x => x.WorkspaceId == workspaceId && (x.Status == "Failed" || x.Status == "DeadLetter"))
             .OrderBy(x => x.QueueOrder).ThenBy(x => x.Id).Skip(Offset(page)).Take(100)
             .Select(x => new AlertAttemptDiagnostic(x.Id, x.WorkItemId, x.RuleId, x.DeviceIdentifier, x.Status, x.AttemptCount, x.NextAttemptAtUtc, x.Reason)).ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<PortalNotificationItem>> NotificationsAsync(Guid userId, Guid workspaceId, int page, CancellationToken ct)
+    {
+        await AuthorizeAsync(userId, workspaceId, false, ct);
+        return await (
+            from n in db.Set<PortalNotification>()
+            join t in db.Set<AlertEventTransition>() on new { n.WorkspaceId, TransitionId = n.TransitionId } equals new { t.WorkspaceId, TransitionId = t.Id }
+            join e in db.Set<AlertEvent>() on new { t.WorkspaceId, EventId = t.EventId } equals new { e.WorkspaceId, EventId = e.Id }
+            join r in db.Set<AlertRuleRevision>() on new { e.WorkspaceId, e.RevisionId } equals new { r.WorkspaceId, RevisionId = r.Id }
+            where n.WorkspaceId == workspaceId && n.RecipientUserId == userId
+            orderby n.CreatedAtUtc descending, n.Id
+            select new PortalNotificationItem(n.Id, e.Id, e.RuleId, r.Name, e.DeviceIdentifier, e.Status, t.Kind, n.CreatedAtUtc, n.ReadAtUtc)
+        ).AsNoTracking().Skip(Offset(page)).Take(100).ToListAsync(ct);
+    }
+
+    public async Task MarkNotificationReadAsync(Guid userId, Guid workspaceId, Guid notificationId, CancellationToken ct)
+    {
+        await AuthorizeAsync(userId, workspaceId, false, ct);
+        var notification = await db.Set<PortalNotification>().SingleOrDefaultAsync(x =>
+            x.WorkspaceId == workspaceId && x.Id == notificationId && x.RecipientUserId == userId, ct)
+            ?? throw new NotFoundException("Notification not found.");
+        if (notification.ReadAtUtc is null)
+        {
+            notification.ReadAtUtc = await AlertTransactions.NowAsync(db, ct);
+            await db.SaveChangesAsync(ct);
+        }
     }
 }
