@@ -126,6 +126,17 @@ internal sealed class AlertWorkerHarness : IAsyncDisposable
             input with { Enabled = true, ExpectedVersion = draft.Version }, default);
     }
 
+    /// <summary>Adds a second device to the same workspace -- used to prove a global rule
+    /// (DeviceIdentifier=null) keeps independent state per device.</summary>
+    public async Task<Device> AddDeviceAsync(string identifier)
+    {
+        var device = new Device(Workspace.Id, "Sensor", identifier, DeviceCategory.Sensor, tenantId: Workspace.TenantId);
+        await using var db = Db();
+        db.Add(device);
+        await db.SaveChangesAsync();
+        return device;
+    }
+
     public async Task PublishTelemetryAsync(long sequence, DateTime occurredAtUtc, object value,
         string? metricKey = null, string? deviceIdentifier = null)
     {
