@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./hooks/useAuth";
+import { AlertDiagnosticsPage } from "./pages/AlertDiagnosticsPage";
 import { AlertEventHistoryPage } from "./pages/AlertEventHistoryPage";
 import { AlertEventsPage } from "./pages/AlertEventsPage";
 import { AlertRuleFormPage } from "./pages/AlertRuleFormPage";
@@ -42,6 +43,7 @@ export function App() {
           <Route path="/workspaces/:workspaceId/alerts/:ruleId/edit" element={<AlertRuleFormPage />} />
           <Route path="/workspaces/:workspaceId/alerts/events" element={<AlertEventsPage />} />
           <Route path="/workspaces/:workspaceId/alerts/events/:eventId" element={<AlertEventHistoryPage />} />
+          <Route path="/workspaces/:workspaceId/alerts/diagnostics" element={<AlertDiagnosticsPage />} />
           <Route path="/workspaces/:workspaceId/explorer" element={<TelemetryExplorerPage />} />
           <Route path="/workspaces/:workspaceId/rejections" element={<TelemetryRejectionsPage />} />
           <Route path="/status" element={<HealthPage />} />

@@ -13,6 +13,9 @@ export function AlertsSectionTabs({ workspaceId }: Props) {
       <NavLink to={`/workspaces/${workspaceId}/alerts/events`} role="tab">
         Eventos
       </NavLink>
+      <NavLink to={`/workspaces/${workspaceId}/alerts/diagnostics`} role="tab">
+        Diagnóstico
+      </NavLink>
     </div>
   );
 }
