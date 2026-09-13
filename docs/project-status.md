@@ -2,14 +2,16 @@
 
 ## 1. Snapshot
 
-- Consolidação documental: 12 set 2026.
+- Última revisão deste snapshot: 13 set 2026.
 - Branch observada: `main`.
-- HEAD observado: `baf346470a436f39109a42de7fe61578c5c1f11f`.
-- Working tree observada: limpa, exceto documentos novos não rastreados do plano de ação
-  (`docs/plano-acao-e1-e2-e3-e5.md`, `docs/simulacao-piloto-industria-alimentos-100-devices.md`),
-  uma alteração em `docs/README.md` que os referencia, e um rascunho pessoal não rastreado
-  (`inicio.txt`).
+- HEAD observado: `5932f16737c39cff57f63ba77a2d77fe7b051778` (PR #17).
 - Esta consolidação não declara suporte de produção a 1000 devices.
+- Incidente de governança registrado e corrigido em 13/09/2026: os PRs #15 e #16 (harness e
+  confiabilidade do E2) foram mergeados em branches intermediárias (`fix/enable-alert-evaluation-worker`
+  e `test/alerts-e2e-harness`, respectivamente) em vez de `main`, deixando esse trabalho
+  temporariamente ausente do HEAD real de `main` apesar de aparecerem como "Merged" no GitHub. O
+  PR #17 (base `main`) recuperou o conteúdo. Ver seção 10 para a regra adotada a partir deste
+  incidente.
 - O portal de alertas (E1, ver seção 2.3) foi concluído e está mergeado em `main`: E1.1 via PR #7
   e E1.2–E1.5 recuperados via PR #13 (`fix/merge-e1-into-main`), ambos já integrados. HEAD atual:
   `9eb3df5`.
@@ -316,4 +318,7 @@ Antes de implementar uma fase:
 3. ler o relatório da fase anterior e seus benchmarks;
 4. confirmar branch, HEAD e working tree;
 5. preservar mudanças preexistentes;
-6. não reabrir fases concluídas sem evidência objetiva de regressão.
+6. não reabrir fases concluídas sem evidência objetiva de regressão;
+7. uma etapa só pode ser declarada concluída ou integrada quando sua evidência existir no HEAD
+   real de `main` — um PR marcado como "Merged" no GitHub não é suficiente por si só quando sua
+   base não era `main` (ver incidente registrado na seção 1).
