@@ -4,7 +4,8 @@
 
 - Última revisão deste snapshot: 13 set 2026.
 - Branch observada: `main`.
-- HEAD observado: `1e4c4b76411cec429ce2082a134459b68a4b02d3` (PR #27 — canal de portal do E2.4).
+- HEAD observado: `6b2da1aab2a74dc651b6babebc66e9e8a196ebab` (PR #29 — fix do toggle
+  ativar/desativar apagando destinatários de portal, achado na verificação manual do E2.4).
 - Esta consolidação não declara suporte de produção a 1000 devices.
 - Incidente de governança registrado e corrigido em 13/09/2026: os PRs #15 e #16 (harness e
   confiabilidade do E2) foram mergeados em branches intermediárias (`fix/enable-alert-evaluation-worker`
@@ -244,14 +245,34 @@ Evidência de verificação (13/09/2026):
   provados através do `AlertWorkerHarness` (worker real), não de chamada direta ao motor.
 - Frontend: `npm test` em `portal-web/` — **148/148** (132 base + 16 novos); `npm run build` —
   `tsc --noEmit` sem erros, `vite build` concluído.
-- **Não executado nesta entrega:** verificação manual via `docker compose up` com clique real no
-  navegador — outra sessão já tinha o stack de desenvolvimento ativo com os mesmos nomes fixos de
-  container (`docker-compose.yml` não prefixa `container_name` pelo projeto), então não foi
-  possível subir um segundo stack local sem derrubar o dela. O job `e2e` do CI (ambiente isolado
-  por execução) passou para as três PRs desta entrega, o que dá alguma evidência de integração real
-  além dos testes automatizados, mas não substitui uma passada manual completa da inbox de
-  notificações no navegador antes de assumir o canal de portal como comprovado para demonstração ao
-  piloto.
+### 2.7 — Verificação manual do E2.4 e correção encontrada (13/09/2026)
+
+Executada a verificação manual pendente da seção 2.6 assim que o stack da outra sessão liberou os
+nomes de container: `docker compose up -d --build`, migration `AddAlertPortalNotifications`
+aplicada, conta/workspace/dispositivo criados pelo navegador real, regra "Temperatura alta E2E4"
+(`temperature > 80`) criada com o próprio usuário como destinatário de portal, telemetria acima do
+limite publicada via `mosquitto_pub` (mesma abordagem do `mqtt-device-simulator.py`, direto por
+não precisar de múltiplos dispositivos simulados).
+
+**Achado durante a verificação:** ativar/desativar uma regra pelo botão inline da lista de regras
+apagava silenciosamente seus destinatários de portal. Causa: `AlertRuleRevision` nunca carrega
+`portalRecipientUserIds` (fica em `NotificationSubscription`, tabela separada — por isso existe o
+endpoint dedicado `GET .../portal-recipients`), e `AlertRulesPage.handleToggle` reconstruía o
+payload inteiramente a partir da revisão atual, sem essa informação. Como salvar uma regra
+substitui por completo as assinaturas do canal Portal, cada toggle zerava a lista. Corrigido
+(`handleToggle` agora busca os destinatários atuais via `getPortalRecipients` antes de reenviar o
+payload, mesma estratégia já usada pelo formulário completo de edição) e comprovado ao vivo: criar
+regra com destinatário → desativar/ativar pelo botão inline → destinatário preservado (antes do
+fix, a linha de `alert_notification_subscriptions` desaparecia a cada toggle).
+
+Após o fix: disparo real via MQTT gerou evento `Firing` e notificação de portal; a notificação
+apareceu corretamente em `/workspaces/{id}/alerts/notifications` no navegador, com regra,
+dispositivo e transição corretos; "Marcar como lida" funcionou e persistiu `ReadAtUtc` no banco.
+Canal de portal do E2.4 agora comprovado tanto por teste automatizado quanto por verificação manual
+completa no navegador.
+
+Evidência: `npm test` em `portal-web/` — **149/149** (148 anteriores + 1 novo cobrindo a
+regressão); `npm run build` limpo.
 
 ## 3. Arquitetura atual
 
@@ -293,7 +314,7 @@ comprovados na interface (seção 2.3); o worker de avaliação, que estava desa
 ambientes, foi corrigido e habilitado em 13/09/2026 (seção 2.4); o núcleo do E2 (regra criada →
 telemetria dispara → worker real abre evento → histórico → reconhecimento) está comprovado ponta a
 ponta com o worker real, sem drain manual (seção 2.5); o canal de portal (E2.4) está implementado e
-comprovado por teste automatizado, com verificação manual no navegador ainda pendente (seção 2.6).
+comprovado por teste automatizado e por verificação manual completa no navegador (seções 2.6-2.7).
 Falta apenas o canal de e-mail — bloqueado numa decisão de provedor/transporte que não pode ser
 tomada durante a implementação — para a Fase 3 ser declarada CONCLUÍDA. A arquitetura normativa
 está no [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), complementada pelo
