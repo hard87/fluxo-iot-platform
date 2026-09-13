@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./hooks/useAuth";
+import { AlertEventHistoryPage } from "./pages/AlertEventHistoryPage";
+import { AlertEventsPage } from "./pages/AlertEventsPage";
 import { AlertRuleFormPage } from "./pages/AlertRuleFormPage";
 import { AlertRulesPage } from "./pages/AlertRulesPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -38,6 +40,8 @@ export function App() {
           <Route path="/workspaces/:workspaceId/alerts" element={<AlertRulesPage />} />
           <Route path="/workspaces/:workspaceId/alerts/new" element={<AlertRuleFormPage />} />
           <Route path="/workspaces/:workspaceId/alerts/:ruleId/edit" element={<AlertRuleFormPage />} />
+          <Route path="/workspaces/:workspaceId/alerts/events" element={<AlertEventsPage />} />
+          <Route path="/workspaces/:workspaceId/alerts/events/:eventId" element={<AlertEventHistoryPage />} />
           <Route path="/workspaces/:workspaceId/explorer" element={<TelemetryExplorerPage />} />
           <Route path="/workspaces/:workspaceId/rejections" element={<TelemetryRejectionsPage />} />
           <Route path="/status" element={<HealthPage />} />

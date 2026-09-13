@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AlertRuleStateBadge } from "../components/alerts/AlertRuleStateBadge";
 import { AlertSeverityBadge } from "../components/alerts/AlertSeverityBadge";
+import { AlertsSectionTabs } from "../components/alerts/AlertsSectionTabs";
 import { alertConditionLabel, alertScopeLabel } from "../components/alerts/alertRulePresentation";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback/FeedbackStates";
 import { PageHeader } from "../components/PageHeader";
@@ -127,11 +128,14 @@ export function AlertRulesPage() {
       />
 
       {workspaceId ? (
-        <div className="inline-actions">
-          <Link className="button-link" to={`/workspaces/${workspaceId}/alerts/new`}>
-            Criar regra
-          </Link>
-        </div>
+        <>
+          <AlertsSectionTabs workspaceId={workspaceId} />
+          <div className="inline-actions">
+            <Link className="button-link" to={`/workspaces/${workspaceId}/alerts/new`}>
+              Criar regra
+            </Link>
+          </div>
+        </>
       ) : null}
 
       {loading ? <LoadingState compact title="Carregando regras de alerta" /> : null}

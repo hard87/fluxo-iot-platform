@@ -654,6 +654,20 @@ button:disabled {
   color: var(--color-on-primary);
 }
 
+.view-tabs a {
+  background: transparent;
+  color: var(--muted);
+  border: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+}
+
+.view-tabs a[aria-current="page"] {
+  background: var(--brand-primary);
+  color: var(--color-on-primary);
+}
+
 .operational-overview { display: grid; gap: var(--space-6); }
 .operational-status { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); }
 .operational-status h2 { margin-bottom: var(--space-1); }
