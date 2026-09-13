@@ -116,6 +116,12 @@ services:
       RejectionReprocessing__IntervalSeconds: ${FLUXO_REJECTION_REPROCESSING_INTERVAL_SECONDS:-120}
       RejectionReprocessing__BatchSize: ${FLUXO_REJECTION_REPROCESSING_BATCH_SIZE:-200}
       RejectionReprocessing__MaxAttempts: ${FLUXO_REJECTION_REPROCESSING_MAX_ATTEMPTS:-5}
+      AlertEvaluation__Enabled: ${FLUXO_ALERT_EVALUATION_ENABLED:-true}
+      AlertEvaluation__PollIntervalMilliseconds: ${FLUXO_ALERT_EVALUATION_POLL_INTERVAL_MS:-1000}
+      AlertEvaluation__WorkItemLeaseSeconds: ${FLUXO_ALERT_EVALUATION_LEASE_SECONDS:-60}
+      AlertEvaluation__MaxAttempts: ${FLUXO_ALERT_EVALUATION_MAX_ATTEMPTS:-5}
+      AlertEvaluation__RetryBaseSeconds: ${FLUXO_ALERT_EVALUATION_RETRY_BASE_SECONDS:-5}
+      AlertEvaluation__DefaultExpectedIntervalSec: ${FLUXO_ALERT_EVALUATION_DEFAULT_EXPECTED_INTERVAL_SEC:-300}
     healthcheck:
       test: ["CMD-SHELL", "test -f /app/Fluxo.Worker.Ingestion.dll"]
       interval: 30s

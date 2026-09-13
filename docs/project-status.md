@@ -10,11 +10,12 @@
   uma alteração em `docs/README.md` que os referencia, e um rascunho pessoal não rastreado
   (`inicio.txt`).
 - Esta consolidação não declara suporte de produção a 1000 devices.
-- O portal de alertas (E1, ver seção 2.3) foi concluído nesta sessão em quatro PRs empilhados
-  ainda não mergeados em `main`: `feat/portal-alert-contracts` (#7) →
-  `feat/portal-alert-rules` (#8) → `feat/portal-alert-rule-editor` (#9) →
-  `feat/portal-alert-events` (#10) → `feat/portal-alert-diagnostics` (#11). Mergear na ordem;
-  cada PR reaponta sozinho para `main` no GitHub assim que o anterior é integrado.
+- O portal de alertas (E1, ver seção 2.3) foi concluído e está mergeado em `main`: E1.1 via PR #7
+  e E1.2–E1.5 recuperados via PR #13 (`fix/merge-e1-into-main`), ambos já integrados. HEAD atual:
+  `9eb3df5`.
+- Corrigido em 13/09/2026: `AlertEvaluation:Enabled` estava ausente de toda configuração e o
+  `AlertEvaluationWorker` nunca avaliava nenhuma regra (ver seção 2.4 e Riscos ativos — item
+  resolvido).
 
 ## 2. Estado das trilhas
 
@@ -23,7 +24,7 @@
 | Produto | Fase 0 — decisões e baseline | CONCLUÍDA | ADRs aceitos e benchmark executado |
 | Produto | Fase 1 — Schema V2 e ingestão | CONCLUÍDA | [Relatório Fase 1](handoff/relatorio-fase-1-schema-v2-2026-07-11.md) |
 | Produto | Fase 2 — Telemetry Query API e Explorer | CONCLUÍDA | [Relatório Fase 2](handoff/relatorio-fase-2-telemetry-explorer-2026-07-12.md) |
-| Produto | Fase 3 — alertas | EM ANDAMENTO — backend e portal (E1) concluídos; worker de avaliação desabilitado em todos os ambientes (ver 2.3/Riscos); E2 (validação ponta a ponta) e canal de entrega pendentes | [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md) |
+| Produto | Fase 3 — alertas | EM ANDAMENTO — backend e portal (E1) concluídos; worker de avaliação corrigido e habilitado (ver 2.4); E2 (validação ponta a ponta) e canal de entrega pendentes | [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md) |
 | Produto | Fase 4 — inteligência operacional | NÃO INICIADA | [Escopo do MVP](product/mvp-scope.md) |
 | Produto | Fase 5 — pilotos físicos | EM PILOTO | [Relatório Gateway Pi](handoff/relatorio-fase-5-piloto-fisico-gateway-pi-2026-07-31.md) |
 | Infraestrutura | Infra Fase 1 — hardening | CONCLUÍDA | Baseline de autenticação, ACL, TLS MQTT e ingestão |
@@ -117,6 +118,39 @@ pulando esse gate. Confirmado ao vivo via `docker exec fluxo-postgres psql`: um 
 seja, **o portal de alertas está completo e funcional, mas nenhuma regra dispara de fato em
 nenhum ambiente configurado até essa flag ser corrigida** — ver Riscos ativos (seção 7).
 
+### 2.4 — Correção: AlertEvaluationWorker desabilitado por padrão (13/09/2026)
+
+Antes de iniciar o E2 (validação ponta a ponta de alertas), corrigido o achado crítico registrado
+em 2.3: `AlertEvaluation:Enabled` (e as demais chaves de `AlertEvaluationOptions`) não existiam em
+`src/Fluxo.Worker.Ingestion/appsettings.json`, `docker-compose.yml` nem
+`docker-compose.controlled-prod.yml`, então o default `bool` (`false`) mantinha o worker inerte em
+todo ambiente. PR isolada (`fix/enable-alert-evaluation-worker`), sem misturar com entrega de
+feature, seguindo o mesmo padrão já usado por `RejectionReprocessing`:
+
+- `appsettings.json` do Worker passa a definir `AlertEvaluation:Enabled=true` com os defaults de
+  `AlertEvaluationOptions` (poll 1000 ms, lease 60 s, 5 tentativas, retry base 5 s, intervalo
+  esperado 300 s).
+- `docker-compose.yml` e `docker-compose.controlled-prod.yml` passam a expor essas seis chaves
+  como variáveis de ambiente override (`FLUXO_ALERT_EVALUATION_*`), documentadas em `.env.example`.
+
+Evidência de verificação (13/09/2026, HEAD `9eb3df5` + este fix):
+
+- `dotnet build Fluxo.slnx`: sucesso, 0 avisos, 0 erros.
+- `dotnet test Fluxo.slnx` com Postgres descartável real (perfil `transactional`) e
+  `FLUXO_TESTS_REQUIRE_POSTGRES=1`: **97/97 unitários** e **71/71 integração** aprovados, 0
+  ignorados, 0 falhas — idêntico ao baseline da M0.1, sem regressão.
+- `docker compose config` (perfil dev) e `docker compose -f docker-compose.controlled-prod.yml
+  --env-file .env.example config`: ambos válidos, `AlertEvaluation__Enabled: "true"` presente na
+  interpolação de ambos os perfis.
+- Verificação ao vivo: `docker compose up -d --build`; log do `fluxo-worker-ingestion` mostra o
+  worker agora executando o loop de claim (`SELECT ... FROM alert_evaluation_attempts ...`) em vez
+  de encerrar imediatamente; `docker exec fluxo-postgres psql` confirma nenhum item preso em
+  `Pending`/`Claimed` (todos em `Completed`/`Skipped`).
+- `npm test` em `e2e/` (`golden-path.spec.ts`) contra a stack subida: **1/1 aprovado** (um 502
+  transitório na primeira tentativa foi causado pelo cache de resolução DNS do `nginx` do
+  container `frontend`, que não havia sido recriado junto do `api`/`worker` — não é regressão
+  desta mudança; resolvido com `docker compose restart frontend` e confirmado no rerun).
+
 ## 3. Arquitetura atual
 
 - Portal: React, Vite, TypeScript e Recharts 2.x.
@@ -153,11 +187,10 @@ pronto para 1000 devices em produção.
 ## 5. Próxima fase de produto
 
 Produto Fase 3 — Alertas com estado e delivery. Backend e portal (E1) estão implementados e
-comprovados na interface (seção 2.3), mas o worker de avaliação está desabilitado em todos os
-ambientes (ver Riscos) — corrigir isso é pré-requisito antes de qualquer demonstração ou piloto
-que dependa de alertas realmente dispararem. Falta a validação e2e automatizada do fluxo completo
-(E2 do plano de ação: regra criada → telemetria dispara → evento aparece → canal notifica) e a
-definição do canal de entrega (E2.4, ainda em aberto). A arquitetura normativa está no
+comprovados na interface (seção 2.3); o worker de avaliação, que estava desabilitado em todos os
+ambientes, foi corrigido e habilitado em 13/09/2026 (seção 2.4). Falta a validação e2e automatizada
+do fluxo completo (E2 do plano de ação: regra criada → telemetria dispara → evento aparece → canal
+notifica) e a definição do canal de entrega (E2.4, ainda em aberto). A arquitetura normativa está no
 [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), complementada pelo
 [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md); não deve ser substituída
 por um desenho novo durante a implementação.
@@ -176,19 +209,13 @@ por um desenho novo durante a implementação.
 - revogar/desativar o primeiro provisionamento Gateway sem uso registrado no relatório da Fase 5;
 - integrar sensor físico ao Gateway quando houver hardware identificado;
 - revisar guia do piloto, backup/restore e simulador.
-- habilitar `AlertEvaluation:Enabled` em todos os ambientes — hoje o worker de avaliação de
-  alertas nunca dispara (ver seção 2.3 e Riscos ativos).
 
 A fonte autoritativa dos checkboxes é o [checklist de produção controlada](checklist-producao-controlada.md).
 
 ## 7. Riscos ativos
 
-- **Crítico:** `AlertEvaluationWorker` nunca avalia nenhuma regra em nenhum ambiente hoje —
-  `AlertEvaluation:Enabled` não é definido em `docker-compose.yml`,
-  `docker-compose.controlled-prod.yml` nem `appsettings.json`, e o default de `bool` em C# é
-  `false`. O portal de alertas (seção 2.3) está completo e funcional, mas nenhum alerta dispara de
-  fato até essa flag ser ligada. Detalhes e correção sugerida registrados como tarefa separada
-  nesta sessão (não corrigido aqui para não misturar fix de infraestrutura com entrega de portal).
+- ~~`AlertEvaluationWorker` nunca avalia nenhuma regra em nenhum ambiente.~~ Corrigido em
+  13/09/2026 — ver seção 2.4.
 - `.app-navigation-list` não tem layout responsivo e força rolagem horizontal da página inteira em
   larguras de ~375 px, em qualquer rota (reproduzido em `/devices` e nas novas rotas de alertas) —
   pré-existente, não é regressão do E1; registrado como tarefa separada.
