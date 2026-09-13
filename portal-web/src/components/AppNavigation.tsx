@@ -26,6 +26,12 @@ export function AppNavigation({ workspaceId }: AppNavigationProps) {
       requiresWorkspace: true
     },
     {
+      label: "Alertas",
+      to: workspaceId ? `/workspaces/${workspaceId}/alerts` : null,
+      end: true,
+      requiresWorkspace: true
+    },
+    {
       label: "Telemetry Explorer",
       to: workspaceId ? `/workspaces/${workspaceId}/explorer` : null,
       end: true,

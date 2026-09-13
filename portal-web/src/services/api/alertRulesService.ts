@@ -73,6 +73,24 @@ export async function listAlertRules(
   });
 }
 
+// Same reasoning as elsewhere: far more pages than this MVP phase's expected rule count, and
+// there is no "list every rule regardless of page" endpoint.
+const MAX_ALL_RULES_PAGES = 20;
+
+/** Fetches every current rule revision across pages, for callers that need to resolve a ruleId
+ * to its name/metric/severity (e.g. enriching an events list) rather than paging through the UI. */
+export async function listAllAlertRules(token: string, workspaceId: string): Promise<AlertRuleRevision[]> {
+  const all: AlertRuleRevision[] = [];
+  for (let page = 1; page <= MAX_ALL_RULES_PAGES; page += 1) {
+    const items = await listAlertRules(token, workspaceId, page);
+    all.push(...items);
+    if (!hasPossibleNextAlertsPage(items)) {
+      break;
+    }
+  }
+  return all;
+}
+
 export async function listAlertRuleRevisions(
   token: string,
   workspaceId: string,
