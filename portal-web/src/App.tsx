@@ -5,6 +5,7 @@ import { useAuth } from "./hooks/useAuth";
 import { AlertDiagnosticsPage } from "./pages/AlertDiagnosticsPage";
 import { AlertEventHistoryPage } from "./pages/AlertEventHistoryPage";
 import { AlertEventsPage } from "./pages/AlertEventsPage";
+import { AlertNotificationsPage } from "./pages/AlertNotificationsPage";
 import { AlertRuleFormPage } from "./pages/AlertRuleFormPage";
 import { AlertRulesPage } from "./pages/AlertRulesPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -43,6 +44,7 @@ export function App() {
           <Route path="/workspaces/:workspaceId/alerts/:ruleId/edit" element={<AlertRuleFormPage />} />
           <Route path="/workspaces/:workspaceId/alerts/events" element={<AlertEventsPage />} />
           <Route path="/workspaces/:workspaceId/alerts/events/:eventId" element={<AlertEventHistoryPage />} />
+          <Route path="/workspaces/:workspaceId/alerts/notifications" element={<AlertNotificationsPage />} />
           <Route path="/workspaces/:workspaceId/alerts/diagnostics" element={<AlertDiagnosticsPage />} />
           <Route path="/workspaces/:workspaceId/explorer" element={<TelemetryExplorerPage />} />
           <Route path="/workspaces/:workspaceId/rejections" element={<TelemetryRejectionsPage />} />
