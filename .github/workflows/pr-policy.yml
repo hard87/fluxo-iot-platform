@@ -1,0 +1,109 @@
+name: pr-policy
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pr-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate base branch and PR metadata
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const isDraft = pr.draft;
+            const base = pr.base.ref;
+            const head = pr.head.ref;
+            const body = pr.body || '';
+            const errors = [];
+            const warnings = [];
+
+            // Hard gate: this is the check that would have caught PRs #15/#16.
+            // A PR that is "Ready for review" (i.e. a merge candidate) must target main.
+            // A PR based on another branch is a stacked PR and must stay in Draft until
+            // its parent lands on main and its own base is updated to main.
+            if (!isDraft && base !== 'main') {
+              errors.push(
+                `Este PR esta "Ready for review" mas a base e \`${base}\`, nao \`main\`. ` +
+                `Um PR pronto para merge precisa ter \`main\` como base. Se este PR depende de outro ` +
+                `ainda nao integrado a main, volte-o para Draft; quando o PR pai chegar a main, ` +
+                `atualize esta branch, mude a base para main, deixe o CI rodar de novo e so entao ` +
+                `marque como Ready for review.`
+              );
+            }
+
+            // Soft: a stacked PR (base != main) should self-identify, so reviewers know
+            // not to merge it and know what it depends on.
+            if (base !== 'main') {
+              const hasDependsOn = /depends on #\d+/i.test(body);
+              const labels = (pr.labels || []).map((l) => l.name.toLowerCase());
+              const hasStackedLabel = labels.includes('stacked-pr');
+              if (!hasDependsOn && !hasStackedLabel) {
+                warnings.push(
+                  `Base e \`${base}\` (nao \`main\`), mas o corpo do PR nao contem "Depends on #NN" ` +
+                  `nem a label \`stacked-pr\` esta aplicada. Identifique a dependencia.`
+                );
+              }
+            }
+
+            // Soft: branch naming convention (mirrors CONTRIBUTING.md and ci.yml triggers).
+            const allowedPrefixes = ['feat/', 'fix/', 'test/', 'chore/', 'docs/'];
+            if (!allowedPrefixes.some((p) => head.startsWith(p))) {
+              warnings.push(
+                `Branch de origem \`${head}\` nao segue os padroes aceitos (${allowedPrefixes.join(', ')}).`
+              );
+            }
+
+            // Soft: presence of a test plan section.
+            if (!/como validar|plano de teste/i.test(body)) {
+              warnings.push(
+                'Nao foi encontrada uma secao de plano de teste ("Como validar" / "Plano de teste") no corpo do PR.'
+              );
+            }
+
+            if (warnings.length) {
+              core.warning(warnings.join('\n\n'));
+            }
+            if (errors.length) {
+              core.setFailed(errors.join('\n\n'));
+            }
+
+      - name: Check PR size and migrations touched
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = context.payload.pull_request.number;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number,
+              per_page: 100,
+            });
+            const totalChanges = files.reduce((sum, f) => sum + f.additions + f.deletions, 0);
+            const touchesMigrations = files.some((f) => /Migrations\//.test(f.filename));
+            const body = context.payload.pull_request.body || '';
+
+            // These are alerts, not gates: migrations, lockfiles and legitimate reconciliations
+            // can exceed a fixed line threshold, so we ask the reviewer to look, not block merge.
+            if (touchesMigrations) {
+              core.warning(
+                'Este PR altera arquivos em `Migrations/` — confirme que houve revisao dedicada ' +
+                '(up/down, dados existentes, locking) alem dos testes automatizados.'
+              );
+            }
+            if (totalChanges > 1000) {
+              const hasJustification = /decomposi[cç][aã]o|justificativa/i.test(body);
+              if (!hasJustification) {
+                core.warning(
+                  `PR com ${totalChanges} linhas alteradas (>1000) sem justificativa ou plano de ` +
+                  'decomposicao no corpo. Nao e bloqueante, mas o revisor deve saber o motivo.'
+                );
+              }
+            }
