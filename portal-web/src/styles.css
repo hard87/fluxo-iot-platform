@@ -1488,7 +1488,8 @@ pre {
 
 .chart-panel { width: 100%; min-width: 0; overflow: hidden; }
 .truncate-banner { background: var(--color-warning-subtle); border-left: 5px solid var(--color-warning); border-radius: var(--radius-md); padding: .8rem 1rem; font-weight: 600; }
-.field-error select { border-color: var(--danger); outline: 2px solid rgba(180,35,24,.2); }
+.field-error select, .field-error input { border-color: var(--danger); outline: 2px solid rgba(180,35,24,.2); }
+.field-error-message { display: block; color: var(--danger); font-size: var(--text-body-sm-size, 0.85rem); font-weight: 400; margin-top: var(--space-1, 0.25rem); }
 .table-scroll { width: 100%; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: .55rem; border-bottom: 1px solid var(--color-border); }

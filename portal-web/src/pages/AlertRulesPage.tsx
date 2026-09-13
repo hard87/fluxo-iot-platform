@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { AlertRuleStateBadge } from "../components/alerts/AlertRuleStateBadge";
 import { AlertSeverityBadge } from "../components/alerts/AlertSeverityBadge";
 import { alertConditionLabel, alertScopeLabel } from "../components/alerts/alertRulePresentation";
@@ -126,6 +126,14 @@ export function AlertRulesPage() {
         description="Regras configuradas para avaliar telemetria e abrir eventos neste workspace."
       />
 
+      {workspaceId ? (
+        <div className="inline-actions">
+          <Link className="button-link" to={`/workspaces/${workspaceId}/alerts/new`}>
+            Criar regra
+          </Link>
+        </div>
+      ) : null}
+
       {loading ? <LoadingState compact title="Carregando regras de alerta" /> : null}
 
       {!loading && error ? (
@@ -191,14 +199,25 @@ export function AlertRulesPage() {
                       <AlertRuleStateBadge enabled={rule.enabled} />
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        className="button-secondary"
-                        disabled={togglingRuleId === rule.ruleId}
-                        onClick={() => void handleToggle(rule)}
-                      >
-                        {rule.enabled ? "Desativar" : "Ativar"}
-                      </button>
+                      <div className="inline-actions">
+                        {workspaceId ? (
+                          <Link
+                            className="button-secondary"
+                            to={`/workspaces/${workspaceId}/alerts/${rule.ruleId}/edit`}
+                            state={{ rule }}
+                          >
+                            Editar
+                          </Link>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="button-secondary"
+                          disabled={togglingRuleId === rule.ruleId}
+                          onClick={() => void handleToggle(rule)}
+                        >
+                          {rule.enabled ? "Desativar" : "Ativar"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
