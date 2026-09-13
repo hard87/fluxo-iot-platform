@@ -6,7 +6,8 @@ import * as alertRulesService from "../services/api/alertRulesService";
 import * as deviceService from "../services/api/deviceService";
 import { ApiError } from "../services/api/httpClient";
 import * as telemetryService from "../services/api/telemetryService";
-import type { AlertRuleRevision, DeviceResponse, MetricDefinitionResponse } from "../types";
+import * as workspaceMembersService from "../services/api/workspaceMembersService";
+import type { AlertRuleRevision, DeviceResponse, MetricDefinitionResponse, WorkspaceMember } from "../types";
 import { AlertRuleFormPage } from "./AlertRuleFormPage";
 
 const navigateMock = vi.fn();
@@ -25,18 +26,22 @@ vi.mock("../services/api/alertRulesService", async () => {
     ...actual,
     listAlertRules: vi.fn(),
     createAlertRule: vi.fn(),
-    updateAlertRule: vi.fn()
+    updateAlertRule: vi.fn(),
+    getPortalRecipients: vi.fn()
   };
 });
 
 vi.mock("../services/api/telemetryService", () => ({ listMetricDefinitions: vi.fn() }));
 vi.mock("../services/api/deviceService", () => ({ listDevices: vi.fn() }));
+vi.mock("../services/api/workspaceMembersService", () => ({ listWorkspaceMembers: vi.fn() }));
 
 const listRulesMock = vi.mocked(alertRulesService.listAlertRules);
 const createMock = vi.mocked(alertRulesService.createAlertRule);
 const updateMock = vi.mocked(alertRulesService.updateAlertRule);
+const getPortalRecipientsMock = vi.mocked(alertRulesService.getPortalRecipients);
 const metricsMock = vi.mocked(telemetryService.listMetricDefinitions);
 const devicesMock = vi.mocked(deviceService.listDevices);
+const membersMock = vi.mocked(workspaceMembersService.listWorkspaceMembers);
 
 function numericMetric(overrides: Partial<MetricDefinitionResponse> = {}): MetricDefinitionResponse {
   return {
@@ -77,6 +82,15 @@ function deviceFixture(overrides: Partial<DeviceResponse> = {}): DeviceResponse 
     isActive: true,
     createdAtUtc: "2026-09-12T12:00:00Z",
     operationalStatus: "Online",
+    ...overrides
+  };
+}
+
+function memberFixture(overrides: Partial<WorkspaceMember> = {}): WorkspaceMember {
+  return {
+    userId: "user-1",
+    email: "owner@example.test",
+    role: "Owner",
     ...overrides
   };
 }
@@ -140,6 +154,8 @@ describe("AlertRuleFormPage", () => {
     vi.clearAllMocks();
     metricsMock.mockResolvedValue([numericMetric(), booleanMetric()]);
     devicesMock.mockResolvedValue([deviceFixture()]);
+    membersMock.mockResolvedValue([memberFixture()]);
+    getPortalRecipientsMock.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -277,6 +293,37 @@ describe("AlertRuleFormPage", () => {
 
     expect(await screen.findByText(/alterada por outra ação enquanto você editava/)).toBeInTheDocument();
     expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it("inclui destinatarios de portal selecionados no payload ao criar", async () => {
+    const user = userEvent.setup();
+    membersMock.mockResolvedValue([memberFixture(), memberFixture({ userId: "user-2", email: "viewer@example.test" })]);
+    createMock.mockResolvedValue(alertRuleFixture({ enabled: false }));
+    renderCreate();
+
+    await user.type(await screen.findByLabelText("Nome"), "Temperatura alta");
+    await user.selectOptions(screen.getByLabelText("Métrica"), "metric-numeric");
+    await user.selectOptions(screen.getByLabelText("Condição"), "GreaterThan");
+    await user.type(screen.getByLabelText("Limite"), "30");
+    await user.click(screen.getByLabelText("owner@example.test"));
+
+    await user.click(screen.getByRole("button", { name: "Salvar regra" }));
+
+    expect(createMock).toHaveBeenCalledWith(
+      "token",
+      "workspace-1",
+      expect.objectContaining({ portalRecipientUserIds: ["user-1"] })
+    );
+  });
+
+  it("pre-marca os destinatarios de portal ja inscritos ao editar", async () => {
+    membersMock.mockResolvedValue([memberFixture(), memberFixture({ userId: "user-2", email: "viewer@example.test" })]);
+    getPortalRecipientsMock.mockResolvedValue(["user-2"]);
+    renderEdit(alertRuleFixture());
+
+    await screen.findByDisplayValue("Temperatura alta");
+    expect(screen.getByLabelText("owner@example.test")).not.toBeChecked();
+    expect(screen.getByLabelText("viewer@example.test")).toBeChecked();
   });
 
   it("mostra 'regra não encontrada' quando a busca pela lista não encontra o id", async () => {
