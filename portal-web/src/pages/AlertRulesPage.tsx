@@ -90,6 +90,11 @@ export function AlertRulesPage() {
     setTogglingRuleId(rule.ruleId);
     setToggleError(null);
     try {
+      // Recipients live in a separate table (NotificationSubscription), not on
+      // AlertRuleRevision, and a save with no portalRecipientUserIds replaces the current
+      // subscriptions with none. Fetch and resend the current list so toggling enabled/disabled
+      // never silently wipes portal notification recipients.
+      const portalRecipientUserIds = await alertRulesService.getPortalRecipients(token, workspaceId, rule.ruleId);
       const updated = await alertRulesService.updateAlertRule(token, workspaceId, rule.ruleId, {
         name: rule.name,
         metricDefinitionId: rule.metricDefinitionId,
@@ -102,7 +107,8 @@ export function AlertRulesPage() {
         cooldownSeconds: rule.cooldownSeconds,
         severity: rule.severity,
         enabled: !rule.enabled,
-        expectedVersion: rule.version
+        expectedVersion: rule.version,
+        portalRecipientUserIds
       });
       if (isMountedRef.current) {
         setRules((current) => current.map((item) => (item.ruleId === updated.ruleId ? updated : item)));
