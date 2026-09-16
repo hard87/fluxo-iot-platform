@@ -695,7 +695,8 @@ button:disabled {
 .range-selector,.operational-legend { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .range-selector button[aria-pressed="true"],.operational-legend button[aria-pressed="true"] { background: var(--brand-primary); color: var(--color-on-primary); border-color: var(--brand-primary); }
 .operational-legend { margin-top: var(--space-5); }
-.operational-legend button:not(:first-child) { border-left: 4px solid var(--series-color); }
+.operational-legend button:not(:first-child) { gap: var(--space-2); }
+.series-swatch { width: .65rem; height: .65rem; border-radius: 50%; background: var(--series-color); flex: 0 0 auto; }
 .operational-legend button[aria-pressed="false"] { opacity: .55; text-decoration: line-through; }
 .interaction-hint { color: var(--muted); font-size: var(--text-caption-size); }
 .small-multiples { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
