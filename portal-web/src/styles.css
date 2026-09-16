@@ -158,7 +158,8 @@ input[type="radio"] {
 }
 
 button,
-.button-link {
+.button-link,
+.button-secondary {
   display: inline-flex;
   min-height: 40px;
   align-items: center;
