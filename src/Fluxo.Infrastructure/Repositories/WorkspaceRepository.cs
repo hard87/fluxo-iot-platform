@@ -20,6 +20,12 @@ public sealed class WorkspaceRepository : IWorkspaceRepository
         await _context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateAsync(Workspace workspace, CancellationToken cancellationToken = default)
+    {
+        _context.Workspaces.Update(workspace);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<Workspace?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Workspaces
