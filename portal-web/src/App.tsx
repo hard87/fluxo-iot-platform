@@ -1,7 +1,6 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { useAuth } from "./hooks/useAuth";
 import { AlertDiagnosticsPage } from "./pages/AlertDiagnosticsPage";
 import { AlertEventHistoryPage } from "./pages/AlertEventHistoryPage";
 import { AlertEventsPage } from "./pages/AlertEventsPage";
@@ -13,6 +12,7 @@ import { DeviceDetailsPage } from "./pages/DeviceDetailsPage";
 import { DevicesPage } from "./pages/DevicesPage";
 import { HealthPage } from "./pages/HealthPage";
 import { LoginPage } from "./pages/LoginPage";
+import { LandingPage } from "./pages/LandingPage";
 import { NewDevicePage } from "./pages/NewDevicePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { RegisterPage } from "./pages/RegisterPage";
@@ -20,15 +20,10 @@ import { WorkspacePage } from "./pages/WorkspacePage";
 import { TelemetryExplorerPage } from "./pages/TelemetryExplorerPage";
 import { TelemetryRejectionsPage } from "./pages/TelemetryRejectionsPage";
 
-function HomeRedirect() {
-  const { isAuthenticated } = useAuth();
-  return <Navigate to={isAuthenticated ? "/workspaces" : "/login"} replace />;
-}
-
 export function App() {
   return (
     <Routes>
-      <Route path="/" element={<HomeRedirect />} />
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
