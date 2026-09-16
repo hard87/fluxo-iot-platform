@@ -1505,6 +1505,8 @@ pre {
 .field-error select, .field-error input { border-color: var(--danger); outline: 2px solid rgba(180,35,24,.2); }
 .field-error-message { display: block; color: var(--danger); font-size: var(--text-body-sm-size, 0.85rem); font-weight: 400; margin-top: var(--space-1, 0.25rem); }
 .table-scroll { width: 100%; overflow-x: auto; }
+.telemetry-values-scroll { max-height: min(28rem, 60vh); overflow: auto; margin-top: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.telemetry-values-scroll thead { position: sticky; top: 0; z-index: 1; background: var(--color-surface); }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: .55rem; border-bottom: 1px solid var(--color-border); }
 th { font-size: var(--text-label-size); font-weight: 600; }
