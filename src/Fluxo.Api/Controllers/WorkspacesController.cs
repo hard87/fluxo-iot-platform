@@ -14,15 +14,29 @@ public sealed class WorkspacesController : ControllerBase
     private readonly CreateWorkspaceUseCase _createWorkspaceUseCase;
     private readonly ListUserWorkspacesUseCase _listUserWorkspacesUseCase;
     private readonly ListWorkspaceMembersUseCase _listWorkspaceMembersUseCase;
+    private readonly UpdateWorkspaceUseCase _updateWorkspaceUseCase;
 
     public WorkspacesController(
         CreateWorkspaceUseCase createWorkspaceUseCase,
         ListUserWorkspacesUseCase listUserWorkspacesUseCase,
-        ListWorkspaceMembersUseCase listWorkspaceMembersUseCase)
+        ListWorkspaceMembersUseCase listWorkspaceMembersUseCase,
+        UpdateWorkspaceUseCase updateWorkspaceUseCase)
     {
         _createWorkspaceUseCase = createWorkspaceUseCase;
         _listUserWorkspacesUseCase = listUserWorkspacesUseCase;
         _listWorkspaceMembersUseCase = listWorkspaceMembersUseCase;
+        _updateWorkspaceUseCase = updateWorkspaceUseCase;
+    }
+
+    [HttpPatch("{workspaceId:guid}")]
+    public async Task<IActionResult> Update(
+        Guid workspaceId,
+        [FromBody] UpdateWorkspaceRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _updateWorkspaceUseCase.ExecuteAsync(
+            User.GetRequiredUserId(), workspaceId, request, cancellationToken);
+        return Ok(result);
     }
 
     [HttpPost]
