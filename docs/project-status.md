@@ -393,3 +393,9 @@ Antes de implementar uma fase:
 7. uma etapa só pode ser declarada concluída ou integrada quando sua evidência existir no HEAD
    real de `main` — um PR marcado como "Merged" no GitHub não é suficiente por si só quando sua
    base não era `main` (ver incidente registrado na seção 1).
+
+## Atualização de 17/09/2026 — arquivamento de alertas
+
+Implementado na branch `codex/arquivar-alertas-persistente`, ainda sem merge em `main`: arquivamento persistido como revisão imutável desativada, com data e autoria; encerramento administrativo de eventos ativos, invalidação transacional de avaliações pendentes e consulta de regras arquivadas/revisões no portal. Contrato e atualização local em [Arquivamento de regras de alerta](portal-alert-rule-archiving.md).
+
+Validação: 97 testes unitários e 87 de integração .NET aprovados com PostgreSQL descartável real, zero ignorados; 157 testes do portal aprovados.

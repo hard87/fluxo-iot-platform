@@ -68,11 +68,19 @@ export async function listAlertRules(
   token: string,
   workspaceId: string,
   page: number,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  status: "current" | "archived" | "all" = "current"
 ): Promise<AlertRuleRevision[]> {
-  return await apiRequest<AlertRuleRevision[]>(`/api/workspaces/${workspaceId}/alerts/rules?page=${page}`, {
+  const statusQuery = status === "current" ? "" : `&status=${status}`;
+  return await apiRequest<AlertRuleRevision[]>(`/api/workspaces/${workspaceId}/alerts/rules?page=${page}${statusQuery}`, {
     token,
     signal
+  });
+}
+
+export async function archiveAlertRule(token: string, workspaceId: string, ruleId: string, expectedVersion: number): Promise<AlertRuleRevision> {
+  return await apiRequest<AlertRuleRevision>(`/api/workspaces/${workspaceId}/alerts/rules/${ruleId}/archive`, {
+    method: "POST", token, body: { expectedVersion }
   });
 }
 
@@ -85,7 +93,7 @@ const MAX_ALL_RULES_PAGES = 20;
 export async function listAllAlertRules(token: string, workspaceId: string): Promise<AlertRuleRevision[]> {
   const all: AlertRuleRevision[] = [];
   for (let page = 1; page <= MAX_ALL_RULES_PAGES; page += 1) {
-    const items = await listAlertRules(token, workspaceId, page);
+    const items = await listAlertRules(token, workspaceId, page, undefined, "all");
     all.push(...items);
     if (!hasPossibleNextAlertsPage(items)) {
       break;

@@ -1,0 +1,22 @@
+.alert-rules-page {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.alert-rules-page > * {
+  min-width: 0;
+}
+
+.alert-rules-page .view-tabs {
+  flex-wrap: wrap;
+}
+
+.alert-rules-page .alert-rule-history {
+  overflow-wrap: anywhere;
+}
+
+.alert-rules-page .alert-rule-table {
+  min-width: 760px;
+}
+.alert-rules-page .table-scroll {
+  position: relative;
+}

@@ -29,6 +29,7 @@ internal static class AlertModelConfiguration
         revision.HasOne<Device>().WithMany().HasForeignKey(x => new { x.WorkspaceId, x.DeviceIdentifier })
             .HasPrincipalKey(x => new { x.WorkspaceId, x.Identifier }).OnDelete(DeleteBehavior.Restrict);
         revision.HasOne<PlatformUser>().WithMany().HasForeignKey(x => x.AuthorId).OnDelete(DeleteBehavior.Restrict);
+        revision.ToTable(t => t.HasCheckConstraint("CK_alert_revision_archive", "\"ArchivedAtUtc\" IS NULL OR NOT \"Enabled\""));
         revision.ToTable(t => t.HasCheckConstraint("CK_alert_revision_parameters",
             "\"DurationSeconds\" >= 0 AND \"CooldownSeconds\" >= 0 AND \"ExpectedIntervalSeconds\" > 0 AND \"Hysteresis\" >= 0 AND \"Version\" > 0"));
 
