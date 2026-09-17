@@ -28,6 +28,9 @@ public sealed class AlertManagement(FluxoDbContext db, GetAuthorizedWorkspaceUse
         var rule = ruleId is { } id ? await db.Set<AlertRule>().SingleOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.Id == id, ct)
             ?? throw new NotFoundException("Alert rule not found.") : new AlertRule { WorkspaceId = workspaceId };
         if (ruleId.HasValue && request.ExpectedVersion != rule.Version) throw new ConflictException("Alert rule version changed.");
+        if (rule.CurrentRevisionId is { } currentId && await db.Set<AlertRuleRevision>().AnyAsync(
+            x => x.Id == currentId && x.ArchivedAtUtc != null, ct))
+            throw new ConflictException("Archived alert rules cannot be edited or activated.");
         if (!ruleId.HasValue && request.Enabled) throw new ValidationException("Create the rule disabled before activating it.");
         var metric = await db.MetricDefinitions.AsNoTracking().SingleOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.Id == request.MetricDefinitionId, ct)
             ?? throw new NotFoundException("Metric definition not found.");
@@ -122,11 +125,55 @@ public sealed class AlertManagement(FluxoDbContext db, GetAuthorizedWorkspaceUse
 
     private static int Offset(int page) => page is < 1 or > 100000 ? throw new ValidationException("Invalid page.") : (page - 1) * 100;
 
-    public async Task<IReadOnlyList<AlertRuleRevision>> RulesAsync(Guid userId, Guid workspaceId, int page, CancellationToken ct)
+    public async Task<IReadOnlyList<AlertRuleRevision>> RulesAsync(Guid userId, Guid workspaceId, int page, CancellationToken ct, string status = "current")
     {
         await AuthorizeAsync(userId, workspaceId, false, ct);
+        if (status is not ("current" or "archived" or "all")) throw new ValidationException("Invalid rule status.");
         return await (from r in db.Set<AlertRule>() join v in db.Set<AlertRuleRevision>() on r.CurrentRevisionId equals v.Id
-            where r.WorkspaceId == workspaceId select v).AsNoTracking().OrderBy(x => x.RuleId).Skip(Offset(page)).Take(100).ToListAsync(ct);
+            where r.WorkspaceId == workspaceId && (status == "all" || (status == "archived" ? v.ArchivedAtUtc != null : v.ArchivedAtUtc == null))
+            select v).AsNoTracking().OrderBy(x => x.RuleId).Skip(Offset(page)).Take(100).ToListAsync(ct);
+    }
+
+    public async Task<AlertRuleRevision> ArchiveAsync(Guid userId, Guid workspaceId, Guid ruleId,
+        ArchiveAlertRuleRequest request, CancellationToken ct)
+    {
+        await AuthorizeAsync(userId, workspaceId, true, ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        // Same exclusive catalog lock as edits; ingestion and evaluation hold its shared side.
+        await AlertTransactions.CatalogAsync(db, workspaceId, true, ct);
+        var rule = await db.Set<AlertRule>().SingleOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.Id == ruleId, ct)
+            ?? throw new NotFoundException("Alert rule not found.");
+        var previous = await db.Set<AlertRuleRevision>().SingleAsync(x => x.WorkspaceId == workspaceId && x.Id == rule.CurrentRevisionId, ct);
+        if (previous.ArchivedAtUtc is not null) return previous; // Retrying a completed archive has no side effects.
+        if (request.ExpectedVersion != rule.Version) throw new ConflictException("Alert rule version changed.");
+        var now = await AlertTransactions.NowAsync(db, ct);
+        var revision = new AlertRuleRevision
+        {
+            WorkspaceId = workspaceId, RuleId = rule.Id, Version = rule.Version + 1, Name = previous.Name,
+            MetricDefinitionId = previous.MetricDefinitionId, DeviceIdentifier = previous.DeviceIdentifier,
+            ValueType = previous.ValueType, Unit = previous.Unit, ExpectedIntervalSeconds = previous.ExpectedIntervalSeconds,
+            Operator = previous.Operator, Threshold = previous.Threshold, ThresholdHigh = previous.ThresholdHigh,
+            Hysteresis = previous.Hysteresis, DurationSeconds = previous.DurationSeconds, CooldownSeconds = previous.CooldownSeconds,
+            Severity = previous.Severity, Enabled = false, ArchivedAtUtc = now, ActivatedAtUtc = now, CreatedAtUtc = now, AuthorId = userId
+        };
+        foreach (var occurrence in await db.Set<AlertEvent>().Where(x => x.WorkspaceId == workspaceId && x.RuleId == ruleId && x.Status == "Firing").ToListAsync(ct))
+            await AlertTransactions.Transition(db, occurrence, "Closed", now, now, "RuleArchived", ct);
+        var attempts = await db.Set<AlertEvaluationAttempt>().Where(x => x.WorkspaceId == workspaceId && x.RuleId == ruleId &&
+            (x.Status == "Pending" || x.Status == "Claimed" || x.Status == "Failed")).ToListAsync(ct);
+        foreach (var attempt in attempts)
+        {
+            attempt.Status = "Skipped"; attempt.Reason = "RuleArchived";
+            attempt.LeaseToken = null; attempt.LeaseUntilUtc = null;
+        }
+        db.RemoveRange(await db.Set<AlertRuleState>().Where(x => x.WorkspaceId == workspaceId && x.RuleId == ruleId).ToListAsync(ct));
+        db.Add(revision);
+        await db.SaveChangesAsync(ct);
+        foreach (var workId in attempts.Select(x => x.WorkItemId).Distinct())
+            await AlertTransactions.CompleteParentAsync(db, workspaceId, workId, ct);
+        rule.CurrentRevisionId = revision.Id; rule.Version = revision.Version;
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return revision;
     }
     public async Task<IReadOnlyList<AlertRuleRevision>> RevisionsAsync(Guid userId, Guid workspaceId, Guid ruleId, int page, CancellationToken ct)
     {
