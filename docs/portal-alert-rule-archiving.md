@@ -43,3 +43,9 @@ Use a conexão local configurada conforme o guia de deploy. O rollback da migrat
 - Suíte do portal: 157 testes aprovados; build aprovado.
 - Integração específica: histórico preservado, eventos encerrados, trabalho capturado invalidado, ausência de novas avaliações, concorrência/idempotência, conflito de versão, acesso Viewer/cross-workspace, arquivamento após desativar device e migration down/up.
 - QA do navegador: `scripts/qa/validate-alert-archiving.cjs`, preview local do portal com API simulada. Persistência é validada separadamente pelos testes PostgreSQL. Resultados em `artifacts/alert-archive-qa.json`.
+
+## Validação do ambiente local (17/09/2026)
+
+Migration aplicada após backup em `backups/postgres/fluxo-postgres-20260917-203420.sql` (arquivo local ignorado pelo Git). Imagens de API, worker e frontend recompiladas e serviços atualizados com `--no-deps`; os três healthchecks passaram. API `/health`: HTTP 200. Nova rota de arquivamento sem autenticação: HTTP 401.
+
+O QA visual também passou contra o frontend servido em `http://127.0.0.1:8080`, nas larguras 1440, 768, 375 e 320, sem erros JavaScript ou overflow da página. As respostas da API nesse QA continuam simuladas; a persistência e a concorrência foram verificadas na suíte PostgreSQL real. Nenhuma regra existente do piloto foi arquivada durante a verificação.
