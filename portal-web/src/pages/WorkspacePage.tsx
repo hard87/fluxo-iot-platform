@@ -33,6 +33,8 @@ export function WorkspacePage() {
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [formError, setFormError] = useState<unknown>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
 
   const isMountedRef = useRef(true);
   useEffect(() => {
@@ -115,6 +117,20 @@ export function WorkspacePage() {
     navigate(`/workspaces/${workspaceId}/dashboard`);
   }
 
+  async function handleRenameWorkspace(workspace: Workspace) {
+    if (!token) return;
+    const validationError = validateRequired(editingName, "Nome do workspace");
+    if (validationError) { setFormError(new Error(validationError)); return; }
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      const updated = await workspaceService.updateWorkspace(token, workspace.id, sanitizeText(editingName));
+      setWorkspaces((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setEditingId(null);
+    } catch (err) { setFormError(err); }
+    finally { setSubmitting(false); }
+  }
+
   return (
     <section>
       <PageHeader
@@ -156,13 +172,21 @@ export function WorkspacePage() {
                 return (
                   <li key={workspace.id} className="list-item">
                     <div>
-                      <strong>{workspace.name}</strong>
+                      {editingId === workspace.id ? (
+                        <label>Nome do workspace<input value={editingName} maxLength={120} onChange={(event) => setEditingName(event.target.value)} /></label>
+                      ) : <strong>{workspace.name}</strong>}
                       <p className="muted">
                         tenant: {workspace.tenantId} ·{" "}
                         <span className="badge">{formatWorkspaceRole(workspace.role)}</span>
                       </p>
                     </div>
                     <div className="inline-actions">
+                      {workspace.role !== "Viewer" && workspace.role !== 3 ? (
+                        editingId === workspace.id ? <>
+                          <button type="button" disabled={submitting} onClick={() => void handleRenameWorkspace(workspace)}>Salvar</button>
+                          <button type="button" className="button-secondary" onClick={() => setEditingId(null)}>Cancelar</button>
+                        </> : <button type="button" className="button-secondary" onClick={() => { setEditingId(workspace.id); setEditingName(workspace.name); }}>Editar</button>
+                      ) : null}
                       <button
                         type="button"
                         className={isSelected ? "button-secondary active" : "button-secondary"}

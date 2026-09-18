@@ -206,6 +206,7 @@ export interface AlertRuleRevision {
   severity: AlertSeverity;
   enabled: boolean;
   activatedAtUtc: string;
+  archivedAtUtc?: string | null;
   createdAtUtc: string;
   authorId: string;
 }

@@ -17,3 +17,11 @@ export async function createWorkspace(token: string, payload: CreateWorkspacePay
     body: payload
   });
 }
+
+export async function updateWorkspace(token: string, workspaceId: string, name: string): Promise<Workspace> {
+  return await apiRequest<Workspace>(`/api/workspaces/${workspaceId}`, {
+    method: "PATCH",
+    token,
+    body: { name }
+  });
+}

@@ -18,7 +18,9 @@ vi.mock("../services/api/alertRulesService", async () => {
     ...actual,
     listAlertRules: vi.fn(),
     updateAlertRule: vi.fn(),
-    getPortalRecipients: vi.fn()
+    getPortalRecipients: vi.fn(),
+    archiveAlertRule: vi.fn(),
+    listAlertRuleRevisions: vi.fn()
   };
 });
 
@@ -225,5 +227,61 @@ describe("AlertRulesPage", () => {
 
     expect(await screen.findByText("Não foi possível atualizar a regra")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Desativar" })).toBeInTheDocument();
+  });
+});
+
+
+describe("arquivamento de regras", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    metricsMock.mockResolvedValue([]);
+  });
+
+  it("exige confirmação, permite cancelar e envia a versão atual ao arquivar", async () => {
+    const user = userEvent.setup();
+    const rule = alertRuleFixture();
+    listMock.mockResolvedValueOnce([rule]).mockResolvedValueOnce([]);
+    vi.mocked(alertRulesService.archiveAlertRule).mockResolvedValue({ ...rule, enabled: false, archivedAtUtc: "2026-09-17T12:00:00Z" });
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: "Arquivar" }));
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("seus eventos ativos serão encerrados");
+    expect(alertRulesService.archiveAlertRule).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Arquivar" }));
+    await user.click(screen.getByRole("button", { name: "Confirmar arquivamento" }));
+    await waitFor(() => expect(alertRulesService.archiveAlertRule).toHaveBeenCalledWith("token", "workspace-1", "rule-1", 1));
+    expect(await screen.findByRole("status")).toHaveTextContent("histórico foi preservado");
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Arquivar" })).not.toBeInTheDocument());
+  });
+
+  it("mantém a regra e mostra o conflito quando o arquivamento falha", async () => {
+    const user = userEvent.setup();
+    listMock.mockResolvedValue([alertRuleFixture()]);
+    vi.mocked(alertRulesService.archiveAlertRule).mockRejectedValue(new ApiError(409, "Versão alterada"));
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: "Arquivar" }));
+    await user.click(screen.getByRole("button", { name: "Confirmar arquivamento" }));
+    expect(await screen.findByText("Não foi possível atualizar a regra")).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(screen.getByRole("table")).toHaveTextContent("Temperatura alta");
+  });
+
+  it("consulta arquivadas sem ações de edição e permite ler suas revisões", async () => {
+    const user = userEvent.setup();
+    const archived = alertRuleFixture({ enabled: false, archivedAtUtc: "2026-09-17T12:00:00Z", version: 2 });
+    listMock.mockResolvedValueOnce([]).mockResolvedValueOnce([archived]);
+    vi.mocked(alertRulesService.listAlertRuleRevisions).mockResolvedValue([alertRuleFixture(), { ...archived, id: "archive-revision" }]);
+    renderPage();
+    await screen.findByText("Nenhuma regra de alerta cadastrada");
+    await user.click(screen.getByRole("button", { name: "Arquivadas" }));
+    await screen.findByText("Temperatura alta");
+    expect(listMock).toHaveBeenLastCalledWith("token", "workspace-1", 1, undefined, "archived");
+    expect(screen.queryByRole("link", { name: "Editar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ativar" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Ver revisões" }));
+    expect(await screen.findByText(/Versão 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Versão 2/)).toHaveTextContent("Arquivada");
+    expect(alertRulesService.listAlertRuleRevisions).toHaveBeenCalledWith("token", "workspace-1", "rule-1", 1);
   });
 });

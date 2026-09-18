@@ -17,6 +17,7 @@ const KNOWN_TRANSITION_REASONS: Record<string, string> = {
   RecoveryObserved: "Recuperação observada",
   RuleRevised: "Regra revisada",
   RuleDisabled: "Regra desativada",
+  RuleArchived: "Regra arquivada",
   BeforeActivation: "Antes da ativação da regra",
   Historical: "Amostra histórica"
 };

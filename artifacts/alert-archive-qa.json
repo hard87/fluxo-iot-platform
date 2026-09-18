@@ -1,0 +1,41 @@
+{
+  "api": "mocked; persistence verified separately by PostgreSQL integration tests",
+  "checks": [
+    {
+      "width": 1440,
+      "confirmation": true,
+      "cancellation": true,
+      "archive": true,
+      "revisions": true,
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "width": 768,
+      "confirmation": true,
+      "cancellation": true,
+      "archive": true,
+      "revisions": true,
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "width": 375,
+      "confirmation": true,
+      "cancellation": true,
+      "archive": true,
+      "revisions": true,
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "width": 320,
+      "confirmation": true,
+      "cancellation": true,
+      "archive": true,
+      "revisions": true,
+      "overflow": false,
+      "errors": []
+    }
+  ]
+}

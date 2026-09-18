@@ -3,6 +3,8 @@ import type { AlertRuleRevision } from "../../types";
 import { ApiError } from "./httpClient";
 import {
   ALERTS_PAGE_SIZE,
+  archiveAlertRule,
+  listAllAlertRules,
   createAlertRule,
   getPortalRecipients,
   hasPossibleNextAlertsPage,
@@ -209,5 +211,25 @@ describe("alertRulesService", () => {
 
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).status).toBe(404);
+  });
+});
+
+
+describe("contrato de arquivamento", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it("envia expectedVersion na ação de arquivamento", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, alertRuleRevisionFixture({ archivedAtUtc: "2026-09-17T12:00:00Z", enabled: false }))));
+    await archiveAlertRule("token", "workspace-1", "rule-1", 7);
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("/api/workspaces/workspace-1/alerts/rules/rule-1/archive");
+    expect(init?.method).toBe("POST");
+    expect(JSON.parse(init?.body as string)).toEqual({ expectedVersion: 7 });
+  });
+  it("inclui arquivadas ao resolver nomes de regras nos eventos históricos", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, [])));
+    await listAlertRules("token", "workspace-1", 1, undefined, "archived");
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe("/api/workspaces/workspace-1/alerts/rules?page=1&status=archived");
+    await listAllAlertRules("token", "workspace-1");
+    expect(vi.mocked(fetch).mock.calls[1][0]).toBe("/api/workspaces/workspace-1/alerts/rules?page=1&status=all");
   });
 });

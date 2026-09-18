@@ -272,7 +272,7 @@ export function TelemetrySeriesPanel({ group, aggregation, devices, definitions 
       </ul>
       <details className="telemetry-data-details">
         <summary>Consultar valores em tabela</summary>
-        <div className="table-scroll">
+        <div className="table-scroll telemetry-values-scroll" tabIndex={0} aria-label={`Valores de ${displayName}, área com rolagem`}>
           <table className="telemetry-table">
             <caption>Valores de {displayName} no período consultado</caption>
             <thead><tr><th scope="col">Série</th><th scope="col">Data e hora</th><th scope="col">Valor</th></tr></thead>

@@ -11,13 +11,16 @@ public sealed record AlertHistory(AlertEvent Event, AlertRuleRevision Revision,
     IReadOnlyList<AlertEventTransition> Transitions, IReadOnlyList<AlertAcknowledgement> Acknowledgements,
     IReadOnlyList<AlertDeliveryIntent> DeliveryIntents);
 
+public sealed record ArchiveAlertRuleRequest(int ExpectedVersion);
+
 public sealed record PortalNotificationItem(Guid Id, Guid EventId, Guid RuleId, string RuleName,
     string DeviceIdentifier, string EventStatus, string TransitionKind, DateTime CreatedAtUtc, DateTime? ReadAtUtc);
 
 public interface IAlertManagement
 {
     Task<AlertRuleRevision> SaveAsync(Guid userId, Guid workspaceId, Guid? ruleId, SaveAlertRuleRequest request, CancellationToken ct);
-    Task<IReadOnlyList<AlertRuleRevision>> RulesAsync(Guid userId, Guid workspaceId, int page, CancellationToken ct);
+    Task<IReadOnlyList<AlertRuleRevision>> RulesAsync(Guid userId, Guid workspaceId, int page, CancellationToken ct, string status = "current");
+    Task<AlertRuleRevision> ArchiveAsync(Guid userId, Guid workspaceId, Guid ruleId, ArchiveAlertRuleRequest request, CancellationToken ct);
     Task<IReadOnlyList<AlertRuleRevision>> RevisionsAsync(Guid userId, Guid workspaceId, Guid ruleId, int page, CancellationToken ct);
     Task<IReadOnlyList<AlertEvent>> EventsAsync(Guid userId, Guid workspaceId, int page, CancellationToken ct);
     Task<AlertHistory> HistoryAsync(Guid userId, Guid workspaceId, Guid eventId, CancellationToken ct);

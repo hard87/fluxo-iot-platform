@@ -15,8 +15,11 @@ public sealed class AlertsController(IAlertManagement alerts) : ControllerBase
     public async Task<IActionResult> Update(Guid workspaceId, Guid ruleId, SaveAlertRuleRequest request, CancellationToken ct) =>
         Ok(await alerts.SaveAsync(User.GetRequiredUserId(), workspaceId, ruleId, request, ct));
     [HttpGet("rules")]
-    public async Task<IActionResult> Rules(Guid workspaceId, CancellationToken ct, int page = 1) =>
-        Ok(await alerts.RulesAsync(User.GetRequiredUserId(), workspaceId, page, ct));
+    public async Task<IActionResult> Rules(Guid workspaceId, CancellationToken ct, int page = 1, string status = "current") =>
+        Ok(await alerts.RulesAsync(User.GetRequiredUserId(), workspaceId, page, ct, status));
+    [HttpPost("rules/{ruleId:guid}/archive")]
+    public async Task<IActionResult> Archive(Guid workspaceId, Guid ruleId, ArchiveAlertRuleRequest request, CancellationToken ct) =>
+        Ok(await alerts.ArchiveAsync(User.GetRequiredUserId(), workspaceId, ruleId, request, ct));
     [HttpGet("rules/{ruleId:guid}/revisions")]
     public async Task<IActionResult> Revisions(Guid workspaceId, Guid ruleId, CancellationToken ct, int page = 1) =>
         Ok(await alerts.RevisionsAsync(User.GetRequiredUserId(), workspaceId, ruleId, page, ct));

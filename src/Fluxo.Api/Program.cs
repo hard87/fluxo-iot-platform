@@ -103,6 +103,7 @@ builder.Services.AddScoped<RegisterPlatformUserUseCase>();
 builder.Services.AddScoped<LoginPlatformUserUseCase>();
 builder.Services.AddScoped<GetAuthenticatedUserUseCase>();
 builder.Services.AddScoped<CreateWorkspaceUseCase>();
+builder.Services.AddScoped<UpdateWorkspaceUseCase>();
 builder.Services.AddScoped<ListUserWorkspacesUseCase>();
 builder.Services.AddScoped<ListWorkspaceMembersUseCase>();
 builder.Services.AddScoped<GetAuthorizedWorkspaceUseCase>();

@@ -28,6 +28,7 @@ public sealed class AlertRuleRevision
     public int ExpectedIntervalSeconds { get; init; }
     public string Severity { get; init; } = "Warning";
     public bool Enabled { get; init; }
+    public DateTime? ArchivedAtUtc { get; init; }
     public DateTime ActivatedAtUtc { get; init; }
     public DateTime CreatedAtUtc { get; init; }
     public Guid AuthorId { get; init; }
