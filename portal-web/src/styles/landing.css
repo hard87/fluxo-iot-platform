@@ -1,0 +1,419 @@
+
+#fluxo-lp {
+  --fl-bg:#f7faf8;
+  --fl-paper:#ffffff;
+  --fl-ink:#143a2e;
+  --fl-muted:#536d61;
+  --fl-line:#dce8e0;
+  --fl-accent:var(--color-primary);
+  --fl-soft:#e8f2ec;
+  font-family:var(--font-sans);
+  background:var(--fl-bg);
+  color:var(--fl-ink);
+  border-radius:0;
+  overflow:hidden;
+  font-size:14px;
+  line-height:1.6}
+
+#fluxo-lp * {
+  box-sizing:border-box}
+#fluxo-lp a {
+  color:inherit;
+  text-decoration:none}
+#fluxo-lp button {
+  font:inherit;
+  cursor:pointer}
+#fluxo-lp .fl-wrap {
+  max-width:1120px;
+  margin:auto;
+  padding:0 42px}
+#fluxo-lp .fl-nav {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  padding-top:24px;
+  padding-bottom:24px;
+  border-bottom:1px solid var(--fl-line)}
+#fluxo-lp .fl-logo {
+  font-size:27px;
+  font-weight:750;
+  letter-spacing:-1px;
+  display:flex;
+  align-items:center;
+  gap:9px}
+#fluxo-lp .fl-logo i {
+  color:var(--fl-accent)}
+#fluxo-lp .fl-navlinks {
+  display:flex;
+  gap:24px;
+  font-size:12px}
+#fluxo-lp .fl-access {
+  display:flex;
+  gap:18px;
+  align-items:center;
+  font-size:12px}
+#fluxo-lp .fl-button {
+  display:inline-flex;
+  gap:10px;
+  align-items:center;
+  justify-content:center;
+  border-radius:7px;
+  padding:12px 18px;
+  background:var(--fl-accent);
+  color:#fff;
+  font-weight:600;
+  border:1px solid var(--fl-accent)}
+#fluxo-lp .fl-outline {
+  background:var(--fl-paper);
+  color:var(--fl-ink);
+  border-color:var(--fl-line)}
+#fluxo-lp .fl-kicker {
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:1.8px;
+  font-weight:650;
+  color:var(--fl-muted)}
+#fluxo-lp .fl-kicker:before {
+  content:'';
+  display:inline-block;
+  width:7px;
+  height:7px;
+  background:var(--fl-accent);
+  border-radius:50%;
+  margin-right:8px}
+#fluxo-lp .fl-hero {
+  padding-top:64px;
+  padding-bottom:45px;
+  display:grid;
+  grid-template-columns:1fr 1.05fr;
+  gap:36px;
+  align-items:center}
+#fluxo-lp h1 {
+  font-size:clamp(36px,4.8vw,54px);
+  line-height:1.09;
+  letter-spacing:-2.3px;
+  font-weight:650;
+  margin:18px 0 24px}
+#fluxo-lp h1 span {
+  color:#0b5c4b}
+#fluxo-lp .fl-lead {
+  font-size:15px;
+  color:var(--fl-muted);
+  max-width:450px;
+  margin:0 0 25px}
+#fluxo-lp .fl-actions {
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  font-size:12px}
+#fluxo-lp .fl-note {
+  font-size:11px;
+  color:var(--fl-muted);
+  margin-top:14px}
+#fluxo-lp .fl-demo {
+  background:var(--fl-paper);
+  border:1px solid var(--fl-line);
+  border-radius:12px;
+  box-shadow:0 20px 55px #173f2c14;
+  overflow:hidden;
+  min-width:0}
+#fluxo-lp .fl-demohead {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:13px 16px;
+  border-bottom:1px solid var(--fl-line);
+  font-size:11px;
+  gap:8px}
+#fluxo-lp .fl-demohead strong {
+  font-size:15px}
+#fluxo-lp .fl-pill {
+  font-size:10px;
+  padding:3px 7px;
+  background:var(--fl-soft);
+  border-radius:4px;
+  color:var(--fl-muted)}
+#fluxo-lp .fl-demobody {
+  padding:18px}
+#fluxo-lp .fl-demo-label {
+  font-size:10px;
+  color:var(--fl-muted)}
+#fluxo-lp .fl-device-title {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin:4px 0 20px}
+#fluxo-lp .fl-device-title b {
+  font-size:17px}
+#fluxo-lp .fl-value {
+  font-size:29px;
+  font-weight:650;
+  letter-spacing:-1px}
+#fluxo-lp .fl-value small {
+  font-size:14px;
+  color:var(--fl-muted);
+  letter-spacing:0}
+#fluxo-lp .fl-chart {
+  width:100%;
+  height:148px;
+  display:block;
+  color:var(--fl-accent);
+  margin:10px 0 12px}
+#fluxo-lp .fl-chart text {
+  fill:var(--fl-muted);
+  font-size:11px}
+#fluxo-lp .fl-alert {
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  padding:12px;
+  background:#fff4e5;
+  border:1px solid #f0ddbf;
+  border-radius:6px;
+  font-size:11px;
+  color:#76501d}
+#fluxo-lp .fl-alert i {
+  flex-shrink:0;
+  margin-top:3px}
+#fluxo-lp .fl-alert p {
+  margin:0}
+#fluxo-lp .fl-democaption {
+  font-size:10px;
+  color:var(--fl-muted);
+  text-align:center;
+  margin:12px 0 0}
+#fluxo-lp .fl-strip {
+  display:flex;
+  flex-wrap:wrap;
+  gap:24px;
+  justify-content:center;
+  border-top:1px solid var(--fl-line);
+  border-bottom:1px solid var(--fl-line);
+  padding:19px 0;
+  font-size:11px;
+  color:var(--fl-muted)}
+#fluxo-lp .fl-strip span {
+  display:flex;
+  align-items:center;
+  gap:8px}
+#fluxo-lp .fl-section {
+  padding-top:58px;
+  padding-bottom:54px}
+#fluxo-lp h2 {
+  font-size:31px;
+  line-height:1.2;
+  letter-spacing:-1px;
+  font-weight:650;
+  margin:10px 0 13px}
+#fluxo-lp .fl-sub {
+  color:var(--fl-muted);
+  max-width:570px;
+  margin:0;
+  font-size:13px}
+#fluxo-lp .fl-three {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:26px;
+  margin-top:32px}
+#fluxo-lp .fl-feature {
+  border-top:1px solid var(--fl-line);
+  padding-top:20px}
+#fluxo-lp .fl-feature .fl-icon {
+  display:inline-flex;
+  background:var(--fl-soft);
+  padding:11px;
+  border-radius:8px;
+  color:var(--fl-ink)}
+#fluxo-lp h3 {
+  font-size:17px;
+  line-height:1.3;
+  font-weight:650;
+  margin:17px 0 10px}
+#fluxo-lp .fl-feature p {
+  font-size:12px;
+  color:var(--fl-muted);
+  margin:0}
+#fluxo-lp .fl-feature footer {
+  margin-top:18px;
+  font-size:11px;
+  color:var(--fl-ink)}
+#fluxo-lp .fl-use {
+  background:var(--fl-soft)}
+#fluxo-lp .fl-tabs {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:26px 0 22px}
+#fluxo-lp .fl-tabs button {
+  border:1px solid var(--fl-line);
+  background:var(--fl-paper);
+  color:var(--fl-muted);
+  padding:9px 15px;
+  font-size:12px;
+  border-radius:6px}
+#fluxo-lp .fl-tabs button[aria-pressed=true] {
+  background:var(--fl-accent);
+  color:white;
+  border-color:var(--fl-accent)}
+#fluxo-lp .fl-usebody {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:32px;
+  align-items:center}
+#fluxo-lp .fl-usebody h3 {
+  font-size:23px;
+  margin:0 0 12px;
+  letter-spacing:-.5px}
+#fluxo-lp .fl-usebody p {
+  font-size:13px;
+  color:var(--fl-muted);
+  margin:0}
+#fluxo-lp .fl-rule {
+  background:var(--fl-paper);
+  border:1px solid var(--fl-line);
+  padding:23px;
+  border-radius:10px}
+#fluxo-lp .fl-rule-line {
+  display:flex;
+  gap:13px;
+  margin:12px 0;
+  font-size:12px}
+#fluxo-lp .fl-rule-line span {
+  color:var(--fl-muted);
+  min-width:48px}
+#fluxo-lp .fl-rulefooter {
+  font-size:11px;
+  border-top:1px solid var(--fl-line);
+  padding-top:14px;
+  margin-top:17px;
+  color:var(--fl-muted)}
+#fluxo-lp .fl-steps {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:28px;
+  margin-top:32px}
+#fluxo-lp .fl-stepno {
+  font-size:11px;
+  font-weight:650;
+  letter-spacing:1px;
+  color:var(--fl-muted)}
+#fluxo-lp .fl-steps h3 {
+  margin:9px 0}
+#fluxo-lp .fl-steps p {
+  font-size:12px;
+  color:var(--fl-muted);
+  margin:0}
+#fluxo-lp .fl-faq {
+  padding-top:0}
+#fluxo-lp details {
+  border-bottom:1px solid var(--fl-line);
+  padding:17px 0;
+  font-size:13px}
+#fluxo-lp summary {
+  cursor:pointer;
+  font-weight:600}
+#fluxo-lp details p {
+  font-size:12px;
+  max-width:650px;
+  color:var(--fl-muted)}
+#fluxo-lp .fl-final {
+  margin:0 42px 38px;
+  padding:36px;
+  background:var(--fl-accent);
+  color:white;
+  border-radius:12px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:25px}
+#fluxo-lp .fl-final h2 {
+  font-size:29px;
+  margin-top:0}
+#fluxo-lp .fl-final p {
+  font-size:12px;
+  margin:0;
+  color:#d6ece2}
+#fluxo-lp .fl-final .fl-button {
+  background:white;
+  color:#0b5c4b;
+  border-color:white;
+  white-space:nowrap;
+  font-size:12px}
+#fluxo-lp .fl-footer {
+  padding-bottom:24px;
+  display:flex;
+  justify-content:space-between;
+  font-size:11px;
+  color:var(--fl-muted);
+  gap:15px}
+#fluxo-lp svg.fl-chart {
+  overflow:visible}
+
+@media(max-width:760px) {
+  #fluxo-lp .fl-wrap {
+  padding-left:24px;
+  padding-right:24px}
+#fluxo-lp .fl-navlinks {
+  display:none}
+#fluxo-lp .fl-hero {
+  grid-template-columns:1fr;
+  padding-top:40px;
+  gap:30px}
+#fluxo-lp h1 {
+  max-width:550px}
+#fluxo-lp .fl-three,#fluxo-lp .fl-steps {
+  grid-template-columns:1fr;
+  gap:20px}
+#fluxo-lp .fl-usebody {
+  grid-template-columns:1fr}
+#fluxo-lp .fl-final {
+  margin-left:24px;
+  margin-right:24px;
+  padding:26px;
+  flex-direction:column;
+  align-items:flex-start}
+#fluxo-lp .fl-strip {
+  justify-content:flex-start;
+  gap:13px}
+#fluxo-lp .fl-footer {
+  flex-wrap:wrap}
+}
+@media(max-width:400px) {
+  #fluxo-lp .fl-wrap {
+  padding-left:18px;
+  padding-right:18px}
+#fluxo-lp .fl-access {
+  gap:10px}
+#fluxo-lp .fl-access .fl-button {
+  padding:9px 11px}
+#fluxo-lp .fl-logo {
+  font-size:24px}
+#fluxo-lp .fl-device-title {
+  flex-wrap:wrap}
+}
+
+
+#fluxo-lp .fl-glyph {
+  width:18px;
+  height:18px;
+  display:inline-block;
+  flex-shrink:0;
+  vertical-align:middle}
+#fluxo-lp .fl-navlinks a:hover {
+  text-decoration:underline}
+#fluxo-lp .fl-button:hover {
+  filter:brightness(.94)}
+#fluxo-lp section[id] {
+  scroll-margin-top:24px}
+#fluxo-lp .fl-tabs button {
+  min-height:44px}
+#fluxo-lp .fl-chart {
+  height:auto;
+  aspect-ratio:380 / 148}
+#fluxo-lp .fl-access a {
+  min-height:44px;
+  display:inline-flex;
+  align-items:center}
+
