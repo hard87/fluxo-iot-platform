@@ -17,7 +17,7 @@ test("register, create workspace, provision device, and survive a reload", async
   const password = "E2eTest!23456";
 
   await page.goto("/");
-  await page.getByRole("link", { name: "Criar cadastro" }).click();
+  await page.getByRole("link", { name: "Criar conta", exact: true }).click();
 
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Senha", { exact: true }).fill(password);
