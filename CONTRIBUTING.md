@@ -105,3 +105,7 @@ branch (não `main`) é considerado empilhado e não pode ser mergeado enquanto 
 `.github/CODEOWNERS` mapeia área do código a responsável técnico. Hoje, com um único mantenedor,
 esse arquivo é só um mapa de responsabilidade — a branch protection de `main` não exige aprovação
 de code owner. Isso deve ser ativado quando houver um segundo revisor válido.
+
+## Contribuições de terceiros
+
+O Fluxo está sob todos os direitos reservados (veja [Licença](README.md#licença) no README). Por ora não aceito código de terceiros; dúvidas e sugestões são bem-vindas por issue.
