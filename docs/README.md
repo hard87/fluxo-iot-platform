@@ -44,6 +44,11 @@ Este indice organiza os documentos tecnicos por objetivo de leitura.
 
 - [Sprint 2 technical document](sprint-2/sprint-2-technical-document.md)
 
+## 7. Documentos-fonte e histórico
+
+- [Confronto arquitetural do MVP (docx, 11/07/2026)](architecture/Fluxo_Documento_Confronto_Arquitetural_MVP.docx) — fonte citada pelo ADR-0001, pelo ADR-0002 e pelo [escopo do MVP](product/mvp-scope.md)
+- [Relatório de handoff: ingestão MQTT e nó ESP32 (abr/2026)](handoff/relatorio-codex-ingestao-mqtt-e-esp32-2026-04.txt) — registro histórico da implementação inicial do Worker e do nó de referência
+
 ## Sugestao de leitura por perfil
 
 - Recrutador / avaliador tecnico:
