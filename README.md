@@ -8,6 +8,7 @@ Plataforma IoT para cadastro, provisionamento e monitoramento de dispositivos co
 > Stack: ASP.NET Core (Clean Architecture), PostgreSQL, Mosquitto (MQTT over TLS), React + TypeScript.
 > Status: working MVP (API, ingestion worker, web portal); alerting and a physical pilot with a Raspberry Pi gateway are in progress.
 > This is a portfolio project. To run it locally, see [Início rápido](#início-rápido-local).
+> License: all rights reserved. The source is public for portfolio review; there is no license to use, copy or distribute it yet.
 
 ![Portal do Fluxo: regras de alerta arquivadas e histórico de revisões](docs/assets/portal-alertas.png)
 
@@ -169,6 +170,12 @@ Veja o índice central em [docs/README.md](docs/README.md).
 ## Roadmap
 
 - [Roadmap técnico para produção com 1000 dispositivos](docs/roadmap-production-1000-devices.md)
+
+## Licença
+
+Copyright © 2026 Junior Godoi. Todos os direitos reservados.
+
+O código está público para leitura e avaliação como portfólio técnico, mas ainda não há licença que autorize uso, cópia, modificação ou distribuição. O Fluxo segue em evolução e o modelo de licenciamento será definido mais adiante. Se tiver interesse em usar o projeto, fale comigo pelo [LinkedIn](https://linkedin.com/in/juniorgodoi87) ou pelo [site da Officina 404](https://officina404.com.br).
 
 ## Contribuição
 
