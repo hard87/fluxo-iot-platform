@@ -2,10 +2,13 @@
 
 ## 1. Snapshot
 
-- Última revisão deste snapshot: 13 set 2026.
-- Branch observada: `main`.
-- HEAD observado: `6b2da1aab2a74dc651b6babebc66e9e8a196ebab` (PR #29 — fix do toggle
-  ativar/desativar apagando destinatários de portal, achado na verificação manual do E2.4).
+- Última revisão deste snapshot: 21 set 2026.
+- Branch observada: `main`, sincronizada com `origin/main`.
+- HEAD observado: `b4e3d1179c0cf7b22fc55ce6bd02abaa587759bf` (PR #37 — registro de direitos
+  reservados no README). Sem PRs abertos nem branches pendentes de merge.
+- Esta revisão foi feita cruzando o documento com o `git log`; os números de teste citados são os
+  da última validação registrada (17/09/2026, seção 2.8) e **não foram reexecutados** nesta
+  revisão, que só alterou documentação.
 - Esta consolidação não declara suporte de produção a 1000 devices.
 - Incidente de governança registrado e corrigido em 13/09/2026: os PRs #15 e #16 (harness e
   confiabilidade do E2) foram mergeados em branches intermediárias (`fix/enable-alert-evaluation-worker`
@@ -14,8 +17,7 @@
   PR #17 (base `main`) recuperou o conteúdo. Ver seção 10 para a regra adotada a partir deste
   incidente.
 - O portal de alertas (E1, ver seção 2.3) foi concluído e está mergeado em `main`: E1.1 via PR #7
-  e E1.2–E1.5 recuperados via PR #13 (`fix/merge-e1-into-main`), ambos já integrados. HEAD atual:
-  `9eb3df5`.
+  e E1.2–E1.5 recuperados via PR #13 (`fix/merge-e1-into-main`), ambos já integrados.
 - Corrigido em 13/09/2026: `AlertEvaluation:Enabled` estava ausente de toda configuração e o
   `AlertEvaluationWorker` nunca avaliava nenhuma regra (ver seção 2.4 e Riscos ativos — item
   resolvido).
@@ -24,6 +26,9 @@
 - E2.4 (canal de portal) implementado e comprovado em 13/09/2026 — ver seção 2.6. E-mail (o
   segundo canal nativo decidido) continua sem adaptador, explicitamente pendente de escolha de
   provedor/transporte; a Fase 3 não é declarada concluída enquanto isso não fechar.
+- Arquivamento persistente de regras de alerta mergeado em `main` (PR #31, 17/09/2026) — ver
+  seção 2.8. Entregas de portal de 15–17/09 (página institucional, landing redesenhada, renomear
+  workspace) na seção 2.9; infraestrutura e documentação do repositório de 17–19/09 na 2.10.
 
 ## 2. Estado das trilhas
 
@@ -32,7 +37,7 @@
 | Produto | Fase 0 — decisões e baseline | CONCLUÍDA | ADRs aceitos e benchmark executado |
 | Produto | Fase 1 — Schema V2 e ingestão | CONCLUÍDA | [Relatório Fase 1](handoff/relatorio-fase-1-schema-v2-2026-07-11.md) |
 | Produto | Fase 2 — Telemetry Query API e Explorer | CONCLUÍDA | [Relatório Fase 2](handoff/relatorio-fase-2-telemetry-explorer-2026-07-12.md) |
-| Produto | Fase 3 — alertas | EM ANDAMENTO — backend e portal (E1) concluídos; worker de avaliação corrigido e habilitado (ver 2.4); núcleo do E2 (avaliação → evento → reconhecimento) comprovado ponta a ponta com o worker real (ver 2.5); canal de portal implementado e comprovado (ver 2.6); e-mail ainda sem adaptador, pendente de escolha de provedor | [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md) |
+| Produto | Fase 3 — alertas | EM ANDAMENTO — backend e portal (E1) concluídos; worker de avaliação corrigido e habilitado (ver 2.4); núcleo do E2 (avaliação → evento → reconhecimento) comprovado ponta a ponta com o worker real (ver 2.5); canal de portal implementado e comprovado (ver 2.6–2.7); arquivamento de regras com histórico e auditoria mergeado (ver 2.8); e-mail ainda sem adaptador, pendente de escolha de provedor | [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md) |
 | Produto | Fase 4 — inteligência operacional | NÃO INICIADA | [Escopo do MVP](product/mvp-scope.md) |
 | Produto | Fase 5 — pilotos físicos | EM PILOTO | [Relatório Gateway Pi](handoff/relatorio-fase-5-piloto-fisico-gateway-pi-2026-07-31.md) |
 | Infraestrutura | Infra Fase 1 — hardening | CONCLUÍDA | Baseline de autenticação, ACL, TLS MQTT e ingestão |
@@ -245,6 +250,7 @@ Evidência de verificação (13/09/2026):
   provados através do `AlertWorkerHarness` (worker real), não de chamada direta ao motor.
 - Frontend: `npm test` em `portal-web/` — **148/148** (132 base + 16 novos); `npm run build` —
   `tsc --noEmit` sem erros, `vite build` concluído.
+
 ### 2.7 — Verificação manual do E2.4 e correção encontrada (13/09/2026)
 
 Executada a verificação manual pendente da seção 2.6 assim que o stack da outra sessão liberou os
@@ -273,6 +279,57 @@ completa no navegador.
 
 Evidência: `npm test` em `portal-web/` — **149/149** (148 anteriores + 1 novo cobrindo a
 regressão); `npm run build` limpo.
+
+### 2.8 — Arquivamento persistente de regras de alerta (15–17/09/2026)
+
+Mergeado em `main` via PR #31 (`f4213f1`, branch `codex/arquivar-alertas-persistente`; commits
+`8f6eebf` e `5b71cd7`). Este item constava como "sem merge" na versão anterior do documento e foi
+corrigido nesta revisão.
+
+- Arquivamento persistido como revisão imutável desativada, com data e autoria.
+- Encerramento administrativo de eventos ativos (transição `Closed`) e invalidação transacional de
+  avaliações pendentes da regra arquivada.
+- Portal: consulta de regras arquivadas e de suas revisões.
+- Cobertura nova em `AlertArchivingTests`. Contrato e atualização local em
+  [Arquivamento de regras de alerta](portal-alert-rule-archiving.md).
+
+Evidência de verificação (17/09/2026, última validação completa registrada): `dotnet test` com
+PostgreSQL descartável real — **97 unitários** e **87 de integração** aprovados, 0 ignorados;
+`npm test` em `portal-web/` — **157** aprovados. O e-mail segue sem adaptador; o arquivamento não
+altera o gate da Fase 3.
+
+### 2.9 — Portal: página institucional, landing e workspaces (15–17/09/2026)
+
+Entregas de portal sem relação com alertas, todas em `main`:
+
+- **15/09** — página institucional pública (`dea52a4`); padronização de links com estilo de botão
+  (`93c9896`); tabela de valores do Explorer contida com rolagem (`4f339c9`); indicador no lugar da
+  borda de série no gráfico do device (`6bf293a`); renomear workspace pelo portal (`792409f`,
+  `WorkspaceRepository` ganhou a operação de atualização).
+- **17/09** — landing redesenhada como página de vendas completa: hero com demo ilustrativo de
+  telemetria, exemplos por aplicação, passos de onboarding, FAQ e CTA final (PR #32, `750da1a`).
+- **Achado no e2e:** o `golden-path.spec.ts` esperava um CTA herdado de quando `/` redirecionava
+  para o login. Desde que a landing passou a viver em `/`, o teste estava desatualizado e, segundo
+  o commit `fd96d95`, nunca tinha rodado de verdade no CI porque esses commits ficaram só locais
+  até então. Corrigido em `fd96d95` e `3cbec58` (CTA atual: "Criar conta"). Lição registrada: o
+  e2e precisa acompanhar mudanças de copy/rota da landing.
+
+### 2.10 — Infraestrutura e documentação do repositório (17–19/09/2026)
+
+- **Certificado Mosquitto (PR #33, `134a762`):** o script de geração agora reaproveita a CA local
+  existente (só cria uma nova se não houver ou com `-ForceNewCa`) e aceita `-AdditionalSan` para
+  hostnames/IPs além do CommonName. Motivo: regerar `server.crt` sem manter a CA invalidava a
+  confiança já distribuída a devices remotos (ex.: `ca.crt` do Gateway Pi), e clients MQTT TLS
+  validam o SAN. Relevante para a pendência de repetir o Gateway Pi no perfil controlled-prod.
+- **Vitrine do repositório (PRs #34–#37, 19/09):** README com badge de CI, screenshot do portal,
+  resumo em inglês e links para os 5 ADRs; raiz organizada (`Fluxo_Documento_Confronto_Arquitetural_MVP.docx`
+  → `docs/architecture/`, relatório Codex → `docs/handoff/`, rascunho pessoal de post removido);
+  README e `CONTRIBUTING.md` registram **direitos reservados** — o código é público para leitura e
+  avaliação, sem licença de uso, cópia ou distribuição por ora. O modelo de licenciamento será
+  definido depois; o nome da branch `docs/licenca-polyform-nc` não reflete a decisão efetiva.
+- **Pendência local (não versionada):** `docker/mosquitto/certs/server.crt.old-localhost-only` e
+  `server.key.old-localhost-only` (certificado e chave privada antigos, restos da regeração)
+  estão fora do controle de versão. Não commitar; apagar ou ignorar.
 
 ## 3. Arquitetura atual
 
@@ -314,8 +371,10 @@ comprovados na interface (seção 2.3); o worker de avaliação, que estava desa
 ambientes, foi corrigido e habilitado em 13/09/2026 (seção 2.4); o núcleo do E2 (regra criada →
 telemetria dispara → worker real abre evento → histórico → reconhecimento) está comprovado ponta a
 ponta com o worker real, sem drain manual (seção 2.5); o canal de portal (E2.4) está implementado e
-comprovado por teste automatizado e por verificação manual completa no navegador (seções 2.6-2.7).
-Falta apenas o canal de e-mail — bloqueado numa decisão de provedor/transporte que não pode ser
+comprovado por teste automatizado e por verificação manual completa no navegador (seções 2.6-2.7);
+o arquivamento de regras com histórico e auditoria está mergeado (seção 2.8). Nota: transições
+administrativas `Closed` (ex.: arquivamento) geram intenção de entrega, mas o adaptador de portal
+atual só notifica `Firing`/`Resolved`. Falta apenas o canal de e-mail — bloqueado numa decisão de provedor/transporte que não pode ser
 tomada durante a implementação — para a Fase 3 ser declarada CONCLUÍDA. A arquitetura normativa
 está no [ADR-0002](adr/0002-alert-evaluation-state-and-delivery.md), complementada pelo
 [ADR-0005](adr/0005-alertas-canais-historico-isolamento-proposta.md); não deve ser substituída
@@ -393,9 +452,3 @@ Antes de implementar uma fase:
 7. uma etapa só pode ser declarada concluída ou integrada quando sua evidência existir no HEAD
    real de `main` — um PR marcado como "Merged" no GitHub não é suficiente por si só quando sua
    base não era `main` (ver incidente registrado na seção 1).
-
-## Atualização de 17/09/2026 — arquivamento de alertas
-
-Implementado na branch `codex/arquivar-alertas-persistente`, ainda sem merge em `main`: arquivamento persistido como revisão imutável desativada, com data e autoria; encerramento administrativo de eventos ativos, invalidação transacional de avaliações pendentes e consulta de regras arquivadas/revisões no portal. Contrato e atualização local em [Arquivamento de regras de alerta](portal-alert-rule-archiving.md).
-
-Validação: 97 testes unitários e 87 de integração .NET aprovados com PostgreSQL descartável real, zero ignorados; 157 testes do portal aprovados.
