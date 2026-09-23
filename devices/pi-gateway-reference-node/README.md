@@ -1,8 +1,8 @@
 # Fluxo Pi Gateway Reference Node
 
 Gateway físico de referência para Raspberry Pi com Node-RED. Ele publica diagnóstico real do
-Linux no Telemetry Schema V2 e mantém `sequence` e mensagens pendentes em disco. Não simula
-sensor: sensores locais serão acrescentados somente quando houver hardware identificado.
+Linux no Telemetry Schema V2, lê um sensor ambiental real (HDC1080, temperatura + umidade) via
+I2C e mantém `sequence` e mensagens pendentes em disco. Não simula nenhuma métrica.
 
 ## Arquitetura
 
@@ -51,6 +51,21 @@ falha, sem interferir no ciclo de captura/publicação do Node-RED. O intervalo 
 IP configurado deve existir no SAN do certificado. `FLUXO_MQTT_CA_PATH` aponta para a CA pública,
 não para uma chave privada.
 
+O Pi de referência não tem RTC, então o relógio começa desalinhado em todo boot frio até o
+`systemd-timesyncd` corrigir. Instale o gate de NTP antes de considerar o deploy completo:
+
+```sh
+sudo mkdir -p /etc/systemd/system/nodered.service.d
+sudo cp systemd/nodered.service.d/ntp-gate.conf /etc/systemd/system/nodered.service.d/ntp-gate.conf
+sudo systemctl daemon-reload
+```
+
+Isso faz o `nodered.service` esperar até 120s por sincronização NTP antes de subir (com fallback
+degradado, não bloqueio indefinido, dado que não há RTC). Como segunda camada de defesa —
+independente de ter passado por esse gate ou não — `gateway-spool.js`'s `enqueue()` também verifica
+`NTPSynchronized` a cada publicação e descarta a medição em vez de gravar um `occurredAtUtc`
+computado com relógio sabidamente errado; ver `docs/troubleshooting.md`.
+
 ## Instalação e importação do flow
 
 Copie esta pasta para o Pi e execute como `junior`:
@@ -93,9 +108,28 @@ O payload canônico contém `schemaVersion: 2`, `sequence`, `occurredAtUtc` e m�
   `/sys/class/net/$FLUXO_NET_IFACE/{operstate,statistics/rx_bytes,statistics/tx_bytes}`.
   `FLUXO_NET_IFACE` tem default `wlan0` porque este Pi usa WiFi (`eth0` está `NO-CARRIER` neste
   gateway); ajuste a variável se o hardware mudar para Ethernet. Omitidas se a leitura falhar.
+- `environment.temperature_c`, `environment.humidity_percent` — sensor HDC1080 real (Texas
+  Instruments) no barramento I2C, endereço `0x40` (`FLUXO_HDC1080_I2C_BUS` seleciona o bus,
+  default `1`). Lido por um script Python (`smbus2`) chamado a cada ciclo de `enqueue()`.
+  Omitidas se a leitura falhar ou for descartada por implausibilidade — ver abaixo.
 
 As `MetricDefinition` são descobertas pelo pipeline V2 e estabilizam seu tipo após a primeira
 mensagem aceita.
+
+### Sanidade da leitura do HDC1080
+
+O HDC1080 não tem CRC no barramento: um glitch de I2C (bus preso em nível alto/baixo) chega como
+dado normal, não como erro de leitura. `readEnvironmentSensor()` em `gateway-spool.js` descarta a
+leitura (publica nenhuma métrica `environment.*` naquele ciclo) quando:
+
+- o valor bruto do registrador de temperatura ou umidade é `0x0000` ou `0xFFFF` — assinatura
+  clássica de barramento travado; ou
+- a temperatura convertida sai da faixa de operação recomendada do datasheet (`-20°C` a `85°C`,
+  não a faixa de sobrevivência `-40°C` a `125°C`); ou
+- a umidade convertida sai de `0–100%`.
+
+Um ciclo descartado não é reenviado com o mesmo `sequence` — a métrica simplesmente fica ausente
+naquela mensagem, e o restante do payload (`gateway.*`) é publicado normalmente.
 
 ## Persistência, limites e recuperação
 

@@ -2,13 +2,15 @@
 
 ## 1. Snapshot
 
-- Última revisão deste snapshot: 21 set 2026.
-- Branch observada: `main`, sincronizada com `origin/main`.
-- HEAD observado: `b4e3d1179c0cf7b22fc55ce6bd02abaa587759bf` (PR #37 — registro de direitos
-  reservados no README). Sem PRs abertos nem branches pendentes de merge.
-- Esta revisão foi feita cruzando o documento com o `git log`; os números de teste citados são os
-  da última validação registrada (17/09/2026, seção 2.8) e **não foram reexecutados** nesta
-  revisão, que só alterou documentação.
+- Última revisão deste snapshot: 22 set 2026.
+- Branch observada: `main`, sincronizada com `origin/main` até `d5e0f98` (piloto controlado em VM
+  dedicada e segunda camada de defesa de NTP, seção 2.12). **Working tree local tem mudanças não
+  commitadas**: correção do sensor ambiental do Gateway Pi (seção 2.13) e este documento — ver
+  `git status` antes de assumir HEAD limpo.
+- Esta revisão foi feita cruzando o documento com o `git log`; os números de teste de fases
+  anteriores citados são os da última validação registrada (17/09/2026, seção 2.8) e **não foram
+  reexecutados**. As seções 2.12 e 2.13 são evidência nova desta sessão (22/09/2026), verificada ao
+  vivo.
 - Esta consolidação não declara suporte de produção a 1000 devices.
 - Incidente de governança registrado e corrigido em 13/09/2026: os PRs #15 e #16 (harness e
   confiabilidade do E2) foram mergeados em branches intermediárias (`fix/enable-alert-evaluation-worker`
@@ -41,7 +43,7 @@
 | Produto | Fase 4 — inteligência operacional | NÃO INICIADA | [Escopo do MVP](product/mvp-scope.md) |
 | Produto | Fase 5 — pilotos físicos | EM PILOTO | [Relatório Gateway Pi](handoff/relatorio-fase-5-piloto-fisico-gateway-pi-2026-07-31.md) |
 | Infraestrutura | Infra Fase 1 — hardening | CONCLUÍDA | Baseline de autenticação, ACL, TLS MQTT e ingestão |
-| Infraestrutura | Infra Fase 2 — piloto controlado | EM PILOTO | Gateway Pi validado em MQTT/TLS; 24h, backup/restore e fechamento operacional pendentes |
+| Infraestrutura | Infra Fase 2 — piloto controlado | EM PILOTO | VM dedicada implantada e Gateway Pi migrado (ver 2.12); TLS HTTP, 24h *nesta VM*, backup/restore e fechamento operacional pendentes |
 | Infraestrutura | Infra Fase 3 — preparação de produção | NÃO INICIADA | [Roadmap](roadmap-production-1000-devices.md) |
 | Infraestrutura | Infra Fase 4 — produção escalável | NÃO INICIADA | [Roadmap](roadmap-production-1000-devices.md) |
 
@@ -331,6 +333,106 @@ Entregas de portal sem relação com alertas, todas em `main`:
   `server.key.old-localhost-only` (certificado e chave privada antigos, restos da regeração)
   estão fora do controle de versão. Não commitar; apagar ou ignorar.
 
+### 2.11 — Verificação ao vivo do Gateway Pi (21/09/2026)
+
+Verificação por SSH (`ssh edgewarden`) pedida para confirmar continuidade acima de 60h, em resposta
+à revisão do E3. Feita com múltiplas fontes independentes por causa de uma armadilha conhecida de
+Raspberry Pi sem RTC: `journalctl --list-boots` e o `ActiveEnterTimestamp` do `nodered.service`
+mostravam início em 17/09 22:57, mas isso é o relógio de parede ainda não corrigido pelo NTP no
+instante do boot (`fake-hwclock`), não o boot real — confirmado cruzando com `/proc/uptime`
+(contador monotônico, imune a salto de relógio) e `dmesg -T` (recalculado com o offset já corrigido
+pelo NTP), que concordam entre si: boot real em 19/09 08:42, **~60h50min contínuas** no momento da
+checagem (21/09 21:34), um único boot ID, `System clock synchronized: yes`.
+
+- `nodered.service` (processo que publica telemetria): `NRestarts=0` no período — nunca reiniciou.
+- Spool sem backlog no momento da checagem (`depth:0`); TLS MQTT ativo em `8883` contra o broker do
+  **perfil dev** (usuário `dev-gateway-pilot-...`, via `/home/junior/.node-red/environment`), não o
+  perfil controlled-prod — portanto isto não fecha sozinho o item "Gateway Pi 24h no perfil
+  controlled-prod" do E3.4/checklist (ver seção 6).
+- Achado durante a verificação, não relacionado à continuidade da telemetria: `fluxo-gateway-
+  monitor.service` reiniciou 14 vezes desde 20/09 por colisão de lock no spool — ver riscos ativos
+  (seção 7) para a causa e a correção sugerida.
+- `droppedMessages: 446` e `replayedMessages: 21362` em `counters.json` são contadores cumulativos
+  desde a criação do arquivo (confirmado no código de `gateway-spool.js`), não do boot atual — não
+  há, a partir só deste dado, como atribuir os 446 descartes a esta janela de 60h; consistente com a
+  lacuna de UX já registrada em `docs/frontend/revisao-portal-2026-09-07/relatorio-avaliacao.md`
+  (contador não rotula "desde sempre" vs. janela recente).
+
+### 2.12 — Piloto controlado numa VM dedicada + gate de NTP (22/09/2026)
+
+`docker-compose.controlled-prod.yml` implantado pela primeira vez fora do PC de dev, numa VM
+dedicada (`fluxo-controlled-prod`, `192.168.9.30`) no Proxmox `atlas404.lab`. Gateway Pi físico
+migrado do broker dev para essa VM; ingestão ponta a ponta comprovada com telemetria real (não
+simulada). Relatório completo: [Piloto controlado numa VM dedicada](handoff/relatorio-producao-controlada-vm-2026-09-22.md)
+(notas brutas de cada incidente, comandos e correções: arquivo local não versionado linkado a
+partir do próprio relatório).
+
+- **Dois bugs reais de produto encontrados e corrigidos** (nunca exercitados antes porque nenhum
+  ambiente anterior usava TLS na conexão admin do dynamic-security nem no ingestion worker):
+  `DynamicSecurityControlClient.cs:208` e `MqttTelemetryIngestionWorker.cs:344` carregavam a CA MQTT
+  com `X509Certificate2.CreateFromPemFile` (overload que exige chave privada no mesmo arquivo — um
+  `ca.crt` puro sempre falha). Corrigido para `X509CertificateLoader.LoadCertificateFromFile`.
+  **Ainda não commitado** — só no working tree local e replicado na VM; aguardando decisão do autor
+  sobre abrir PR.
+- Bug de infraestrutura (não de código): diretório `docker/mosquitto` bind-mounted com dono
+  incompatível com o UID do container (1883) — toda escrita do dynamic-security falhava
+  silenciosamente (`Permission denied`), estado só em memória. Corrigido com `chown`; vale revisar
+  os demais volumes bind-mounted do compose pelo mesmo padrão.
+- **Gate de NTP no boot do Pi validado com reboot físico real**, não só inspeção do systemd:
+  `ExecStartPre` no `nodered.service` espera até 120s por `NTPSynchronized=yes` antes de subir, com
+  fallback (segue mesmo sem sync, já que o Pi não tem RTC — preferir degradar a ficar
+  indefinidamente fora do ar). O reboot real capturou o serviço em `activating` com
+  `NTPSynchronized=no`, sincronizou ~21s depois, subiu sem precisar do timeout — comportamento
+  validado, não presumido.
+- Continuidade >60h da seção 2.11 era contra o perfil **dev**; ainda não repetida contra esta VM.
+- Backup/restore: decisão explícita de **não** restaurar o dump de dev diretamente na VM nova (só
+  em banco descartável separado, preservando o ambiente novo limpo) — essa validação em si ainda
+  não foi executada.
+- **Reforço pós-reboot:** o gate de boot tem um fallback de 120s que sobe o `nodered.service` mesmo
+  sem NTP confirmado — isoladamente insuficiente para garantir timestamp correto. Adicionada
+  segunda camada em `gateway-spool.js` (`enqueue()`): verifica `NTPSynchronized` a cada publicação
+  (não só no boot) e descarta a medição em vez de gravar `occurredAtUtc` com relógio sabidamente
+  errado, contando em `gateway.clock_unsynced_skips`. Validado sintaticamente e ao vivo (caminho
+  "já sincronizado"); o caminho de descarte em si não foi forçado/observado diretamente. Override
+  de systemd agora versionado em
+  `devices/pi-gateway-reference-node/systemd/nodered.service.d/ntp-gate.conf` (não existia no repo
+  antes, só instalado ao vivo).
+
+### 2.13 — Sensor ambiental real (HDC1080) confirmado e leitura endurecida (22/09/2026)
+
+Investigação disparada por um print do portal mostrando `environment.temperature_c` /
+`environment.humidity_percent` com picos implausíveis (18,42°C atual, mas mín. `-29,49°C` / máx.
+`68,42°C` no histórico). Um levantamento inicial baseado só em `flow.json` concluiu erroneamente
+que nenhum sensor estava integrado ao Gateway Pi — a leitura real não está no flow do Node-RED, e
+sim em `gateway-spool.js`'s `readEnvironmentSensor()` (já commitado antes desta sessão): um HDC1080
+(Texas Instruments) lido via I2C no endereço `0x40`. Confirmado fisicamente por varredura ao vivo
+via SSH na `edgewarden` (`i2cdetect -y 1` mostrou `0x40` presente; identificação de chip por
+`/home/junior/tools/i2c_detective.py`, scanner de assinatura de registrador de ID já existente na
+própria Pi).
+
+Causa dos picos: o HDC1080 não tem CRC no barramento — um glitch de I2C (bus preso em nível alto ou
+baixo) chega como dado normal, não como erro de leitura, e `readEnvironmentSensor()` não validava a
+leitura antes de publicar.
+
+Correção aplicada em `gateway-spool.js`: descarta a leitura — sem publicar `environment.*` naquele
+ciclo, resto do payload segue normal — quando o registrador bruto vem `0x0000`/`0xFFFF` (assinatura
+de bus travado) ou o valor convertido sai da faixa de operação recomendada do datasheet
+(temperatura `-20°C` a `85°C`; umidade `0–100%`). Validado ao vivo, não só por leitura de código:
+disparado um `enqueue` manual real contra o pipeline em produção (sem reiniciar `nodered.service`,
+já que o flow chama o script via `exec` por mensagem, então a versão nova entra em uso no próximo
+ciclo) — mensagem publicada com valores plausíveis (`18°C` / `73,18%`), fila drenou de volta a zero
+e o `sequence` avançou sem regressão. O caminho de descarte em si (glitch real) não foi observado
+ao vivo, só a lógica revisada e a ausência de falso-positivo em leitura válida. `README.md` do
+device corrigido — não dizia mais "não simula sensor: sensores locais serão acrescentados somente
+quando houver hardware identificado" (o hardware já estava identificado e integrado) — e
+`docs/troubleshooting.md` ganhou uma seção nova para esse cenário.
+
+Decisão explícita: o histórico de leituras anteriores ao fix (incluindo os picos citados acima)
+**não foi apagado**. Fluxo não tem endpoint de exclusão de telemetria (append-only por design,
+nenhum `DeleteTelemetry`/`Purge` no código) e a base afetada é de piloto, não produção real com
+terceiros — mantido como registro do artefato, documentado aqui em vez de `DELETE` manual no
+Postgres.
+
 ## 3. Arquitetura atual
 
 - Portal: React, Vite, TypeScript e Recharts 2.x.
@@ -356,6 +458,8 @@ Entregas de portal sem relação com alertas, todas em `main`:
 - Primeiro `DeviceCategory.Gateway` físico provisionado no Raspberry Pi `edgewarden`.
 - MQTT/TLS QoS 1, sequence e spool persistentes validados após restart, reboot e reconexão.
 - ACL negativa comprovada e telemetria diagnóstica Schema V2 aceita pelo backend.
+- Sensor ambiental físico real (HDC1080, temperatura + umidade) integrado ao Gateway Pi e aceito
+  pelo backend como `environment.*`; leitura endurecida contra glitch de I2C — ver seção 2.13.
 - Q1–Q7 executados em 5.115.083 pontos e cinco partições.
 - Q6 executou em 1624,705 ms, abaixo do gate de 2 s; nenhum índice novo foi necessário.
 - Revalidação de 06/09/2026: 71 testes unitários, 48 de integração no PostgreSQL descartável transacional e 30 do portal aprovados. O antigo resultado de 40 integrações incluía 26 retornos sem execução quando faltava o banco; detalhes no [baseline de alertas](handoff/alertas-etapa-1-baseline.md).
@@ -390,9 +494,12 @@ por um desenho novo durante a implementação.
 - confirmar logs e health checks de todos os componentes exigidos;
 - validar procedimento de encerramento;
 - executar firmware ESP32 por 24h;
-- executar o Gateway Pi por 24h e revisar o log de monitoramento;
+- executar o Gateway Pi por 24h **no perfil controlled-prod** e revisar o log de monitoramento
+  (parcialmente verificado em 21/09/2026: >60h contínuas comprovadas, mas contra o broker do
+  perfil dev — ver seção 2.11 e [checklist](checklist-producao-controlada.md));
 - revogar/desativar o primeiro provisionamento Gateway sem uso registrado no relatório da Fase 5;
-- integrar sensor físico ao Gateway quando houver hardware identificado;
+- ~~integrar sensor físico ao Gateway quando houver hardware identificado.~~ HDC1080 real
+  confirmado, integrado e com leitura endurecida contra glitch de I2C — ver seção 2.13;
 - revisar guia do piloto, backup/restore e simulador.
 
 A fonte autoritativa dos checkboxes é o [checklist de produção controlada](checklist-producao-controlada.md).
@@ -412,6 +519,15 @@ A fonte autoritativa dos checkboxes é o [checklist de produção controlada](ch
 - O Gateway Pi foi validado com TLS no compose local, mas o ensaio de 24h e a repetição no perfil
   controlled-prod permanecem pendentes.
 - O spool por arquivos aumenta escrita no cartão SD e ainda não tem evidência de duração longa.
+- `fluxo-gateway-monitor.service` no Gateway Pi reiniciou 14 vezes entre 20/09 e 21/09/2026 por uma
+  condição de corrida: o script de monitoramento chama `diagnostics.sh`, que tenta abrir o `.lock`
+  do spool (`gateway-spool.js`) e lança `gateway spool is busy` quando o lock está com menos de 30s
+  de idade (Node-RED escrevendo no spool no mesmo instante); o script roda com `set -eu` e encerra
+  no primeiro erro em vez de tentar de novo, e o systemd reinicia o serviço. Não afeta a entrega de
+  telemetria — `nodered.service` (o processo que publica de fato) não reiniciou nenhuma vez no
+  mesmo período (`NRestarts=0`) — mas suja o log de monitoramento que o E3.4 pede para revisar.
+  Correção sugerida: `diagnostics.sh`/`monitor-continuous.sh` deveriam tolerar essa colisão
+  transitória (retry com backoff) em vez de tratá-la como falha fatal do serviço.
 - Há um device/credencial Gateway inicial sem uso a revogar após falha de configuração local,
   conforme relatório da Fase 5.
 - Bundle principal do portal acima do warning de 500 kB; Explorer sem lazy loading.

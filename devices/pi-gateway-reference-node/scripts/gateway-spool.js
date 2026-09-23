@@ -124,16 +124,17 @@ function persistSequence(sequence) {
 }
 
 function loadCounters() {
-  if (!fs.existsSync(countersFile)) return { replayedMessages: 0, droppedMessages: 0 };
+  if (!fs.existsSync(countersFile)) return { replayedMessages: 0, droppedMessages: 0, clockUnsyncedSkips: 0 };
   try {
     const counters = readJson(countersFile);
     return {
       replayedMessages: Number.isSafeInteger(counters.replayedMessages) ? counters.replayedMessages : 0,
-      droppedMessages: Number.isSafeInteger(counters.droppedMessages) ? counters.droppedMessages : 0
+      droppedMessages: Number.isSafeInteger(counters.droppedMessages) ? counters.droppedMessages : 0,
+      clockUnsyncedSkips: Number.isSafeInteger(counters.clockUnsyncedSkips) ? counters.clockUnsyncedSkips : 0
     };
   } catch (error) {
     process.stderr.write(`Cannot read counters: ${error.message}; using zero.\n`);
-    return { replayedMessages: 0, droppedMessages: 0 };
+    return { replayedMessages: 0, droppedMessages: 0, clockUnsyncedSkips: 0 };
   }
 }
 
@@ -165,6 +166,16 @@ function pruneExpired() {
 
 const HDC1080_I2C_BUS = positiveInt("FLUXO_HDC1080_I2C_BUS", 1);
 const HDC1080_I2C_ADDRESS = 0x40;
+// HDC1080 tem barramento sem CRC: um glitch de I2C (bus preso em nivel alto/baixo) chega como
+// dado normal, nao como erro de leitura. raw 0x0000/0xFFFF e a assinatura classica desse tipo de
+// falha; a faixa -20..85C / 0..100% e a de operacao recomendada do datasheet, nao a faixa de
+// sobrevivencia (-40..125C) -- uma leitura fora dela e mais provavelvel ruido de barramento que
+// temperatura ambiente real neste deployment.
+const HDC1080_RAW_GLITCH_VALUES = new Set([0x0000, 0xffff]);
+const HDC1080_TEMPERATURE_MIN_C = -20;
+const HDC1080_TEMPERATURE_MAX_C = 85;
+const HDC1080_HUMIDITY_MIN_PERCENT = 0;
+const HDC1080_HUMIDITY_MAX_PERCENT = 100;
 const HDC1080_READ_SCRIPT = `
 import json, smbus2, sys, time
 
@@ -184,7 +195,12 @@ try:
     h_raw = read_reg(0x01)
     temp_c = (t_raw / 65536.0) * 165.0 - 40.0
     hum_pct = (h_raw / 65536.0) * 100.0
-    print(json.dumps({"temperature_c": round(temp_c, 2), "humidity_percent": round(hum_pct, 2)}))
+    print(json.dumps({
+        "temperature_c": round(temp_c, 2),
+        "humidity_percent": round(hum_pct, 2),
+        "t_raw": t_raw,
+        "h_raw": h_raw
+    }))
 finally:
     bus.close()
 `;
@@ -194,6 +210,18 @@ function readEnvironmentSensor() {
     const output = execFileSync("python3", ["-c", HDC1080_READ_SCRIPT], { encoding: "utf8", timeout: 2000 });
     const reading = JSON.parse(output.trim());
     if (!Number.isFinite(reading.temperature_c) || !Number.isFinite(reading.humidity_percent)) return {};
+    if (HDC1080_RAW_GLITCH_VALUES.has(reading.t_raw) || HDC1080_RAW_GLITCH_VALUES.has(reading.h_raw)) {
+      process.stderr.write(`HDC1080 read discarded: raw glitch signature (t_raw=${reading.t_raw}, h_raw=${reading.h_raw})\n`);
+      return {};
+    }
+    if (reading.temperature_c < HDC1080_TEMPERATURE_MIN_C || reading.temperature_c > HDC1080_TEMPERATURE_MAX_C) {
+      process.stderr.write(`HDC1080 read discarded: temperature_c=${reading.temperature_c} out of plausible range\n`);
+      return {};
+    }
+    if (reading.humidity_percent < HDC1080_HUMIDITY_MIN_PERCENT || reading.humidity_percent > HDC1080_HUMIDITY_MAX_PERCENT) {
+      process.stderr.write(`HDC1080 read discarded: humidity_percent=${reading.humidity_percent} out of plausible range\n`);
+      return {};
+    }
     return {
       "environment.temperature_c": reading.temperature_c,
       "environment.humidity_percent": reading.humidity_percent
@@ -237,7 +265,7 @@ function readNetworkStats() {
   }
 }
 
-function diagnostics(queueDepth, mqttConnected, counters) {
+function diagnostics(queueDepth, mqttConnected, counters, timeSynchronized) {
   let cpuTemperatureC = null;
   try { cpuTemperatureC = Number(fs.readFileSync("/sys/class/thermal/thermal_zone0/temp", "utf8")) / 1000; } catch { }
   let diskUsedPercent = null;
@@ -246,7 +274,6 @@ function diagnostics(queueDepth, mqttConnected, counters) {
     diskUsedPercent = ((stat.blocks - stat.bavail) / stat.blocks) * 100;
   } catch { }
   const totalMemory = os.totalmem();
-  const timeSynchronized = readTimeSyncStatus();
   return {
     "gateway.uptime_sec": Math.floor(os.uptime()),
     ...(Number.isFinite(cpuTemperatureC) ? { "gateway.cpu_temperature_c": Number(cpuTemperatureC.toFixed(1)) } : {}),
@@ -257,6 +284,7 @@ function diagnostics(queueDepth, mqttConnected, counters) {
     "gateway.mqtt_connected": mqttConnected,
     "gateway.replayed_messages": counters.replayedMessages,
     "gateway.dropped_messages": counters.droppedMessages,
+    "gateway.clock_unsynced_skips": counters.clockUnsyncedSkips,
     ...(timeSynchronized !== null ? { "gateway.time_synchronized": timeSynchronized } : {}),
     ...readNetworkStats(),
     ...readEnvironmentSensor()
@@ -272,6 +300,19 @@ function enqueue(mqttConnected) {
     atomicWriteJson(countersFile, counters);
     throw new Error(`queue limit reached (messages=${before.depth}/${maxMessages}, bytes=${before.bytes}/${maxBytes}); newest message discarded`);
   }
+  // O gate de NTP no boot do nodered.service reduz a chance de publicar com relogio errado,
+  // mas tem um caminho de fallback (timeout de 120s) que sobe o servico mesmo sem confirmar
+  // sync -- essa checagem e a ultima linha de defesa: nunca gravar occurredAtUtc computado
+  // com um relogio que o proprio SO afirma nao estar sincronizado. timeSynchronized === null
+  // (timedatectl indisponivel/erro de execucao) nao bloqueia -- e falha da ferramenta de
+  // checagem, nao evidencia de relogio errado.
+  const timeSynchronized = readTimeSyncStatus();
+  if (timeSynchronized === false) {
+    const counters = loadCounters();
+    counters.clockUnsyncedSkips += 1;
+    atomicWriteJson(countersFile, counters);
+    return { skipped: true, reason: "clock-not-synced", clockUnsyncedSkips: counters.clockUnsyncedSkips };
+  }
   const sequence = loadSequence() + 1;
   persistSequence(sequence);
   const counters = loadCounters();
@@ -280,7 +321,7 @@ function enqueue(mqttConnected) {
     schemaVersion: 2,
     sequence,
     occurredAtUtc: new Date().toISOString(),
-    metrics: diagnostics(before.depth + 1, mqttConnected, counters)
+    metrics: diagnostics(before.depth + 1, mqttConnected, counters, timeSynchronized)
   };
   const name = `${String(sequence).padStart(20, "0")}.json`;
   const target = path.join(spool, name);

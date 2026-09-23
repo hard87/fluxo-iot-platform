@@ -66,6 +66,11 @@ __pycache__/
 # Local diagnostics
 diagnostico-geral-codex.txt
 
+# Notas de procedimento detalhadas (comandos/erros brutos de sessoes de implantacao) --
+# mantidas fora do rastreamento por decisao do autor; os relatorios versionados em
+# docs/handoff/ linkam para elas localmente.
+docs/handoff/local/
+
 # Local database backups and dumps
 backups/
 dumps/

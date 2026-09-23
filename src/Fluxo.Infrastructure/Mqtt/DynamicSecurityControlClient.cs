@@ -205,7 +205,7 @@ public sealed class DynamicSecurityControlClient : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(certificatePath))
             return null;
 
-        var certificate = X509Certificate2.CreateFromPemFile(certificatePath.Trim());
+        var certificate = X509CertificateLoader.LoadCertificateFromFile(certificatePath.Trim());
         var collection = new X509Certificate2Collection();
         collection.Add(certificate);
         return collection;

@@ -59,6 +59,16 @@ aberto quando não há evidência executada; validação de Compose não prova o
 - [x] Simulador validado com 100 devices. (2026-07-11: 30.000/30.000 mensagens persistidas, sem rejeição; ver [documento técnico](sprint-2/sprint-2-technical-document.md).)
 - [x] Publicação MQTT validada no tópico provisionado.
 - [x] Consulta protegida validada via API. (2026-07-12: `temperature_c`, `current_a`, `door_open` e `machine_state`; 144 pontos, quatro séries, 13 ms.)
+- [ ] Gateway Pi (`edgewarden`) executado por 24h no **perfil controlled-prod**. (2026-09-21:
+      verificado ao vivo por SSH — >60h50min contínuas, mas contra o broker do perfil **dev**, não
+      controlled-prod (achado também nessa verificação: `fluxo-gateway-monitor.service` reiniciando
+      por corrida no lock do spool, ver risco em [project-status.md](project-status.md)).
+      2026-09-22: Pi migrado de fato para uma VM dedicada rodando `docker-compose.controlled-prod.yml`
+      (`192.168.9.30`), ingestão ponta a ponta comprovada com telemetria real, gate de NTP no boot
+      validado com **reboot físico real** do Pi — mas o ensaio de continuidade de 24h ainda não foi
+      repetido *nesta* VM (só a validação inicial + 1 reboot). Item continua aberto até essa
+      continuidade ser medida aqui. Ver
+      [relatório completo](handoff/relatorio-producao-controlada-vm-2026-09-22.md).)
 
 ## Documentação
 
