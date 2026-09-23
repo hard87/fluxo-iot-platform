@@ -124,16 +124,17 @@ function persistSequence(sequence) {
 }
 
 function loadCounters() {
-  if (!fs.existsSync(countersFile)) return { replayedMessages: 0, droppedMessages: 0 };
+  if (!fs.existsSync(countersFile)) return { replayedMessages: 0, droppedMessages: 0, clockUnsyncedSkips: 0 };
   try {
     const counters = readJson(countersFile);
     return {
       replayedMessages: Number.isSafeInteger(counters.replayedMessages) ? counters.replayedMessages : 0,
-      droppedMessages: Number.isSafeInteger(counters.droppedMessages) ? counters.droppedMessages : 0
+      droppedMessages: Number.isSafeInteger(counters.droppedMessages) ? counters.droppedMessages : 0,
+      clockUnsyncedSkips: Number.isSafeInteger(counters.clockUnsyncedSkips) ? counters.clockUnsyncedSkips : 0
     };
   } catch (error) {
     process.stderr.write(`Cannot read counters: ${error.message}; using zero.\n`);
-    return { replayedMessages: 0, droppedMessages: 0 };
+    return { replayedMessages: 0, droppedMessages: 0, clockUnsyncedSkips: 0 };
   }
 }
 
@@ -237,7 +238,7 @@ function readNetworkStats() {
   }
 }
 
-function diagnostics(queueDepth, mqttConnected, counters) {
+function diagnostics(queueDepth, mqttConnected, counters, timeSynchronized) {
   let cpuTemperatureC = null;
   try { cpuTemperatureC = Number(fs.readFileSync("/sys/class/thermal/thermal_zone0/temp", "utf8")) / 1000; } catch { }
   let diskUsedPercent = null;
@@ -246,7 +247,6 @@ function diagnostics(queueDepth, mqttConnected, counters) {
     diskUsedPercent = ((stat.blocks - stat.bavail) / stat.blocks) * 100;
   } catch { }
   const totalMemory = os.totalmem();
-  const timeSynchronized = readTimeSyncStatus();
   return {
     "gateway.uptime_sec": Math.floor(os.uptime()),
     ...(Number.isFinite(cpuTemperatureC) ? { "gateway.cpu_temperature_c": Number(cpuTemperatureC.toFixed(1)) } : {}),
@@ -257,6 +257,7 @@ function diagnostics(queueDepth, mqttConnected, counters) {
     "gateway.mqtt_connected": mqttConnected,
     "gateway.replayed_messages": counters.replayedMessages,
     "gateway.dropped_messages": counters.droppedMessages,
+    "gateway.clock_unsynced_skips": counters.clockUnsyncedSkips,
     ...(timeSynchronized !== null ? { "gateway.time_synchronized": timeSynchronized } : {}),
     ...readNetworkStats(),
     ...readEnvironmentSensor()
@@ -272,6 +273,19 @@ function enqueue(mqttConnected) {
     atomicWriteJson(countersFile, counters);
     throw new Error(`queue limit reached (messages=${before.depth}/${maxMessages}, bytes=${before.bytes}/${maxBytes}); newest message discarded`);
   }
+  // O gate de NTP no boot do nodered.service reduz a chance de publicar com relogio errado,
+  // mas tem um caminho de fallback (timeout de 120s) que sobe o servico mesmo sem confirmar
+  // sync -- essa checagem e a ultima linha de defesa: nunca gravar occurredAtUtc computado
+  // com um relogio que o proprio SO afirma nao estar sincronizado. timeSynchronized === null
+  // (timedatectl indisponivel/erro de execucao) nao bloqueia -- e falha da ferramenta de
+  // checagem, nao evidencia de relogio errado.
+  const timeSynchronized = readTimeSyncStatus();
+  if (timeSynchronized === false) {
+    const counters = loadCounters();
+    counters.clockUnsyncedSkips += 1;
+    atomicWriteJson(countersFile, counters);
+    return { skipped: true, reason: "clock-not-synced", clockUnsyncedSkips: counters.clockUnsyncedSkips };
+  }
   const sequence = loadSequence() + 1;
   persistSequence(sequence);
   const counters = loadCounters();
@@ -280,7 +294,7 @@ function enqueue(mqttConnected) {
     schemaVersion: 2,
     sequence,
     occurredAtUtc: new Date().toISOString(),
-    metrics: diagnostics(before.depth + 1, mqttConnected, counters)
+    metrics: diagnostics(before.depth + 1, mqttConnected, counters, timeSynchronized)
   };
   const name = `${String(sequence).padStart(20, "0")}.json`;
   const target = path.join(spool, name);

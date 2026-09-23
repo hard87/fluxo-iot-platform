@@ -51,6 +51,21 @@ falha, sem interferir no ciclo de captura/publicação do Node-RED. O intervalo 
 IP configurado deve existir no SAN do certificado. `FLUXO_MQTT_CA_PATH` aponta para a CA pública,
 não para uma chave privada.
 
+O Pi de referência não tem RTC, então o relógio começa desalinhado em todo boot frio até o
+`systemd-timesyncd` corrigir. Instale o gate de NTP antes de considerar o deploy completo:
+
+```sh
+sudo mkdir -p /etc/systemd/system/nodered.service.d
+sudo cp systemd/nodered.service.d/ntp-gate.conf /etc/systemd/system/nodered.service.d/ntp-gate.conf
+sudo systemctl daemon-reload
+```
+
+Isso faz o `nodered.service` esperar até 120s por sincronização NTP antes de subir (com fallback
+degradado, não bloqueio indefinido, dado que não há RTC). Como segunda camada de defesa —
+independente de ter passado por esse gate ou não — `gateway-spool.js`'s `enqueue()` também verifica
+`NTPSynchronized` a cada publicação e descarta a medição em vez de gravar um `occurredAtUtc`
+computado com relógio sabidamente errado; ver `docs/troubleshooting.md`.
+
 ## Instalação e importação do flow
 
 Copie esta pasta para o Pi e execute como `junior`:

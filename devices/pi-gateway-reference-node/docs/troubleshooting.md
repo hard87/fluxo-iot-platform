@@ -31,6 +31,23 @@ Valide JSON com `node -e "JSON.parse(require('fs').readFileSync('flow.json'))"`,
 O deploy preserva outros flows, mas substitui a aba e os config nodes com IDs reservados da
 referência. Restaure o backup do diretório `.node-red` se uma configuração preexistente colidir.
 
+## Relógio não sincronizado / timestamps suspeitos
+
+`nodered.service` tem um gate de boot (`ExecStartPre`, drop-in em
+`/etc/systemd/system/nodered.service.d/ntp-gate.conf`) que espera até 120s por
+`timedatectl show -p NTPSynchronized --value` = `yes` antes de subir; se o tempo esgotar (sem rede
+no boot — o Pi não tem RTC), sobe mesmo assim e registra um aviso via `systemd-cat -t
+fluxo-ntp-gate`. Isso reduz, mas não elimina, o risco de publicar com relógio errado logo após um
+boot frio.
+
+Como segunda camada de defesa, `gateway-spool.js`'s `enqueue()` verifica `NTPSynchronized` a cada
+publicação (não só no boot): se o SO afirma explicitamente que o relógio **não** está sincronizado
+(`false`, não `null`/indisponível), a medição é descartada antes de gravar no spool — nenhum
+`occurredAtUtc` computado com relógio sabidamente errado chega a ser enfileirado ou publicado. Cada
+descarte incrementa `gateway.clock_unsynced_skips` (contador cumulativo, visível na telemetria e no
+`diagnostics.sh`). Um valor crescente indica boots frequentes sem rede disponível a tempo — investigue
+a rede do Pi nesse cenário, não o hardware do relógio (ele não tem RTC por design).
+
 ## Monitor contínuo não inicia
 
 Execute `systemctl status fluxo-gateway-monitor --no-pager` e
