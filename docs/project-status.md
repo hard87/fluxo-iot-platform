@@ -3,12 +3,14 @@
 ## 1. Snapshot
 
 - Última revisão deste snapshot: 22 set 2026.
-- Branch observada: `main`, sincronizada com `origin/main` até `bc2a048` (PR #38). **Working tree
-  local tem mudanças não commitadas**: dois arquivos de correção de bug (seção 2.12) e este
-  documento — ver `git status` antes de assumir HEAD limpo.
+- Branch observada: `main`, sincronizada com `origin/main` até `d5e0f98` (piloto controlado em VM
+  dedicada e segunda camada de defesa de NTP, seção 2.12). **Working tree local tem mudanças não
+  commitadas**: correção do sensor ambiental do Gateway Pi (seção 2.13) e este documento — ver
+  `git status` antes de assumir HEAD limpo.
 - Esta revisão foi feita cruzando o documento com o `git log`; os números de teste de fases
   anteriores citados são os da última validação registrada (17/09/2026, seção 2.8) e **não foram
-  reexecutados**. A seção 2.12 é evidência nova desta sessão (22/09/2026), verificada ao vivo.
+  reexecutados**. As seções 2.12 e 2.13 são evidência nova desta sessão (22/09/2026), verificada ao
+  vivo.
 - Esta consolidação não declara suporte de produção a 1000 devices.
 - Incidente de governança registrado e corrigido em 13/09/2026: os PRs #15 e #16 (harness e
   confiabilidade do E2) foram mergeados em branches intermediárias (`fix/enable-alert-evaluation-worker`
@@ -396,6 +398,41 @@ partir do próprio relatório).
   `devices/pi-gateway-reference-node/systemd/nodered.service.d/ntp-gate.conf` (não existia no repo
   antes, só instalado ao vivo).
 
+### 2.13 — Sensor ambiental real (HDC1080) confirmado e leitura endurecida (22/09/2026)
+
+Investigação disparada por um print do portal mostrando `environment.temperature_c` /
+`environment.humidity_percent` com picos implausíveis (18,42°C atual, mas mín. `-29,49°C` / máx.
+`68,42°C` no histórico). Um levantamento inicial baseado só em `flow.json` concluiu erroneamente
+que nenhum sensor estava integrado ao Gateway Pi — a leitura real não está no flow do Node-RED, e
+sim em `gateway-spool.js`'s `readEnvironmentSensor()` (já commitado antes desta sessão): um HDC1080
+(Texas Instruments) lido via I2C no endereço `0x40`. Confirmado fisicamente por varredura ao vivo
+via SSH na `edgewarden` (`i2cdetect -y 1` mostrou `0x40` presente; identificação de chip por
+`/home/junior/tools/i2c_detective.py`, scanner de assinatura de registrador de ID já existente na
+própria Pi).
+
+Causa dos picos: o HDC1080 não tem CRC no barramento — um glitch de I2C (bus preso em nível alto ou
+baixo) chega como dado normal, não como erro de leitura, e `readEnvironmentSensor()` não validava a
+leitura antes de publicar.
+
+Correção aplicada em `gateway-spool.js`: descarta a leitura — sem publicar `environment.*` naquele
+ciclo, resto do payload segue normal — quando o registrador bruto vem `0x0000`/`0xFFFF` (assinatura
+de bus travado) ou o valor convertido sai da faixa de operação recomendada do datasheet
+(temperatura `-20°C` a `85°C`; umidade `0–100%`). Validado ao vivo, não só por leitura de código:
+disparado um `enqueue` manual real contra o pipeline em produção (sem reiniciar `nodered.service`,
+já que o flow chama o script via `exec` por mensagem, então a versão nova entra em uso no próximo
+ciclo) — mensagem publicada com valores plausíveis (`18°C` / `73,18%`), fila drenou de volta a zero
+e o `sequence` avançou sem regressão. O caminho de descarte em si (glitch real) não foi observado
+ao vivo, só a lógica revisada e a ausência de falso-positivo em leitura válida. `README.md` do
+device corrigido — não dizia mais "não simula sensor: sensores locais serão acrescentados somente
+quando houver hardware identificado" (o hardware já estava identificado e integrado) — e
+`docs/troubleshooting.md` ganhou uma seção nova para esse cenário.
+
+Decisão explícita: o histórico de leituras anteriores ao fix (incluindo os picos citados acima)
+**não foi apagado**. Fluxo não tem endpoint de exclusão de telemetria (append-only por design,
+nenhum `DeleteTelemetry`/`Purge` no código) e a base afetada é de piloto, não produção real com
+terceiros — mantido como registro do artefato, documentado aqui em vez de `DELETE` manual no
+Postgres.
+
 ## 3. Arquitetura atual
 
 - Portal: React, Vite, TypeScript e Recharts 2.x.
@@ -421,6 +458,8 @@ partir do próprio relatório).
 - Primeiro `DeviceCategory.Gateway` físico provisionado no Raspberry Pi `edgewarden`.
 - MQTT/TLS QoS 1, sequence e spool persistentes validados após restart, reboot e reconexão.
 - ACL negativa comprovada e telemetria diagnóstica Schema V2 aceita pelo backend.
+- Sensor ambiental físico real (HDC1080, temperatura + umidade) integrado ao Gateway Pi e aceito
+  pelo backend como `environment.*`; leitura endurecida contra glitch de I2C — ver seção 2.13.
 - Q1–Q7 executados em 5.115.083 pontos e cinco partições.
 - Q6 executou em 1624,705 ms, abaixo do gate de 2 s; nenhum índice novo foi necessário.
 - Revalidação de 06/09/2026: 71 testes unitários, 48 de integração no PostgreSQL descartável transacional e 30 do portal aprovados. O antigo resultado de 40 integrações incluía 26 retornos sem execução quando faltava o banco; detalhes no [baseline de alertas](handoff/alertas-etapa-1-baseline.md).
@@ -459,7 +498,8 @@ por um desenho novo durante a implementação.
   (parcialmente verificado em 21/09/2026: >60h contínuas comprovadas, mas contra o broker do
   perfil dev — ver seção 2.11 e [checklist](checklist-producao-controlada.md));
 - revogar/desativar o primeiro provisionamento Gateway sem uso registrado no relatório da Fase 5;
-- integrar sensor físico ao Gateway quando houver hardware identificado;
+- ~~integrar sensor físico ao Gateway quando houver hardware identificado.~~ HDC1080 real
+  confirmado, integrado e com leitura endurecida contra glitch de I2C — ver seção 2.13;
 - revisar guia do piloto, backup/restore e simulador.
 
 A fonte autoritativa dos checkboxes é o [checklist de produção controlada](checklist-producao-controlada.md).

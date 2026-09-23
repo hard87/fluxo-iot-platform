@@ -1,8 +1,8 @@
 # Fluxo Pi Gateway Reference Node
 
 Gateway físico de referência para Raspberry Pi com Node-RED. Ele publica diagnóstico real do
-Linux no Telemetry Schema V2 e mantém `sequence` e mensagens pendentes em disco. Não simula
-sensor: sensores locais serão acrescentados somente quando houver hardware identificado.
+Linux no Telemetry Schema V2, lê um sensor ambiental real (HDC1080, temperatura + umidade) via
+I2C e mantém `sequence` e mensagens pendentes em disco. Não simula nenhuma métrica.
 
 ## Arquitetura
 
@@ -108,9 +108,28 @@ O payload canônico contém `schemaVersion: 2`, `sequence`, `occurredAtUtc` e m�
   `/sys/class/net/$FLUXO_NET_IFACE/{operstate,statistics/rx_bytes,statistics/tx_bytes}`.
   `FLUXO_NET_IFACE` tem default `wlan0` porque este Pi usa WiFi (`eth0` está `NO-CARRIER` neste
   gateway); ajuste a variável se o hardware mudar para Ethernet. Omitidas se a leitura falhar.
+- `environment.temperature_c`, `environment.humidity_percent` — sensor HDC1080 real (Texas
+  Instruments) no barramento I2C, endereço `0x40` (`FLUXO_HDC1080_I2C_BUS` seleciona o bus,
+  default `1`). Lido por um script Python (`smbus2`) chamado a cada ciclo de `enqueue()`.
+  Omitidas se a leitura falhar ou for descartada por implausibilidade — ver abaixo.
 
 As `MetricDefinition` são descobertas pelo pipeline V2 e estabilizam seu tipo após a primeira
 mensagem aceita.
+
+### Sanidade da leitura do HDC1080
+
+O HDC1080 não tem CRC no barramento: um glitch de I2C (bus preso em nível alto/baixo) chega como
+dado normal, não como erro de leitura. `readEnvironmentSensor()` em `gateway-spool.js` descarta a
+leitura (publica nenhuma métrica `environment.*` naquele ciclo) quando:
+
+- o valor bruto do registrador de temperatura ou umidade é `0x0000` ou `0xFFFF` — assinatura
+  clássica de barramento travado; ou
+- a temperatura convertida sai da faixa de operação recomendada do datasheet (`-20°C` a `85°C`,
+  não a faixa de sobrevivência `-40°C` a `125°C`); ou
+- a umidade convertida sai de `0–100%`.
+
+Um ciclo descartado não é reenviado com o mesmo `sequence` — a métrica simplesmente fica ausente
+naquela mensagem, e o restante do payload (`gateway.*`) é publicado normalmente.
 
 ## Persistência, limites e recuperação
 

@@ -48,6 +48,23 @@ descarte incrementa `gateway.clock_unsynced_skips` (contador cumulativo, visíve
 `diagnostics.sh`). Um valor crescente indica boots frequentes sem rede disponível a tempo — investigue
 a rede do Pi nesse cenário, não o hardware do relógio (ele não tem RTC por design).
 
+## Leituras de ambiente ausentes ou implausíveis (HDC1080)
+
+O sensor de ambiente (HDC1080, I2C endereço `0x40`) não tem CRC no barramento: um glitch (bus
+preso em nível alto/baixo) chega como dado normal, não como erro de leitura. `readEnvironmentSensor()`
+em `gateway-spool.js` descarta a leitura — sem publicar `environment.temperature_c`/
+`environment.humidity_percent` naquele ciclo — quando o registrador bruto vem `0x0000`/`0xFFFF`
+(assinatura de bus travado) ou quando o valor convertido sai da faixa de operação recomendada do
+datasheet (`-20°C` a `85°C`; `0–100%`). Isso é esperado e não afeta o restante do payload
+(`gateway.*` continua sendo publicado). Ausência ocasional dessas duas métricas não é falha do
+gateway; ausência persistente (todo ciclo) sugere fiação I2C solta ou o chip fora do endereço
+`0x40` — confira com `i2cdetect -y 1` (bus configurável via `FLUXO_HDC1080_I2C_BUS`).
+
+Se precisar identificar um chip I2C desconhecido no barramento (endereço presente, mas de origem
+incerta), use `/home/junior/tools/i2c_detective.py` (scanner somente leitura por assinatura de
+registrador de ID, já instalado na `edgewarden`) antes de assumir qual hardware está fisicamente
+conectado.
+
 ## Monitor contínuo não inicia
 
 Execute `systemctl status fluxo-gateway-monitor --no-pager` e
