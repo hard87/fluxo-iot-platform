@@ -176,51 +176,89 @@ const HDC1080_TEMPERATURE_MIN_C = -20;
 const HDC1080_TEMPERATURE_MAX_C = 85;
 const HDC1080_HUMIDITY_MIN_PERCENT = 0;
 const HDC1080_HUMIDITY_MAX_PERCENT = 100;
+const HDC1080_14_BIT_UNUSED_MASK = 0x0003;
 const HDC1080_READ_SCRIPT = `
-import json, smbus2, sys, time
+import json, smbus2, time
 
-bus = smbus2.SMBus(${HDC1080_I2C_BUS})
 addr = ${HDC1080_I2C_ADDRESS}
 
-def read_reg(pointer, delay=0.025):
-    bus.i2c_rdwr(smbus2.i2c_msg.write(addr, [pointer]))
-    time.sleep(delay)
-    read = smbus2.i2c_msg.read(addr, 2)
-    bus.i2c_rdwr(read)
-    data = list(read)
-    return (data[0] << 8) | data[1]
+def acquire():
+    bus = smbus2.SMBus(${HDC1080_I2C_BUS})
+    try:
+        # Configuration reset value: 14-bit temperature + 14-bit humidity in
+        # combined acquisition mode (MODE=1, heater disabled).
+        configure = smbus2.i2c_msg.write(addr, [0x02, 0x10, 0x00])
+        bus.i2c_rdwr(configure)
+        trigger = smbus2.i2c_msg.write(addr, [0x00])
+        bus.i2c_rdwr(trigger)
+        # Worst-case combined conversion is approximately 12.85 ms. Keep
+        # margin for scheduler latency without increasing the sample period.
+        time.sleep(0.020)
+        result = smbus2.i2c_msg.read(addr, 4)
+        bus.i2c_rdwr(result)
+        data = list(result)
+        return (data[0] << 8) | data[1], (data[2] << 8) | data[3]
+    finally:
+        bus.close()
 
-try:
-    t_raw = read_reg(0x00)
-    h_raw = read_reg(0x01)
-    temp_c = (t_raw / 65536.0) * 165.0 - 40.0
-    hum_pct = (h_raw / 65536.0) * 100.0
-    print(json.dumps({
-        "temperature_c": round(temp_c, 2),
-        "humidity_percent": round(hum_pct, 2),
-        "t_raw": t_raw,
-        "h_raw": h_raw
-    }))
-finally:
-    bus.close()
+last_error = None
+for attempt in range(3):
+    try:
+        t_raw, h_raw = acquire()
+        temp_c = (t_raw / 65536.0) * 165.0 - 40.0
+        hum_pct = (h_raw / 65536.0) * 100.0
+        print(json.dumps({
+            "temperature_c": round(temp_c, 2),
+            "humidity_percent": round(hum_pct, 2),
+            "t_raw": t_raw,
+            "h_raw": h_raw,
+            "attempts": attempt + 1
+        }))
+        break
+    except OSError as error:
+        last_error = error
+        if attempt == 2:
+            raise
+        time.sleep(0.050 * (attempt + 1))
 `;
+
+function validateEnvironmentReading(reading) {
+  if (!Number.isFinite(reading.temperature_c) || !Number.isFinite(reading.humidity_percent)) {
+    return "non-finite measurement";
+  }
+  if (!Number.isInteger(reading.t_raw) || !Number.isInteger(reading.h_raw)) {
+    return "non-integer raw measurement";
+  }
+  if (HDC1080_RAW_GLITCH_VALUES.has(reading.t_raw) || HDC1080_RAW_GLITCH_VALUES.has(reading.h_raw)) {
+    return `raw glitch signature (t_raw=${reading.t_raw}, h_raw=${reading.h_raw})`;
+  }
+  // Both 14-bit result registers reserve their two least-significant bits.
+  // Values with either bit set cannot have been produced by a valid 14-bit
+  // conversion, even if their converted temperature/humidity looks plausible.
+  if ((reading.t_raw & HDC1080_14_BIT_UNUSED_MASK) !== 0 ||
+      (reading.h_raw & HDC1080_14_BIT_UNUSED_MASK) !== 0) {
+    return `invalid 14-bit alignment (t_raw=${reading.t_raw}, h_raw=${reading.h_raw})`;
+  }
+  if (reading.temperature_c < HDC1080_TEMPERATURE_MIN_C || reading.temperature_c > HDC1080_TEMPERATURE_MAX_C) {
+    return `temperature_c=${reading.temperature_c} out of plausible range`;
+  }
+  if (reading.humidity_percent < HDC1080_HUMIDITY_MIN_PERCENT || reading.humidity_percent > HDC1080_HUMIDITY_MAX_PERCENT) {
+    return `humidity_percent=${reading.humidity_percent} out of plausible range`;
+  }
+  return null;
+}
 
 function readEnvironmentSensor() {
   try {
     const output = execFileSync("python3", ["-c", HDC1080_READ_SCRIPT], { encoding: "utf8", timeout: 2000 });
     const reading = JSON.parse(output.trim());
-    if (!Number.isFinite(reading.temperature_c) || !Number.isFinite(reading.humidity_percent)) return {};
-    if (HDC1080_RAW_GLITCH_VALUES.has(reading.t_raw) || HDC1080_RAW_GLITCH_VALUES.has(reading.h_raw)) {
-      process.stderr.write(`HDC1080 read discarded: raw glitch signature (t_raw=${reading.t_raw}, h_raw=${reading.h_raw})\n`);
+    const rejectionReason = validateEnvironmentReading(reading);
+    if (rejectionReason) {
+      process.stderr.write(`HDC1080 read discarded: ${rejectionReason}\n`);
       return {};
     }
-    if (reading.temperature_c < HDC1080_TEMPERATURE_MIN_C || reading.temperature_c > HDC1080_TEMPERATURE_MAX_C) {
-      process.stderr.write(`HDC1080 read discarded: temperature_c=${reading.temperature_c} out of plausible range\n`);
-      return {};
-    }
-    if (reading.humidity_percent < HDC1080_HUMIDITY_MIN_PERCENT || reading.humidity_percent > HDC1080_HUMIDITY_MAX_PERCENT) {
-      process.stderr.write(`HDC1080 read discarded: humidity_percent=${reading.humidity_percent} out of plausible range\n`);
-      return {};
+    if (reading.attempts > 1) {
+      process.stderr.write(`HDC1080 read recovered after ${reading.attempts} attempts\n`);
     }
     return {
       "environment.temperature_c": reading.temperature_c,
@@ -265,7 +303,7 @@ function readNetworkStats() {
   }
 }
 
-function diagnostics(queueDepth, mqttConnected, counters, timeSynchronized) {
+function diagnostics(queueDepth, mqttConnected, counters, timeSynchronized, environmentMetrics) {
   let cpuTemperatureC = null;
   try { cpuTemperatureC = Number(fs.readFileSync("/sys/class/thermal/thermal_zone0/temp", "utf8")) / 1000; } catch { }
   let diskUsedPercent = null;
@@ -287,11 +325,11 @@ function diagnostics(queueDepth, mqttConnected, counters, timeSynchronized) {
     "gateway.clock_unsynced_skips": counters.clockUnsyncedSkips,
     ...(timeSynchronized !== null ? { "gateway.time_synchronized": timeSynchronized } : {}),
     ...readNetworkStats(),
-    ...readEnvironmentSensor()
+    ...environmentMetrics
   };
 }
 
-function enqueue(mqttConnected) {
+function enqueue(mqttConnected, timeSynchronized, environmentMetrics) {
   pruneExpired();
   const before = queueStats();
   if (before.depth >= maxMessages || before.bytes >= maxBytes) {
@@ -306,7 +344,6 @@ function enqueue(mqttConnected) {
   // com um relogio que o proprio SO afirma nao estar sincronizado. timeSynchronized === null
   // (timedatectl indisponivel/erro de execucao) nao bloqueia -- e falha da ferramenta de
   // checagem, nao evidencia de relogio errado.
-  const timeSynchronized = readTimeSyncStatus();
   if (timeSynchronized === false) {
     const counters = loadCounters();
     counters.clockUnsyncedSkips += 1;
@@ -321,7 +358,7 @@ function enqueue(mqttConnected) {
     schemaVersion: 2,
     sequence,
     occurredAtUtc: new Date().toISOString(),
-    metrics: diagnostics(before.depth + 1, mqttConnected, counters, timeSynchronized)
+    metrics: diagnostics(before.depth + 1, mqttConnected, counters, timeSynchronized, environmentMetrics)
   };
   const name = `${String(sequence).padStart(20, "0")}.json`;
   const target = path.join(spool, name);
@@ -367,17 +404,34 @@ function status() {
 
 function main() {
   const command = process.argv[2];
+  if (command === "sensor") {
+    process.stdout.write(`${JSON.stringify(readEnvironmentSensor())}\n`);
+    return;
+  }
+  // I2C may take tens of milliseconds or retry a transient NACK. Do it before
+  // taking the spool lock so enqueue cannot block next/ack/status. No previous
+  // sample is cached: a failed read is omitted instead of receiving a new time.
+  let timeSynchronized = null;
+  let environmentMetrics = {};
+  if (command === "enqueue") {
+    timeSynchronized = readTimeSyncStatus();
+    if (timeSynchronized !== false) environmentMetrics = readEnvironmentSensor();
+  }
   const result = withLock(() => {
-    if (command === "enqueue") return enqueue(process.argv[3] === "connected");
+    if (command === "enqueue") return enqueue(process.argv[3] === "connected", timeSynchronized, environmentMetrics);
     if (command === "next") return next();
     if (command === "ack") return ack(process.argv[3]);
     if (command === "status") return status();
-    throw new Error("usage: gateway-spool.js enqueue <connected|disconnected> | next | ack <id> | status");
+    throw new Error("usage: gateway-spool.js enqueue <connected|disconnected> | next | ack <id> | status | sensor");
   });
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
-try { main(); } catch (error) {
-  process.stderr.write(`gateway-spool: ${error.message}\n`);
-  process.exitCode = 1;
+if (require.main === module) {
+  try { main(); } catch (error) {
+    process.stderr.write(`gateway-spool: ${error.message}\n`);
+    process.exitCode = 1;
+  }
 }
+
+module.exports = { readEnvironmentSensor, validateEnvironmentReading };
