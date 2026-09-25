@@ -2,11 +2,12 @@
 
 ## 1. Snapshot
 
-- Última revisão deste snapshot: 22 set 2026.
-- Branch observada: `main`, sincronizada com `origin/main` até `d5e0f98` (piloto controlado em VM
-  dedicada e segunda camada de defesa de NTP, seção 2.12). **Working tree local tem mudanças não
-  commitadas**: correção do sensor ambiental do Gateway Pi (seção 2.13) e este documento — ver
-  `git status` antes de assumir HEAD limpo.
+- Última revisão deste snapshot: 24 set 2026.
+- Branch observada: `main`, `origin/main` em `686d6d1` (merge do PR #39: piloto controlado em VM
+  dedicada, gate de NTP e descarte de leitura implausível do HDC1080, seções 2.12–2.13). O
+  endurecimento adicional da leitura do sensor está no PR #40, ainda aberto (seção 2.14). O
+  working tree tem apenas os certificados `*.old-localhost-only` não versionados (seção 2.10) —
+  ver `git status` antes de assumir HEAD limpo.
 - Esta revisão foi feita cruzando o documento com o `git log`; os números de teste de fases
   anteriores citados são os da última validação registrada (17/09/2026, seção 2.8) e **não foram
   reexecutados**. As seções 2.12 e 2.13 são evidência nova desta sessão (22/09/2026), verificada ao
@@ -372,8 +373,8 @@ partir do próprio relatório).
   `DynamicSecurityControlClient.cs:208` e `MqttTelemetryIngestionWorker.cs:344` carregavam a CA MQTT
   com `X509Certificate2.CreateFromPemFile` (overload que exige chave privada no mesmo arquivo — um
   `ca.crt` puro sempre falha). Corrigido para `X509CertificateLoader.LoadCertificateFromFile`.
-  **Ainda não commitado** — só no working tree local e replicado na VM; aguardando decisão do autor
-  sobre abrir PR.
+  Commitado em `d5e0f98` e mergeado em `main` via PR #39 (verificado em 24/09/2026: os dois pontos
+  usam `X509CertificateLoader`; nenhum `CreateFromPemFile` resta em `src/`).
 - Bug de infraestrutura (não de código): diretório `docker/mosquitto` bind-mounted com dono
   incompatível com o UID do container (1883) — toda escrita do dynamic-security falhava
   silenciosamente (`Permission denied`), estado só em memória. Corrigido com `chown`; vale revisar
@@ -432,6 +433,28 @@ Decisão explícita: o histórico de leituras anteriores ao fix (incluindo os pi
 nenhum `DeleteTelemetry`/`Purge` no código) e a base afetada é de piloto, não produção real com
 terceiros — mantido como registro do artefato, documentado aqui em vez de `DELETE` manual no
 Postgres.
+
+### 2.14 — Leitura do HDC1080 endurecida e fora do lock do spool (24/09/2026, PR #40 aberto)
+
+[PR #40](https://github.com/hard87/fluxo-iot-platform/pull/40), branch
+`fix/gateway-pi-hdc1080-leitura-robusta` (commit `76f766a`), **ainda não mergeado**. Em
+`gateway-spool.js`:
+
+- Leitura do HDC1080 em uma conversão combinada (config + trigger + 4 bytes) com até 3 tentativas
+  em NACK transitório de I2C.
+- Nova validação `validateEnvironmentReading`: além da assinatura de glitch (`0x0000`/`0xFFFF`) e
+  da faixa do datasheet, rejeita leituras com os 2 bits menos significativos setados (inválidas em
+  14 bits, mesmo quando o valor convertido parece plausível).
+- NTP e sensor são lidos **antes** de tomar o lock do spool, para que o I2C (dezenas de ms, ou
+  retry) não bloqueie `next`/`ack`/`status`. Leitura que falha é omitida, nunca reaproveitada de
+  ciclo anterior. Novo comando `sensor` para diagnóstico.
+- Testes `node:test` em `gateway-spool.test.js` (3/3; `node --test
+  devices/pi-gateway-reference-node/scripts/gateway-spool.test.js`).
+
+**Não validado:** não testado ao vivo na Pi `edgewarden` — só `node --check` e os testes unitários
+da validação. Hipótese, não confirmada: tirar o I2C de dentro do lock pode reduzir a colisão que
+reinicia o `fluxo-gateway-monitor` (seção 7); conferir o `NRestarts` do serviço após o deploy. Não
+substitui o retry com backoff em `diagnostics.sh` já sugerido.
 
 ## 3. Arquitetura atual
 
@@ -527,7 +550,8 @@ A fonte autoritativa dos checkboxes é o [checklist de produção controlada](ch
   telemetria — `nodered.service` (o processo que publica de fato) não reiniciou nenhuma vez no
   mesmo período (`NRestarts=0`) — mas suja o log de monitoramento que o E3.4 pede para revisar.
   Correção sugerida: `diagnostics.sh`/`monitor-continuous.sh` deveriam tolerar essa colisão
-  transitória (retry com backoff) em vez de tratá-la como falha fatal do serviço.
+  transitória (retry com backoff) em vez de tratá-la como falha fatal do serviço. Ainda aberto; o
+  PR #40 (seção 2.14) pode reduzir a janela de colisão, mas não foi medido.
 - Há um device/credencial Gateway inicial sem uso a revogar após falha de configuração local,
   conforme relatório da Fase 5.
 - Bundle principal do portal acima do warning de 500 kB; Explorer sem lazy loading.
